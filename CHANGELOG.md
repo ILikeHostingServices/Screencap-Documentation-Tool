@@ -1,8 +1,8 @@
-CHANGELOG.md v1.4.0 (Last Rev: 2026-10-01)
+CHANGELOG.md v1.4.1 (Last Rev: 2026-10-01)
 
 # Changelog
 
-Every release of the Screencap Documentation Tool, newest first. Each version is a git tag, and the same notes appear on the GitHub Releases page.
+Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
 ## v1.4.0 - Automatic per-user or system-wide install on Windows (2026-10-01)
 
@@ -29,27 +29,27 @@ Every release of the Screencap Documentation Tool, newest first. Each version is
 **Upgrade note**
 - Paste the Quick Start command again to get the new shortcuts. If you pinned the old version, unpin it and pin again from the Start Menu.
 
-## v1.2.0 - One-step installers for Windows, Linux, and macOS (2026-10-01)
+## v1.2.1 - Installer fixes and copy-and-paste Quick Start (2026-10-01)
 
 Install everything (prerequisites and the tool) with a single copy-and-paste command. Running the same command again updates the tool and never deletes your recordings or screenshots.
 
-**New**
+**Installers**
 - Windows (`install.ps1`): installs to `C:\DATA\Tools\Screencap-Documentation-Tool`, installs Python 3 and FFmpeg with winget, and adds Start Menu and Desktop shortcuts. No admin rights needed, and it works even when PowerShell's default policy blocks script files. Supports `-InstallDir`, `-NoShortcuts`, and `-SkipPrerequisites`.
 - Linux (`install.sh`, run with sudo): installs FFmpeg, Python, and Tkinter with apt, dnf, or pacman, installs to `/opt/Screencap-Documentation-Tool`, and adds `screencap` and `screencap-gui` commands plus a menu entry. `source` and `output` belong to your user, so no sudo is needed afterwards.
 - macOS (`install.sh`, no sudo): installs Homebrew if needed, plus FFmpeg, Python, and the matching Tkinter, installs to `~/Applications/Screencap-Documentation-Tool`, and adds `screencap` and `screencap-gui` commands and a double-clickable `Screencap GUI.command`.
 
-**Fixed (since v1.2.0-beta.1)**
+**Fixed (since v1.2.0)**
 - The Linux installer now picks a Python that has Tkinter, so the GUI starts.
 - The Linux installer no longer reinstalls curl.
 
 **Documentation**
 - Quick Start commands for each OS, a "review the installer first" option, and update and uninstall steps.
 
-## v1.2.0-beta.1 - Preview of the one-step installers (pre-release) (2026-10-01)
+## v1.2.0 - First one-step installers (2026-10-01)
 
-Pre-release snapshot of the first installer work. Use v1.2.0 instead: in this snapshot the Linux installer could pick a Python without Tkinter, so the GUI might not start, and it also reinstalled curl unnecessarily.
+First version of the copy-and-paste installers. Use v1.2.1 instead: in this version the Linux installer could pick a Python without Tkinter, so the GUI might not start, and it also reinstalled curl unnecessarily.
 
-**New (preview)**
+**New**
 - `install.ps1` for Windows: downloads the tool, installs Python and FFmpeg with winget, and creates shortcuts.
 - `install.sh` for Linux (`/opt`) and macOS (`~/Applications`).
 

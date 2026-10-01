@@ -1,0 +1,8 @@
+# Retired tags: <tag> <full commit SHA it pointed to when retired>
+# The "Publish releases" workflow deletes the release and tag for each line,
+# but only while the tag still points at that exact commit, so a tag that
+# has since been re-created on another commit is never touched.
+# 2026-10-01: renumbered to Major.Minor.Patch only (no pre-release suffixes):
+#   v1.2.0-beta.1 -> v1.2.0, and the old v1.2.0 -> v1.2.1
+v1.2.0-beta.1 dcad1ac646f1412017a2a28729c975e1b25d4108
+v1.2.0 97e91384a606af189d80f7a23213e6cd99919660
