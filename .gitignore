@@ -13,6 +13,8 @@ output/*
 *.webm
 *.png
 *.jpg
+# ...except the application icon
+!assets/icon.png
 *.jpeg
 *.log
 

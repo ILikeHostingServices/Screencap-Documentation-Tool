@@ -2,7 +2,7 @@
 #
 # install.sh
 # 2026-10-01
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # One-step Linux and macOS installer for the Screencap Documentation Tool.
@@ -184,9 +184,10 @@ Type=Application
 Name=$APP_NAME
 Comment=Capture a screenshot of every step in screen recordings
 Exec=/usr/local/bin/screencap-gui
-Icon=camera-photo
+Icon=$INSTALL_DIR/assets/icon.png
 Terminal=false
 Categories=Utility;Graphics;
+StartupWMClass=Screencapdoctool
 EOF
         chmod 644 /usr/share/applications/screencap-documentation-tool.desktop
     fi

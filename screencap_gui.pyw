@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-01
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -33,7 +33,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import screencap as sc  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.0.0"
+GUI_VERSION = "1.1.0"
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+# Unique taskbar identity so Windows shows this app's icon instead of grouping
+# the window under the generic Python (pythonw.exe) icon
+APP_USER_MODEL_ID = "MVTS.ScreencapDocumentationTool.GUI"
 BUILD_DATE = "2026-10-01"
 
 SENSITIVITY_PRESETS = {
@@ -758,14 +762,36 @@ class App:
         self.root.destroy()
 
 
+def set_window_icon(root):
+    """Title bar, taskbar, Alt+Tab, and Dock icon. Missing icon files are not
+    fatal; the window just keeps the default icon."""
+    png = ASSETS_DIR / "icon.png"
+    ico = ASSETS_DIR / "icon.ico"
+    try:
+        if os.name == "nt" and ico.is_file():
+            # .ico holds every size, so Windows picks a crisp one for each spot
+            root.iconbitmap(default=str(ico))
+        elif png.is_file():
+            root._icon_image = tk.PhotoImage(file=str(png))  # keep a reference
+            root.iconphoto(True, root._icon_image)
+    except tk.TclError:
+        pass
+
+
 def main():
     if os.name == "nt":
+        import ctypes
+        try:  # must be set before any window exists
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+        except Exception:
+            pass
         try:  # crisp text on high-DPI displays instead of blurry bitmap scaling
-            import ctypes
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
         except Exception:
             pass
-    root = tk.Tk()
+    # className sets the Linux WM_CLASS used to match the .desktop menu entry
+    root = tk.Tk(className="ScreencapDocTool")
+    set_window_icon(root)
     App(root)
     root.mainloop()
 
