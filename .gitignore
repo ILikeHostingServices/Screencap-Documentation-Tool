@@ -1,0 +1,36 @@
+# Recordings and generated screenshots can contain passwords, license keys,
+# internal hostnames, IP addresses, and other sensitive data. Never commit them.
+source/*
+!source/.gitkeep
+output/*
+!output/.gitkeep
+
+# Any stray media anywhere in the repo
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.png
+*.jpg
+*.jpeg
+*.log
+
+# Portable FFmpeg install (tools\ffmpeg\bin\ffmpeg.exe)
+tools/
+
+# Python / OS / editor clutter
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Local secrets, just in case
+.env
+*.key
+*.pem
