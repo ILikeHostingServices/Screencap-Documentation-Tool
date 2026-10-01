@@ -1,13 +1,14 @@
 # release.yml
 # 2026-10-01
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
-# Publishes a GitHub release for every version tag (vX.Y.Z) that does not
-# have one yet, using the annotated tag's message as the release notes.
-# Runs when a tag is pushed, and can be run by hand (Actions > Publish
-# releases > Run workflow) to backfill releases for older tags. Safe to
-# re-run: tags that already have a release are skipped.
+# 1. Creates any annotated version tag listed in .github/releases/manifest.txt
+#    that does not exist yet, using .github/releases/<tag>.md as the message.
+# 2. Publishes a GitHub release for every version tag (vX.Y.Z) that does not
+#    have one yet, using the annotated tag's message as the release notes.
+# Runs when a tag is pushed, or by hand (Actions > Publish releases > Run
+# workflow). Safe to re-run: existing tags and releases are skipped.
 
 name: Publish releases
 
@@ -23,6 +24,10 @@ concurrency:
   group: publish-releases
   cancel-in-progress: false
 
+env:
+  TAGGER_NAME: ILHS-Owner
+  TAGGER_EMAIL: 337515992+ILHS-Owner@users.noreply.github.com
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -31,14 +36,34 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create missing releases from annotated tags
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Create missing tags from the release manifest
         run: |
           set -euo pipefail
           # Re-fetch tags so annotated tags keep their messages (checkout can
           # replace the triggering tag with a lightweight one)
           git fetch --force --tags origin
+          manifest=.github/releases/manifest.txt
+          [ -f "$manifest" ] || { echo "No manifest; nothing to tag."; exit 0; }
+          grep -v '^\s*#' "$manifest" | while read -r tag sha; do
+            [ -n "${tag:-}" ] || continue
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "Tag exists: $tag"
+              continue
+            fi
+            notes=".github/releases/$tag.md"
+            [ -f "$notes" ] || { echo "::error::Missing notes file $notes"; exit 1; }
+            git cat-file -e "$sha^{commit}" || { echo "::error::$tag points at unknown commit $sha"; exit 1; }
+            echo "Creating tag: $tag -> $sha"
+            git -c user.name="$TAGGER_NAME" -c user.email="$TAGGER_EMAIL" \
+              tag -a "$tag" "$sha" --cleanup=whitespace -F "$notes"
+            git push origin "refs/tags/$tag"
+          done
+
+      - name: Create missing releases from annotated tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
           # Oldest first, version-aware, so the newest stable release ends up
           # "Latest". versionsort.suffix sorts v1.2.0-beta.1 before v1.2.0.
           for tag in $(git -c versionsort.suffix=- tag -l 'v[0-9]*' --sort=v:refname); do
@@ -54,4 +79,5 @@ jobs:
             esac
             echo "Creating release: $tag"
             gh release create "$tag" "${flags[@]}"
+            sleep 2  # keep creation order distinct so "Latest" lands on the newest
           done

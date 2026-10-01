@@ -1,0 +1,12 @@
+# Release manifest: <tag> <full commit SHA>
+# The "Publish releases" workflow creates any tag listed here that does not
+# exist yet (annotated, with .github/releases/<tag>.md as the message) and
+# then publishes a GitHub release for it. Add a line and a notes file, push,
+# then run the workflow to cut a new release.
+v1.0.0 2a4421b2420e8eb75ac501f405567ee3669e243b
+v1.1.0 0681b17872c25683837666fad95b2c101c91ca9d
+v1.1.1 a5ab3b73ddb948d870c21dd833bcd1e30b7dac25
+v1.2.0-beta.1 dcad1ac646f1412017a2a28729c975e1b25d4108
+v1.2.0 97e91384a606af189d80f7a23213e6cd99919660
+v1.3.0 054b4cbea5adaf7a98172f116c60f7b4d0b7dcbf
+v1.4.0 139dc9e1c1e16703ee587fba8cb17fbd1bdc830a
