@@ -7,7 +7,7 @@
     missing using winget (built into Windows 11). Safe to run more than once.
 
 .NOTES
-    Version: v1.0.0
+    Version: v1.1.0
     Last Edit Date: 2026-10-01
 
 .EXAMPLE
@@ -57,7 +57,17 @@ foreach ($pkg in $packages) {
     }
 }
 
+# The GUI needs Tkinter, which the python.org / winget installer includes by default
+if ((-not $failed) -and (Test-Command 'py')) {
+    & py -3 -c "import tkinter" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host '[OK]      Tkinter (needed for the GUI) is available.' -ForegroundColor Green
+    } else {
+        Write-Host '[WARN]    Tkinter is missing, so the GUI will not start. Re-run the Python installer, choose Modify, and tick "tcl/tk and IDLE". The command line version still works.' -ForegroundColor Red
+    }
+}
+
 if ($failed) { exit 1 }
 Write-Host ''
-Write-Host 'All prerequisites are installed. Put recordings in the "source" folder and run Run-Screencap.bat.' -ForegroundColor Cyan
+Write-Host 'All prerequisites are installed. Put recordings in the "source" folder and run Run-Screencap-GUI.bat.' -ForegroundColor Cyan
 exit 0

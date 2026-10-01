@@ -1,4 +1,4 @@
-README.md v1.0.0 (Last Rev: 2026-10-01)
+README.md v1.1.0 (Last Rev: 2026-10-01)
 
 # Screencap Documentation Tool
 
@@ -7,6 +7,8 @@ README.md v1.0.0 (Last Rev: 2026-10-01)
 Record your screen while you install or configure a program, drop the video in the `source` folder, and this tool pulls out a screenshot of every step for you. No more scrubbing through a recording to find the right frames.
 
 It uses [FFmpeg](https://ffmpeg.org/) (free, open source) to measure how much the picture changes from one moment to the next. When something on screen changes (a new window, a dialog, a page in a setup wizard), that marks the boundary between two steps. For each step the tool saves one full resolution screenshot and builds a Markdown file (`steps.md`) listing the steps in order with timestamps and a spot for your notes, ready to turn into documentation.
+
+Use it from a desktop GUI (`Run-Screencap-GUI.bat`) or the command line (`screencap.py`). Both use the same engine and produce the same output.
 
 Supported video formats: `.mp4`, `.mov`, `.mkv` (case does not matter).
 
@@ -24,14 +26,17 @@ Think of it like a monitoring system that alerts on state changes rather than po
 
 | Path | Purpose |
 | --- | --- |
-| `screencap.py` | The tool itself. Run with `--help` for every option. |
-| `Run-Screencap.bat` | Windows double-click launcher. Passes any arguments through to `screencap.py`. |
+| `screencap.py` | The detection engine and command line tool. Run with `--help` for every option. |
+| `screencap_gui.pyw` | Desktop GUI (Tkinter, included with Python). Runs without a console window. |
+| `Run-Screencap-GUI.bat` | Windows double-click launcher for the GUI. |
+| `Run-Screencap.bat` | Windows double-click launcher for the command line version. Passes any arguments through to `screencap.py`. |
 | `Install-Prerequisites.ps1` | Windows 11 helper that installs Python 3 and FFmpeg with `winget` if missing. |
 | `source/` | Put your recordings here. Contents are git-ignored. |
 | `output/` | Screenshots land here, one subfolder per video. Contents are git-ignored. |
 | `output/screencap.log` | Full log of every run, including debug detail. |
 | `output/<video>/steps.md` | Ordered list of steps with screenshots, timestamps, and a notes placeholder. |
 | `output/<video>/steps.json` | Same data in machine-readable form, plus the settings used. |
+| `%APPDATA%\ScreencapDocTool\gui_settings.json` | GUI settings (last folders and detection values). Stored in your user profile, not the repo. Delete it to reset the GUI. |
 | `tools/ffmpeg/bin/` | Optional. Put a portable `ffmpeg.exe` and `ffprobe.exe` here if you cannot install FFmpeg system-wide. Git-ignored. |
 
 ### Useful Commands And Switches
@@ -68,12 +73,27 @@ Exit codes: `0` success, `1` one or more videos failed, `2` setup problem (FFmpe
    powershell -ExecutionPolicy Bypass -File .\Install-Prerequisites.ps1
    ```
    This installs Python 3 (`Python.Python.3.12`) and FFmpeg (`Gyan.FFmpeg`) with `winget` if they are not already present. If it says something was not detected yet, close PowerShell, open a new window, and run it again so the updated PATH is picked up.
-3. Copy your `.mp4`, `.mov`, or `.mkv` recordings into the `source` folder.
-4. Double-click `Run-Screencap.bat`, or from a terminal:
-   ```powershell
-   py -3 .\screencap.py
-   ```
-5. Open `output\<video name>\steps.md` (VS Code, Obsidian, Typora, or any Markdown viewer shows the images inline) and start writing.
+3. Copy your `.mp4`, `.mov`, or `.mkv` recordings into the `source` folder (or point the GUI at the folder your recorder saves to).
+4. Double-click `Run-Screencap-GUI.bat`, then click **Process All**.
+5. Review the screenshots in the **Preview** tab, then click **Open steps.md** (VS Code, Obsidian, Typora, or any Markdown viewer shows the images inline) and start writing.
+
+Prefer the command line? Double-click `Run-Screencap.bat`, or from a terminal:
+
+```powershell
+py -3 .\screencap.py
+```
+
+### Using The GUI
+
+| Area | What it does |
+| --- | --- |
+| **Folders** | Source and output folders. **Browse...** to change, **Open** to view in Explorer. **Include subfolders** scans the source recursively. |
+| **Videos** | Every recording found, with its status (New, Queued, Processing %, Done, Failed, Cancelled) and step count. Ctrl+click or Shift+click to select several, then **Process Selected**; or **Process All**. Double-click a row to open its output folder. **Cancel** stops after the current FFmpeg step. |
+| **Detection Settings** | **Sensitivity** presets (High / Normal / Low) fill in the threshold, or type your own. **Screenshot taken** picks finished state (default) or right after each change. Every option in the Useful Commands And Switches table above is available here. **Dry run** counts steps without saving, handy for tuning. **Reset Defaults** restores the recommended values. |
+| **Preview tab** | Step list and a scaled preview of each screenshot. **< Prev / Next >** to page through, double-click a step or **Open Image** to view full size, **Open steps.md** to start writing. |
+| **Log tab** | Live log of the run. Errors show in red. The same log is appended to `output\screencap.log`. |
+
+Settings are saved when you process or close the window and restored next time.
 
 ### Linux / macOS
 
@@ -131,5 +151,8 @@ Logs: every run appends to `output/screencap.log` (timestamps in `YYYY-MM-DD HH:
 | `ffprobe failed: ... moov atom not found` | The `.mp4`/`.mov` was not finalized (recording crashed or is still being written). Record to `.mkv` in OBS to avoid this, then remux. |
 | `no video stream found` | The file is audio-only or damaged. |
 | Video is found but `0 raw changes` | Threshold too high for this recording. Try `--threshold 0.002`. |
+| Double-clicking `Run-Screencap-GUI.bat` does nothing | The GUI hit an error before its window opened (GUI apps have no console to show it). Run `py -3 .\screencap_gui.pyw` from a terminal to see the error. |
+| `No module named 'tkinter'` | Python was installed without Tcl/Tk. Re-run the python.org installer, choose **Modify**, and tick **tcl/tk and IDLE**. The winget package includes it by default. |
+| GUI preview says `Preview unavailable` | Previews are rendered with FFmpeg; make sure FFmpeg is found (the Log tab shows `Using FFmpeg: ...` at startup). |
 | Very slow on long 4K recordings | Decoding is the bottleneck. Keep `--analyze-fps` at 5 or lower it to 2. |
 | A video failed but others succeeded (exit code 1) | Each video is processed independently; check `output/screencap.log` for the `FAILED` line and the reason. |
