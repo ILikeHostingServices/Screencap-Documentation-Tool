@@ -1,4 +1,4 @@
-README.md v1.2.0 (Last Rev: 2026-10-01)
+README.md v1.3.0 (Last Rev: 2026-10-01)
 
 # Screencap Documentation Tool
 
@@ -27,7 +27,9 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | --- | --- |
 | `Run-Screencap-GUI.bat` | Double-click to start the GUI on Windows. |
 | `Run-Screencap.bat` | Double-click to run the command line version on Windows. Passes any arguments through to `screencap.py`. |
-| `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing. |
+| `install.ps1` | One-step Windows installer used by the Quick Start command. |
+| `install.sh` | One-step Linux and macOS installer used by the Quick Start commands. |
+| `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing. Called by `install.ps1`. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
 | `screencap.py` | The detection engine and command line tool. |
 | `source/` | Default folder for your recordings. |
@@ -43,7 +45,7 @@ Each run creates these files in the output folder:
 | `output/<video>/steps.json` | The same data in machine-readable form, plus the settings used. |
 | `output/screencap.log` | Detailed log of every run. Check here first when something goes wrong. |
 
-The GUI remembers your last folders and settings in `%APPDATA%\ScreencapDocTool\gui_settings.json` (outside the repo). Delete that file to reset the GUI.
+The GUI remembers your last folders and settings in `%APPDATA%\ScreencapDocTool\gui_settings.json` on Windows, or `~/.config/screencap-doc-tool/gui_settings.json` on Linux and macOS (outside the install folder). Delete that file to reset the GUI.
 
 Switches worth knowing for diagnostics (the full list is in the [Command Line Reference](#command-line-reference)):
 
@@ -53,29 +55,66 @@ Switches worth knowing for diagnostics (the full list is in the [Command Line Re
 
 ## Quick Start
 
+Each command below is a single copy and paste. It installs the prerequisites, downloads the latest version of the tool from GitHub, and sets up launchers. Running the same command again later updates the tool and keeps your recordings and screenshots.
+
 ### Windows 11
 
-1. Download or clone this repository, for example to `C:\Tools\Screencap-Documentation-Tool`.
-2. Open PowerShell in that folder and install the prerequisites:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\Install-Prerequisites.ps1
-   ```
-   This installs Python 3 (`Python.Python.3.12`) and FFmpeg (`Gyan.FFmpeg`) if they are not already present. If it reports that something was not detected yet, close PowerShell, open a new window, and run it again so the updated PATH is picked up.
-3. Copy your recordings into the `source` folder, or point the GUI at the folder your recorder already saves to.
-4. Double-click `Run-Screencap-GUI.bat`, then click **Process All**.
-5. Review the results in the **Preview** tab, then click **Open steps.md** and start writing. VS Code, Obsidian, Typora, or any Markdown viewer shows the screenshots inline.
-
-Prefer the command line? Double-click `Run-Screencap.bat`, or run:
+Paste into a normal (not Administrator) PowerShell window:
 
 ```powershell
-py -3 .\screencap.py
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1)))
 ```
 
-### Linux / macOS
+This installs the tool in `C:\DATA\Tools\Screencap-Documentation-Tool`, installs Python 3 and FFmpeg with `winget` if they are missing, and adds a **Screencap Documentation Tool** shortcut to the Start Menu and Desktop. No admin rights are needed.
+
+To install somewhere else, add `-InstallDir` to the end of the command, for example `... install.ps1))) -InstallDir 'D:\Tools\Screencap'`. Add `-NoShortcuts` to skip the shortcuts.
+
+If the installer reports that a prerequisite was not detected yet, close PowerShell, open a new window, and paste the command again. Windows only picks up newly installed programs in new windows.
+
+### Linux
+
+Paste into a terminal (works on Debian/Ubuntu, Fedora, and Arch based distributions):
 
 ```bash
-sudo apt install ffmpeg python3      # macOS: brew install ffmpeg python
-python3 screencap.py                 # or: python3 screencap_gui.pyw
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
+```
+
+This installs FFmpeg, Python 3, and Tkinter with your package manager, installs the tool in `/opt/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands plus an application menu entry. The program files are owned by root; the `source` and `output` folders belong to you, so you can use the tool without `sudo`.
+
+### macOS
+
+Paste into Terminal as your normal user (no `sudo`):
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
+```
+
+This installs [Homebrew](https://brew.sh) if you do not have it (it will ask for your password), installs FFmpeg, Python, and Tkinter with Homebrew, installs the tool in `~/Applications/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands. In Finder you can also double-click `Screencap GUI.command` in that folder.
+
+`~/Applications` is the standard macOS location for apps installed for just your user account, so no admin rights are needed after Homebrew is set up. To use a different folder on Linux or macOS, put `SCREENCAP_DIR=/your/path` in front of `bash`, for example `sudo SCREENCAP_DIR=/srv/screencap bash -c "..."`.
+
+### First Run
+
+1. Put your recordings in the `source` folder inside the install folder, or point the GUI at the folder your recorder already saves to.
+2. Start the GUI (Start Menu shortcut on Windows, `screencap-gui` on Linux and macOS) and click **Process All**.
+3. Review the results in the **Preview** tab, then click **Open steps.md** and start writing. VS Code, Obsidian, Typora, or any Markdown viewer shows the screenshots inline.
+
+Prefer the command line? Run `screencap` on Linux and macOS, or `Run-Screencap.bat` in the install folder on Windows.
+
+### Reviewing The Installer First
+
+Piping a script from the internet straight into a shell means trusting it. To read it before running it, download it, review it, then run the local copy:
+
+```powershell
+irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1 -OutFile install.ps1
+notepad install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+```bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh
+less install.sh
+sudo bash install.sh        # macOS: bash install.sh
 ```
 
 ## After Install Configuration
@@ -121,13 +160,36 @@ git status --short
 
 and confirm that no media, logs, or files containing secrets are listed. Also review, and blur or redact, screenshots before publishing documentation built from them.
 
+### Updating And Uninstalling
+
+**Update:** paste the same Quick Start command again. It downloads the latest version over the top of the old one. Nothing in `source` or `output` is deleted, and GUI settings are kept.
+
+**Uninstall:** move any recordings or screenshots you want to keep out of the install folder first, because removing the folder deletes them.
+
+```powershell
+# Windows
+Remove-Item -Recurse -Force 'C:\DATA\Tools\Screencap-Documentation-Tool', "$env:APPDATA\ScreencapDocTool"
+Remove-Item -Force "$([Environment]::GetFolderPath('Programs'))\Screencap Documentation Tool.lnk", "$([Environment]::GetFolderPath('Desktop'))\Screencap Documentation Tool.lnk"
+```
+
+```bash
+# Linux
+sudo rm -rf /opt/Screencap-Documentation-Tool /usr/local/bin/screencap /usr/local/bin/screencap-gui /usr/share/applications/screencap-documentation-tool.desktop
+rm -rf ~/.config/screencap-doc-tool
+
+# macOS
+rm -rf ~/Applications/Screencap-Documentation-Tool "$(brew --prefix)/bin/screencap" "$(brew --prefix)/bin/screencap-gui" ~/.config/screencap-doc-tool
+```
+
+Python and FFmpeg are left installed because other programs may use them. Remove them with `winget uninstall`, your Linux package manager, or `brew uninstall` if you no longer need them.
+
 ### Portable FFmpeg (No Admin Rights)
 
 If you cannot install FFmpeg system-wide, download a Windows build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases), extract it, and copy `ffmpeg.exe` and `ffprobe.exe` into `tools\ffmpeg\bin\` inside this folder. The tool checks there before it checks the PATH.
 
 ### Command Line Reference
 
-Everything in the GUI is also available as a switch, either with `py -3 .\screencap.py` or through `Run-Screencap.bat` (for example `Run-Screencap.bat --threshold 0.01 --force`).
+Everything in the GUI is also available as a switch. On Linux and macOS use the `screencap` command (for example `screencap --threshold 0.01 --force`). On Windows run `Run-Screencap.bat` from the install folder, or `py -3 .\screencap.py`, with the same switches.
 
 | Switch | Default | What it does |
 | --- | --- | --- |
@@ -159,16 +221,20 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 
 | Symptom | Cause / Fix |
 | --- | --- |
-| `FFmpeg was not found` (exit code 2) | FFmpeg is not installed or not on the PATH. Run `Install-Prerequisites.ps1`, then open a **new** terminal. Alternatively, use a portable copy in `tools\ffmpeg\bin\` or pass `--ffmpeg` / `--ffprobe`. |
-| `Python was not found; run without arguments to install from the Microsoft Store` | This is the Windows "App execution alias" placeholder, not real Python. Run `Install-Prerequisites.ps1`, or turn the alias off in Settings > Apps > Advanced app settings > App execution aliases. |
-| `running scripts is disabled on this system` | PowerShell execution policy is blocking the script. Use the `powershell -ExecutionPolicy Bypass -File .\Install-Prerequisites.ps1` form from the Quick Start. |
+| `Run this installer with sudo on Linux` | The Linux installer needs root to install packages and write to `/opt`. Use the `sudo bash -c ...` command from the Quick Start. |
+| `Do not use sudo on macOS` | Homebrew refuses to run as root. Run the macOS command without `sudo`. |
+| `dnf could not install ...` | On RHEL, Rocky, or Alma Linux, FFmpeg comes from EPEL and RPM Fusion. Enable those repositories, then run the installer again. |
+| `Unsupported package manager` | Your distribution is not one the installer knows. Install `ffmpeg`, Python 3.8+, and Python Tkinter yourself, then run the installer again; it will skip straight to installing the tool. |
+| `FFmpeg was not found` (exit code 2) | FFmpeg is not installed or not on the PATH. Open a **new** terminal and paste the Quick Start command again. Alternatively, use a portable copy in `tools\ffmpeg\bin\` or pass `--ffmpeg` / `--ffprobe`. |
+| `Python was not found; run without arguments to install from the Microsoft Store` | This is the Windows "App execution alias" placeholder, not real Python. Paste the Quick Start command again to install real Python, or turn the alias off in Settings > Apps > Advanced app settings > App execution aliases. |
+| `running scripts is disabled on this system` | PowerShell execution policy is blocking the script. The Quick Start command is not affected. For a local script, use the `powershell -ExecutionPolicy Bypass -File .\install.ps1` form shown in [Reviewing The Installer First](#reviewing-the-installer-first). |
 | `No module named 'tkinter'` | Python was installed without Tcl/Tk, which the GUI needs. Re-run the python.org installer, choose **Modify**, and tick **tcl/tk and IDLE**. The winget package includes it by default. |
 
 ### GUI Problems
 
 | Symptom | Cause / Fix |
 | --- | --- |
-| Double-clicking `Run-Screencap-GUI.bat` does nothing | The GUI hit an error before its window opened, and GUI apps have no console to show it. Run `py -3 .\screencap_gui.pyw` from a terminal to see the error. |
+| Double-clicking `Run-Screencap-GUI.bat` does nothing | The GUI hit an error before its window opened, and GUI apps have no console to show it. Run `py -3 C:\DATA\Tools\Screencap-Documentation-Tool\screencap_gui.pyw` from a terminal to see the error. |
 | Preview says `Preview unavailable` | Previews are drawn with FFmpeg. Check that the **Log** tab shows `Using FFmpeg: ...` at startup. |
 
 ### Processing Problems

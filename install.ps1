@@ -60,7 +60,10 @@ try {
     Write-Step "Installing to $InstallDir"
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Copy-Item -Path (Join-Path $top.FullName '*') -Destination $InstallDir -Recurse -Force
-    Get-ChildItem -Path $InstallDir -Recurse -File | Unblock-File
+    if ($env:OS -eq 'Windows_NT') {
+        # Clear the "downloaded from the internet" flag so scripts run without prompts
+        Get-ChildItem -Path $InstallDir -Recurse -File | Unblock-File
+    }
     foreach ($required in 'screencap.py', 'screencap_gui.pyw', 'Run-Screencap-GUI.bat') {
         if (-not (Test-Path (Join-Path $InstallDir $required))) { throw "Install incomplete: $required is missing from $InstallDir" }
     }
@@ -104,7 +107,8 @@ if (-not $NoShortcuts) {
 Write-Host ''
 if ($prereqOk) {
     Write-Host "$AppName is installed in $InstallDir" -ForegroundColor Green
-    Write-Host "Start it from the Start Menu or Desktop shortcut, or run: $InstallDir\Run-Screencap-GUI.bat"
+    if (-not $NoShortcuts) { Write-Host "Start it from the '$AppName' Start Menu or Desktop shortcut." }
+    Write-Host "Or run: $InstallDir\Run-Screencap-GUI.bat"
     Write-Host "Put recordings in $InstallDir\source (or choose any folder in the GUI)."
 } else {
     Write-Host "$AppName was downloaded to $InstallDir, but a prerequisite still needs attention (see the messages above)." -ForegroundColor Yellow
