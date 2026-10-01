@@ -1,0 +1,56 @@
+# release.yml
+# 2026-10-01
+# Version: v1.0.0
+#
+# PURPOSE:
+# Publishes a GitHub release for every version tag (vX.Y.Z) that does not
+# have one yet, using the annotated tag's message as the release notes.
+# Runs when a tag is pushed, and can be run by hand (Actions > Publish
+# releases > Run workflow) to backfill releases for older tags. Safe to
+# re-run: tags that already have a release are skipped.
+
+name: Publish releases
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-releases
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create missing releases from annotated tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Re-fetch tags so annotated tags keep their messages (checkout can
+          # replace the triggering tag with a lightweight one)
+          git fetch --force --tags origin
+          # Oldest first, version-aware, so the newest stable release ends up "Latest"
+          for tag in $(git tag -l 'v[0-9]*' --sort=v:refname); do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release exists: $tag"
+              continue
+            fi
+            subject="$(git tag -l --format='%(contents:subject)' "$tag")"
+            git tag -l --format='%(contents:body)' "$tag" > notes.md
+            flags=(--verify-tag --title "$tag - $subject" --notes-file notes.md)
+            case "$tag" in
+              *-*) flags+=(--prerelease --latest=false) ;;  # e.g. v1.2.0-beta.1
+            esac
+            echo "Creating release: $tag"
+            gh release create "$tag" "${flags[@]}"
+          done
