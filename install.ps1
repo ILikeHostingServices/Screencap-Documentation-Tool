@@ -9,8 +9,13 @@
     shortcuts for the GUI. Safe to re-run to update; your source and output
     folders are kept.
 
+    Install scope is picked automatically:
+      - Normal PowerShell window        -> just the current user (no admin needed)
+      - Administrator PowerShell window -> all users (system-wide)
+    Override with -UserOnly or -SystemWide.
+
 .NOTES
-    Version: v1.1.0
+    Version: v1.2.0
     Last Edit Date: 2026-10-01
 
 .EXAMPLE
@@ -18,6 +23,9 @@
 
 .EXAMPLE
     .\install.ps1 -InstallDir 'D:\Tools\Screencap-Documentation-Tool' -NoShortcuts
+
+.EXAMPLE
+    .\install.ps1 -SystemWide    # from an Administrator PowerShell window
 #>
 
 [CmdletBinding()]
@@ -29,7 +37,11 @@ param(
     # Skip creating Start Menu and Desktop shortcuts
     [switch]$NoShortcuts,
     # Only download the program; do not install Python or FFmpeg
-    [switch]$SkipPrerequisites
+    [switch]$SkipPrerequisites,
+    # Install Python, FFmpeg, and shortcuts for all users (needs Administrator)
+    [switch]$SystemWide,
+    # Install for the current user only, even from an Administrator window
+    [switch]$UserOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +51,30 @@ $AppName = 'Screencap Documentation Tool'
 $AppUserModelId = 'ILHS.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
 
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
+
+# 0. Decide the install scope. Errors use 'throw', never 'exit', because the
+#    Quick Start runs this as a script block and 'exit' would close the window.
+if ($SystemWide -and $UserOnly) { throw 'Use either -SystemWide or -UserOnly, not both.' }
+$isAdmin = $false
+if ($env:OS -eq 'Windows_NT') {
+    $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+if ($SystemWide) {
+    if (-not $isAdmin) {
+        throw 'A system-wide install needs an Administrator PowerShell window. Right-click Start > "Terminal (Admin)" and paste the command again.'
+    }
+    $scope = 'machine'
+} elseif ($UserOnly) {
+    $scope = 'user'
+} else {
+    $scope = if ($isAdmin) { 'machine' } else { 'user' }
+}
+if ($scope -eq 'machine') {
+    Write-Step 'Install scope: ALL USERS (running as Administrator). Use -UserOnly to install just for you.'
+} else {
+    Write-Step 'Install scope: CURRENT USER ONLY. Run from an Administrator window (or add -SystemWide) to install for everyone.'
+}
 
 # GitHub requires TLS 1.2; older PowerShell 5.1 defaults may not include it
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -78,11 +114,24 @@ finally {
 $prereqOk = $true
 if (-not $SkipPrerequisites) {
     Write-Step 'Checking prerequisites (Python 3, FFmpeg)'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $InstallDir 'Install-Prerequisites.ps1')
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $InstallDir 'Install-Prerequisites.ps1') -Scope $scope
     $prereqOk = ($LASTEXITCODE -eq 0)
 }
 
-# 4. Shortcuts (per user, no admin rights needed)
+# 3b. System-wide: make sure every user can save recordings and screenshots in
+#     the default folders. S-1-5-32-545 is the built-in Users group (the SID
+#     works on any Windows language, unlike the name "Users").
+if ($scope -eq 'machine') {
+    foreach ($folder in 'source', 'output') {
+        $path = Join-Path $InstallDir $folder
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
+        & icacls.exe $path /grant '*S-1-5-32-545:(OI)(CI)M' /Q | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Host "    Could not grant Users write access to $path" -ForegroundColor Yellow }
+    }
+}
+
+# 4. Shortcuts. User scope: your Start Menu and Desktop (no admin needed).
+#    System-wide: the All Users Start Menu and Public Desktop.
 if (-not $NoShortcuts) {
     Write-Step 'Creating Start Menu and Desktop shortcuts'
 
@@ -167,10 +216,21 @@ namespace ScreencapInstall {
     }
 
     $shell = New-Object -ComObject WScript.Shell
-    $targets = @(
+    $userLinks = @(
         (Join-Path ([Environment]::GetFolderPath('Programs')) "$AppName.lnk"),
         (Join-Path ([Environment]::GetFolderPath('Desktop')) "$AppName.lnk")
     )
+    if ($scope -eq 'machine') {
+        $targets = @(
+            (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) "$AppName.lnk"),
+            (Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "$AppName.lnk")
+        )
+        # Remove this account's per-user shortcuts from an earlier just-me
+        # install so the app does not show up twice
+        foreach ($old in $userLinks) { Remove-Item -Path $old -Force -ErrorAction SilentlyContinue }
+    } else {
+        $targets = $userLinks
+    }
     foreach ($lnkPath in $targets) {
         try {
             $lnk = $shell.CreateShortcut($lnkPath)
@@ -200,7 +260,8 @@ namespace ScreencapInstall {
 
 Write-Host ''
 if ($prereqOk) {
-    Write-Host "$AppName is installed in $InstallDir" -ForegroundColor Green
+    $who = if ($scope -eq 'machine') { 'for all users' } else { 'for the current user' }
+    Write-Host "$AppName is installed $who in $InstallDir" -ForegroundColor Green
     if (-not $NoShortcuts) { Write-Host "Start it from the '$AppName' Start Menu or Desktop shortcut." }
     Write-Host "Or run: $InstallDir\Run-Screencap-GUI.bat"
     Write-Host "Put recordings in $InstallDir\source (or choose any folder in the GUI)."
