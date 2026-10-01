@@ -34,7 +34,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `screencap.py` | The detection engine and command line tool. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
 | `CHANGELOG.md` | What changed in every release. |
-| `.github/workflows/release.yml` | Publishes a GitHub release automatically whenever a version tag is pushed. |
+| `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one. |
 | `source/` | Default folder for your recordings. |
 | `output/` | Default folder for results, one subfolder per recording. |
 | `tools/ffmpeg/bin/` | Optional spot for a portable `ffmpeg.exe` and `ffprobe.exe` (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)). |
@@ -219,6 +219,8 @@ winget uninstall --id Python.Python.3.12 --scope user
 ### Releases And Versions
 
 Each release is an annotated git tag (`v1.4.0`, for example) with notes on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) and in `CHANGELOG.md`. The tag is the version of the project as a whole. Each script also carries its own version in its header, which only changes when that script changes.
+
+To cut a new release, add a `vX.Y.Z <commit SHA>` line to `.github/releases/manifest.txt` and the notes in `.github/releases/vX.Y.Z.md`, push, then run **Actions > Publish releases > Run workflow** on GitHub. The workflow creates the annotated tag and the release; anything that already exists is skipped.
 
 The Quick Start commands always install the latest code on the default branch. To install a specific release instead, for example to keep several PCs on the same version:
 
