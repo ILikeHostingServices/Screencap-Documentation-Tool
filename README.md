@@ -1,4 +1,4 @@
-README.md v1.3.0 (Last Rev: 2026-10-01)
+README.md v1.4.0 (Last Rev: 2026-10-01)
 
 # Screencap Documentation Tool
 
@@ -32,6 +32,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing. Called by `install.ps1`. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
 | `screencap.py` | The detection engine and command line tool. |
+| `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
 | `source/` | Default folder for your recordings. |
 | `output/` | Default folder for results, one subfolder per recording. |
 | `tools/ffmpeg/bin/` | Optional spot for a portable `ffmpeg.exe` and `ffprobe.exe` (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)). |
@@ -65,7 +66,7 @@ Paste into a normal (not Administrator) PowerShell window:
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1)))
 ```
 
-This installs the tool in `C:\DATA\Tools\Screencap-Documentation-Tool`, installs Python 3 and FFmpeg with `winget` if they are missing, and adds a **Screencap Documentation Tool** shortcut to the Start Menu and Desktop. No admin rights are needed.
+This installs the tool in `C:\DATA\Tools\Screencap-Documentation-Tool`, installs Python 3 and FFmpeg with `winget` if they are missing, and adds a **Screencap Documentation Tool** shortcut to the Start Menu and Desktop. No admin rights are needed. To pin the app to the taskbar, right-click the Start Menu entry and choose **Pin to taskbar** (or right-click the running app's taskbar button).
 
 To install somewhere else, add `-InstallDir` to the end of the command, for example `... install.ps1))) -InstallDir 'D:\Tools\Screencap'`. Add `-NoShortcuts` to skip the shortcuts.
 
@@ -183,6 +184,17 @@ rm -rf ~/Applications/Screencap-Documentation-Tool "$(brew --prefix)/bin/screenc
 
 Python and FFmpeg are left installed because other programs may use them. Remove them with `winget uninstall`, your Linux package manager, or `brew uninstall` if you no longer need them.
 
+### System-Wide FFmpeg On Windows (Optional)
+
+By default `winget` installs FFmpeg for your user account only, which needs no admin rights and is all a single-user workstation needs. If several people use the same PC, or you manage machines with an RMM or Intune that runs as SYSTEM, install it for everyone instead from an **Administrator** PowerShell window:
+
+```powershell
+winget install --id Gyan.FFmpeg -e --scope machine
+winget uninstall --id Gyan.FFmpeg --scope user   # optional: remove the per-user copy
+```
+
+Open a new window afterwards so the updated PATH is picked up. The tool finds FFmpeg either way.
+
 ### Portable FFmpeg (No Admin Rights)
 
 If you cannot install FFmpeg system-wide, download a Windows build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases), extract it, and copy `ffmpeg.exe` and `ffprobe.exe` into `tools\ffmpeg\bin\` inside this folder. The tool checks there before it checks the PATH.
@@ -235,6 +247,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | Symptom | Cause / Fix |
 | --- | --- |
 | Double-clicking `Run-Screencap-GUI.bat` does nothing | The GUI hit an error before its window opened, and GUI apps have no console to show it. Run `py -3 C:\DATA\Tools\Screencap-Documentation-Tool\screencap_gui.pyw` from a terminal to see the error. |
+| Taskbar shows the Python icon instead of the app icon | The shortcut was created by an older installer. Paste the Quick Start command again to recreate it, unpin the old taskbar entry, and pin the app again from the Start Menu. |
 | Preview says `Preview unavailable` | Previews are drawn with FFmpeg. Check that the **Log** tab shows `Using FFmpeg: ...` at startup. |
 
 ### Processing Problems

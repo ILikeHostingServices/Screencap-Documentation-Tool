@@ -10,7 +10,7 @@
     folders are kept.
 
 .NOTES
-    Version: v1.0.0
+    Version: v1.1.0
     Last Edit Date: 2026-10-01
 
 .EXAMPLE
@@ -36,6 +36,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is far faster without the progress bar in PowerShell 5.1
 $Repo = 'ILikeHostingServices/Screencap-Documentation-Tool'
 $AppName = 'Screencap Documentation Tool'
+$AppUserModelId = 'ILHS.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
 
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
 
@@ -84,6 +85,87 @@ if (-not $SkipPrerequisites) {
 # 4. Shortcuts (per user, no admin rights needed)
 if (-not $NoShortcuts) {
     Write-Step 'Creating Start Menu and Desktop shortcuts'
+
+    # Pick up PATH changes from the prerequisite install without a new window
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+
+    # Point shortcuts at the Python launcher (pyw.exe) rather than the .bat:
+    # Windows will not pin a .bat shortcut to the taskbar, and pyw.exe keeps
+    # working when Python is upgraded. Fall back to the .bat if pyw is missing.
+    $pyw = Get-Command pyw.exe -ErrorAction SilentlyContinue
+    $gui = Join-Path $InstallDir 'screencap_gui.pyw'
+    $icon = Join-Path $InstallDir 'assets\icon.ico'
+
+    # Give each shortcut the same AppUserModelID the GUI window sets, so the
+    # running window and a pinned shortcut share one taskbar button and icon.
+    $appIdSupported = $false
+    try {
+        if (-not ('ScreencapInstall.ShortcutAppId' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace ScreencapInstall {
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    public struct PropertyKey { public Guid fmtid; public uint pid; }
+
+    [StructLayout(LayoutKind.Explicit, Size = 24)]
+    public struct PropVariant {
+        [FieldOffset(0)] public ushort vt;
+        [FieldOffset(8)] public IntPtr pointer;
+    }
+
+    [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPropertyStore {
+        [PreserveSig] int GetCount(out uint count);
+        [PreserveSig] int GetAt(uint index, out PropertyKey key);
+        [PreserveSig] int GetValue(ref PropertyKey key, out PropVariant value);
+        [PreserveSig] int SetValue(ref PropertyKey key, ref PropVariant value);
+        [PreserveSig] int Commit();
+    }
+
+    [ComImport, Guid("0000010b-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPersistFile {
+        void GetClassID(out Guid classId);
+        [PreserveSig] int IsDirty();
+        void Load([MarshalAs(UnmanagedType.LPWStr)] string fileName, uint mode);
+        void Save([MarshalAs(UnmanagedType.LPWStr)] string fileName, [MarshalAs(UnmanagedType.Bool)] bool remember);
+        void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string fileName);
+        void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string fileName);
+    }
+
+    [ComImport, Guid("00021401-0000-0000-C000-000000000046")]
+    class CShellLink { }
+
+    public static class ShortcutAppId {
+        public static void Set(string lnkPath, string appId) {
+            object link = new CShellLink();
+            IPersistFile file = (IPersistFile)link;
+            file.Load(lnkPath, 2); // STGM_READWRITE
+            IPropertyStore store = (IPropertyStore)link;
+            PropertyKey key = new PropertyKey();
+            key.fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"); // PKEY_AppUserModel_ID
+            key.pid = 5;
+            PropVariant value = new PropVariant();
+            value.vt = 31; // VT_LPWSTR
+            value.pointer = Marshal.StringToCoTaskMemUni(appId);
+            try {
+                Marshal.ThrowExceptionForHR(store.SetValue(ref key, ref value));
+                Marshal.ThrowExceptionForHR(store.Commit());
+            } finally {
+                Marshal.FreeCoTaskMem(value.pointer);
+            }
+            file.Save(lnkPath, true);
+            Marshal.ReleaseComObject(link);
+        }
+    }
+}
+'@
+        }
+        $appIdSupported = $true
+    } catch {
+        Write-Host "    Taskbar grouping setup skipped: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
     $shell = New-Object -ComObject WScript.Shell
     $targets = @(
         (Join-Path ([Environment]::GetFolderPath('Programs')) "$AppName.lnk"),
@@ -92,12 +174,24 @@ if (-not $NoShortcuts) {
     foreach ($lnkPath in $targets) {
         try {
             $lnk = $shell.CreateShortcut($lnkPath)
-            $lnk.TargetPath = Join-Path $InstallDir 'Run-Screencap-GUI.bat'
+            if ($pyw) {
+                $lnk.TargetPath = $pyw.Source
+                $lnk.Arguments = "-3 `"$gui`""
+            } else {
+                $lnk.TargetPath = Join-Path $InstallDir 'Run-Screencap-GUI.bat'
+                $lnk.WindowStyle = 7  # minimized, so the launcher console does not flash up
+            }
             $lnk.WorkingDirectory = $InstallDir
-            $lnk.WindowStyle = 7  # minimized, so the launcher console does not flash up
             $lnk.Description = 'Capture a screenshot of every step in screen recordings'
-            $lnk.IconLocation = "$env:SystemRoot\System32\imageres.dll,67"
+            $lnk.IconLocation = if (Test-Path $icon) { "$icon,0" } else { "$env:SystemRoot\System32\imageres.dll,67" }
             $lnk.Save()
+            if ($appIdSupported) {
+                try {
+                    [ScreencapInstall.ShortcutAppId]::Set($lnkPath, $AppUserModelId)
+                } catch {
+                    Write-Host "    Shortcut created, but taskbar grouping could not be set: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
         } catch {
             Write-Host "    Could not create $lnkPath : $($_.Exception.Message)" -ForegroundColor Yellow
         }
