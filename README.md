@@ -1,4 +1,4 @@
-README.md v1.4.0 (Last Rev: 2026-10-01)
+README.md v1.5.0 (Last Rev: 2026-10-01)
 
 # Screencap Documentation Tool
 
@@ -29,7 +29,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `Run-Screencap.bat` | Double-click to run the command line version on Windows. Passes any arguments through to `screencap.py`. |
 | `install.ps1` | One-step Windows installer used by the Quick Start command. |
 | `install.sh` | One-step Linux and macOS installer used by the Quick Start commands. |
-| `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing. Called by `install.ps1`. |
+| `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
 | `screencap.py` | The detection engine and command line tool. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
@@ -60,15 +60,30 @@ Each command below is a single copy and paste. It installs the prerequisites, do
 
 ### Windows 11
 
-Paste into a normal (not Administrator) PowerShell window:
+One command works for both kinds of install. The installer checks whether PowerShell is running as Administrator and picks the scope for you:
 
 ```powershell
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1)))
 ```
 
-This installs the tool in `C:\DATA\Tools\Screencap-Documentation-Tool`, installs Python 3 and FFmpeg with `winget` if they are missing, and adds a **Screencap Documentation Tool** shortcut to the Start Menu and Desktop. No admin rights are needed. To pin the app to the taskbar, right-click the Start Menu entry and choose **Pin to taskbar** (or right-click the running app's taskbar button).
+| Paste it into | You get |
+| --- | --- |
+| A normal PowerShell window | **Just you.** Python and FFmpeg are installed in your user profile, and the shortcuts go on your Start Menu and Desktop. No admin rights needed. Best for a single-user workstation. |
+| An **Administrator** PowerShell window (right-click Start > **Terminal (Admin)**) | **Everyone on this PC.** Python and FFmpeg are installed system-wide, the shortcuts go on the All Users Start Menu and Public Desktop, and every user can save into the default `source` and `output` folders. Best for shared or lab PCs. |
 
-To install somewhere else, add `-InstallDir` to the end of the command, for example `... install.ps1))) -InstallDir 'D:\Tools\Screencap'`. Add `-NoShortcuts` to skip the shortcuts.
+The first line of the installer's output confirms which scope it chose. To choose explicitly instead, add a switch to the end of the command:
+
+```powershell
+# Just you, even from an Administrator window
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1))) -UserOnly
+
+# Everyone on this PC (must be an Administrator window)
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1))) -SystemWide
+```
+
+Either way the tool goes in `C:\DATA\Tools\Screencap-Documentation-Tool`. To install somewhere else, add `-InstallDir 'D:\Tools\Screencap'` to the end of the command. Add `-NoShortcuts` to skip the shortcuts.
+
+To pin the app to the taskbar, right-click its Start Menu entry and choose **Pin to taskbar** (or right-click the running app's taskbar button).
 
 If the installer reports that a prerequisite was not detected yet, close PowerShell, open a new window, and paste the command again. Windows only picks up newly installed programs in new windows.
 
@@ -168,9 +183,13 @@ and confirm that no media, logs, or files containing secrets are listed. Also re
 **Uninstall:** move any recordings or screenshots you want to keep out of the install folder first, because removing the folder deletes them.
 
 ```powershell
-# Windows
+# Windows, just-you install
 Remove-Item -Recurse -Force 'C:\DATA\Tools\Screencap-Documentation-Tool', "$env:APPDATA\ScreencapDocTool"
 Remove-Item -Force "$([Environment]::GetFolderPath('Programs'))\Screencap Documentation Tool.lnk", "$([Environment]::GetFolderPath('Desktop'))\Screencap Documentation Tool.lnk"
+
+# Windows, everyone install (Administrator window). Each user's GUI settings stay in their own %APPDATA%\ScreencapDocTool.
+Remove-Item -Recurse -Force 'C:\DATA\Tools\Screencap-Documentation-Tool'
+Remove-Item -Force "$([Environment]::GetFolderPath('CommonPrograms'))\Screencap Documentation Tool.lnk", "$([Environment]::GetFolderPath('CommonDesktopDirectory'))\Screencap Documentation Tool.lnk"
 ```
 
 ```bash
@@ -184,16 +203,16 @@ rm -rf ~/Applications/Screencap-Documentation-Tool "$(brew --prefix)/bin/screenc
 
 Python and FFmpeg are left installed because other programs may use them. Remove them with `winget uninstall`, your Linux package manager, or `brew uninstall` if you no longer need them.
 
-### System-Wide FFmpeg On Windows (Optional)
+### Switching A Windows PC From Just You To Everyone
 
-By default `winget` installs FFmpeg for your user account only, which needs no admin rights and is all a single-user workstation needs. If several people use the same PC, or you manage machines with an RMM or Intune that runs as SYSTEM, install it for everyone instead from an **Administrator** PowerShell window:
+Paste the Quick Start command into an **Administrator** PowerShell window. It installs system-wide copies of Python and FFmpeg (copies that only exist in one user's profile do not count, because other accounts cannot use them), moves the shortcuts to the All Users locations, and opens up the `source` and `output` folders to all users. Your recordings and settings are kept.
+
+The old per-user copies of Python and FFmpeg keep working but are no longer needed. To remove them, run this in a normal (not Administrator) window:
 
 ```powershell
-winget install --id Gyan.FFmpeg -e --scope machine
-winget uninstall --id Gyan.FFmpeg --scope user   # optional: remove the per-user copy
+winget uninstall --id Gyan.FFmpeg --scope user
+winget uninstall --id Python.Python.3.12 --scope user
 ```
-
-Open a new window afterwards so the updated PATH is picked up. The tool finds FFmpeg either way.
 
 ### Portable FFmpeg (No Admin Rights)
 
@@ -233,6 +252,8 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 
 | Symptom | Cause / Fix |
 | --- | --- |
+| `A system-wide install needs an Administrator PowerShell window` | You used `-SystemWide` in a normal window. Right-click Start > **Terminal (Admin)** and paste the command again, or drop `-SystemWide` to install just for you. |
+| `Use either -SystemWide or -UserOnly, not both` | Pick one switch, or leave both off and let the installer decide. |
 | `Run this installer with sudo on Linux` | The Linux installer needs root to install packages and write to `/opt`. Use the `sudo bash -c ...` command from the Quick Start. |
 | `Do not use sudo on macOS` | Homebrew refuses to run as root. Run the macOS command without `sudo`. |
 | `dnf could not install ...` | On RHEL, Rocky, or Alma Linux, FFmpeg comes from EPEL and RPM Fusion. Enable those repositories, then run the installer again. |
