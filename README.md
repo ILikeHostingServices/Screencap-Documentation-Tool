@@ -1,4 +1,4 @@
-README.md v1.5.0 (Last Rev: 2026-10-01)
+README.md v1.6.0 (Last Rev: 2026-10-01)
 
 # Screencap Documentation Tool
 
@@ -33,6 +33,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
 | `screencap.py` | The detection engine and command line tool. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
+| `CHANGELOG.md` | What changed in every release. |
+| `.github/workflows/release.yml` | Publishes a GitHub release automatically whenever a version tag is pushed. |
 | `source/` | Default folder for your recordings. |
 | `output/` | Default folder for results, one subfolder per recording. |
 | `tools/ffmpeg/bin/` | Optional spot for a portable `ffmpeg.exe` and `ffprobe.exe` (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)). |
@@ -212,6 +214,20 @@ The old per-user copies of Python and FFmpeg keep working but are no longer need
 ```powershell
 winget uninstall --id Gyan.FFmpeg --scope user
 winget uninstall --id Python.Python.3.12 --scope user
+```
+
+### Releases And Versions
+
+Each release is an annotated git tag (`v1.4.0`, for example) with notes on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) and in `CHANGELOG.md`. The tag is the version of the project as a whole. Each script also carries its own version in its header, which only changes when that script changes.
+
+The Quick Start commands always install the latest code on the default branch. To install a specific release instead, for example to keep several PCs on the same version:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/v1.4.0/install.ps1))) -Ref v1.4.0
+```
+
+```bash
+sudo SCREENCAP_REF=v1.4.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/v1.4.0/install.sh)"   # macOS: drop sudo
 ```
 
 ### Portable FFmpeg (No Admin Rights)
