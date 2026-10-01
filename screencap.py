@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-01
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -24,11 +24,19 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 SCRIPT_DIR = Path(__file__).resolve().parent
 INDEX_NAME = "steps.md"
 MANIFEST_NAME = "steps.json"
+
+FFMPEG_MISSING_HELP = (
+    "FFmpeg was not found. Install it and try again:\n"
+    "  Windows 11:  winget install --id Gyan.FFmpeg -e\n"
+    "               (then open a NEW terminal window)\n"
+    "  or extract a build into tools\\ffmpeg\\bin\\ next to this script\n"
+    "  Linux:       sudo apt install ffmpeg\n"
+    "  macOS:       brew install ffmpeg")
 
 # Exit codes
 EXIT_OK = 0
@@ -40,6 +48,14 @@ log = logging.getLogger("screencap")
 PTS_RE = re.compile(r"pts_time:\s*([0-9]+(?:\.[0-9]+)?)")
 SCORE_RE = re.compile(r"lavfi\.scene_score=\s*([0-9]+(?:\.[0-9]+)?)")
 OUT_TIME_RE = re.compile(r"^out_time_(?:us|ms)=([0-9]+)")
+
+# Keep FFmpeg from flashing a console window when launched from the GUI
+# (pythonw.exe) on Windows. Zero (no flags) everywhere else.
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+class Cancelled(Exception):
+    """Raised when the user cancels a run from the GUI."""
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +82,7 @@ def find_tool(name, explicit=None):
 def run(cmd, **kwargs):
     """Run a command and capture text output without ever invoking a shell."""
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          stdin=subprocess.DEVNULL, creationflags=NO_WINDOW,
                           text=True, encoding="utf-8", errors="replace", **kwargs)
 
 
@@ -127,9 +144,12 @@ def probe_duration(ffprobe, video):
     return duration, streams[0].get("width"), streams[0].get("height")
 
 
-def detect_changes(ffmpeg, video, duration, args):
+def detect_changes(ffmpeg, video, duration, args, progress=None, cancel=None):
     """Return a list of (time_seconds, scene_score) for every analyzed frame
-    whose scene score is above the threshold."""
+    whose scene score is above the threshold.
+
+    progress: optional callable(fraction 0-1) for UI updates.
+    cancel:   optional threading.Event; when set, FFmpeg is stopped."""
     filters = []
     if args.analyze_fps > 0:
         filters.append(f"fps={args.analyze_fps}")
@@ -145,6 +165,7 @@ def detect_changes(ffmpeg, video, duration, args):
     log.debug("Running: %s", " ".join(cmd))
 
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdin=subprocess.DEVNULL, creationflags=NO_WINDOW,
                             text=True, encoding="utf-8", errors="replace")
     stderr_lines = []
 
@@ -157,17 +178,24 @@ def detect_changes(ffmpeg, video, duration, args):
 
     last_report = 0.0
     for line in proc.stdout:
+        if cancel is not None and cancel.is_set():
+            proc.kill()
+            break
         m = OUT_TIME_RE.match(line.strip())
         if m and duration:
             # ffmpeg reports out_time_ms in microseconds as well (historic quirk)
-            pos = int(m.group(1)) / 1_000_000
+            fraction = min(1.0, int(m.group(1)) / 1_000_000 / duration)
+            if progress is not None:
+                progress(fraction)
+                continue
             now = time.monotonic()
-            if now - last_report >= 2:
-                pct = min(100.0, pos / duration * 100)
-                print(f"    analyzing... {pct:5.1f}%", flush=True)
+            if now - last_report >= 2 and sys.stdout is not None:
+                print(f"    analyzing... {fraction * 100:5.1f}%", flush=True)
                 last_report = now
     proc.wait()
     reader.join()
+    if cancel is not None and cancel.is_set():
+        raise Cancelled()
 
     if proc.returncode != 0:
         tail = "".join(stderr_lines[-15:]).strip()
@@ -318,23 +346,34 @@ def clear_previous_output(out_dir):
             f.unlink()
 
 
-def process_video(ffmpeg, ffprobe, video, out_dir, args):
+def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=None):
+    """Process one video. progress: optional callable(fraction 0-1, text).
+    cancel: optional threading.Event checked between stages."""
+    def report(fraction, text):
+        if progress is not None:
+            progress(fraction, text)
+
     if (out_dir / INDEX_NAME).is_file() and not args.force:
         log.info("Skipping %s (already processed, use --force to redo)", video.name)
-        return "skipped"
+        return "skipped", None
 
     started = time.monotonic()
     duration, width, height = probe_duration(ffprobe, video)
     log.info("Processing %s (%s, %sx%s)", video, fmt_ts(duration), width, height)
 
-    events = detect_changes(ffmpeg, video, duration, args)
+    # Analysis is most of the work; frame extraction is the last 15%
+    report(0.0, "Analyzing")
+    events = detect_changes(ffmpeg, video, duration, args,
+                            progress=(lambda f: report(f * 0.85, "Analyzing"))
+                            if progress else None,
+                            cancel=cancel)
     steps = group_changes(events, duration, args)
     log.info("  %d raw changes -> %d steps", len(events), len(steps))
 
     if args.dry_run:
         for i, step in enumerate(steps, 1):
             log.info("  [dry run] step %03d at %s (%s)", i, fmt_ts(step["time"]), step["reason"])
-        return "ok"
+        return "ok", len(steps)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     if args.force:
@@ -342,13 +381,17 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args):
 
     for i, step in enumerate(steps, 1):
         name = f"step_{i:03d}_{fmt_ts(step['time'], sep='-')}.{args.format}"
+        if cancel is not None and cancel.is_set():
+            raise Cancelled()
+        report(0.85 + 0.15 * (i - 1) / len(steps), f"Saving screenshot {i}/{len(steps)}")
         extract_frame(ffmpeg, video, step["time"], out_dir / name, args)
         step["file"] = name
 
     write_index(out_dir, video, duration, steps, args)
     log.info("  Saved %d screenshots to %s (%.1fs)", len(steps), out_dir,
              time.monotonic() - started)
-    return "ok"
+    report(1.0, "Done")
+    return "ok", len(steps)
 
 
 # ---------------------------------------------------------------------------
@@ -413,12 +456,9 @@ def parse_args(argv):
     return args
 
 
-def setup_logging(output, verbose):
+def add_file_log(output):
+    """Append a debug-level log to <output>/screencap.log. Returns the handler."""
     log.setLevel(logging.DEBUG)
-    console = logging.StreamHandler(sys.stdout)
-    console.setLevel(logging.DEBUG if verbose else logging.INFO)
-    console.setFormatter(logging.Formatter("%(message)s"))
-    log.addHandler(console)
     try:
         output.mkdir(parents=True, exist_ok=True)
         fh = logging.FileHandler(output / "screencap.log", encoding="utf-8")
@@ -426,8 +466,19 @@ def setup_logging(output, verbose):
         fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s",
                                           "%Y-%m-%d %H:%M:%S"))
         log.addHandler(fh)
+        return fh
     except OSError as exc:
         log.warning("Could not open log file in %s: %s", output, exc)
+        return None
+
+
+def setup_logging(output, verbose):
+    log.setLevel(logging.DEBUG)
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(logging.DEBUG if verbose else logging.INFO)
+    console.setFormatter(logging.Formatter("%(message)s"))
+    log.addHandler(console)
+    add_file_log(output)
 
 
 def main(argv=None):
@@ -440,12 +491,7 @@ def main(argv=None):
     ffmpeg = find_tool("ffmpeg", args.ffmpeg)
     ffprobe = find_tool("ffprobe", args.ffprobe)
     if not ffmpeg or not ffprobe:
-        log.error("FFmpeg was not found. Install it and try again:\n"
-                  "  Windows 11:  winget install --id Gyan.FFmpeg -e\n"
-                  "               (then open a NEW terminal window)\n"
-                  "  or extract a build into tools\\ffmpeg\\ next to this script\n"
-                  "  Linux:       sudo apt install ffmpeg\n"
-                  "  macOS:       brew install ffmpeg")
+        log.error(FFMPEG_MISSING_HELP)
         return EXIT_SETUP_ERROR
     log.debug("ffmpeg: %s | ffprobe: %s", ffmpeg, ffprobe)
 
@@ -464,7 +510,8 @@ def main(argv=None):
     for video in videos:
         out_dir = output_dir_for(video, source, output, videos)
         try:
-            results[process_video(ffmpeg, ffprobe, video, out_dir, args)] += 1
+            status, _ = process_video(ffmpeg, ffprobe, video, out_dir, args)
+            results[status] += 1
         except Exception as exc:  # keep going with the remaining videos
             results["failed"] += 1
             log.error("FAILED %s: %s", video.name, exc)
