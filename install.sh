@@ -41,7 +41,7 @@ linux_install_packages() {
     have python3 || need_python=1
 
     if have apt-get; then
-        local pkgs=(python3-tk curl ca-certificates)
+        local pkgs=(python3-tk)
         [ "$need_ffmpeg" = 1 ] && pkgs+=(ffmpeg)
         [ "$need_python" = 1 ] && pkgs+=(python3)
         step "Installing packages with apt: ${pkgs[*]}"
@@ -50,13 +50,13 @@ linux_install_packages() {
     elif have dnf; then
         # Fedora ships FFmpeg as ffmpeg-free. Only install it when no FFmpeg is
         # present, so an existing RPM Fusion ffmpeg is not replaced.
-        local pkgs=(python3-tkinter curl)
+        local pkgs=(python3-tkinter)
         [ "$need_ffmpeg" = 1 ] && pkgs+=(ffmpeg-free)
         [ "$need_python" = 1 ] && pkgs+=(python3)
         step "Installing packages with dnf: ${pkgs[*]}"
         dnf install -y -q "${pkgs[@]}" || die "dnf could not install ${pkgs[*]}. On RHEL/Rocky/Alma, enable EPEL and RPM Fusion first, then re-run."
     elif have pacman; then
-        local pkgs=(tk curl)
+        local pkgs=(tk)
         [ "$need_ffmpeg" = 1 ] && pkgs+=(ffmpeg)
         [ "$need_python" = 1 ] && pkgs+=(python)
         step "Installing packages with pacman: ${pkgs[*]}"
@@ -67,12 +67,21 @@ linux_install_packages() {
         fi
         warn "Unknown package manager; using the existing ffmpeg and python3."
     fi
-    # Prefer the distro Python, which is the one python3-tk / tkinter targets
-    if [ -x /usr/bin/python3 ]; then
-        PYTHON=/usr/bin/python3
-    else
-        PYTHON="$(command -v python3 || true)"
-    fi
+    # Pick a Python 3.8+ that has Tkinter (the distro one python3-tk targets),
+    # falling back to the first Python 3.8+ found for command line use.
+    PYTHON=""
+    local candidate fallback=""
+    for candidate in /usr/bin/python3 "$(command -v python3 || true)" /usr/bin/python3.[0-9]*; do
+        case "$candidate" in *-config|"") continue ;; esac
+        [ -x "$candidate" ] || continue
+        "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' 2>/dev/null || continue
+        [ -n "$fallback" ] || fallback="$candidate"
+        if "$candidate" -c 'import tkinter' >/dev/null 2>&1; then
+            PYTHON="$candidate"
+            break
+        fi
+    done
+    [ -n "$PYTHON" ] || PYTHON="$fallback"
 }
 
 macos_install_packages() {
