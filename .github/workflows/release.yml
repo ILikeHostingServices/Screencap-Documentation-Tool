@@ -39,8 +39,9 @@ jobs:
           # Re-fetch tags so annotated tags keep their messages (checkout can
           # replace the triggering tag with a lightweight one)
           git fetch --force --tags origin
-          # Oldest first, version-aware, so the newest stable release ends up "Latest"
-          for tag in $(git tag -l 'v[0-9]*' --sort=v:refname); do
+          # Oldest first, version-aware, so the newest stable release ends up
+          # "Latest". versionsort.suffix sorts v1.2.0-beta.1 before v1.2.0.
+          for tag in $(git -c versionsort.suffix=- tag -l 'v[0-9]*' --sort=v:refname); do
             if gh release view "$tag" >/dev/null 2>&1; then
               echo "Release exists: $tag"
               continue
