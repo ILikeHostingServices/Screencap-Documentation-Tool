@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.8.0
+# Version: v1.9.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -30,12 +30,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 import export  # noqa: E402
 import imaging  # noqa: E402
+import presets  # noqa: E402
 import redact  # noqa: E402
 import stepdoc  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -514,8 +515,27 @@ def parse_args(argv):
                    help="Detect and list steps without saving screenshots")
     p.add_argument("--ffmpeg", help="Path to ffmpeg executable")
     p.add_argument("--ffprobe", help="Path to ffprobe executable")
+    p.add_argument("--preset", metavar="NAME",
+                   help="Start from a saved preset (see --list-presets). Any option "
+                        "given on the command line overrides the preset")
+    p.add_argument("--list-presets", action="store_true",
+                   help="List the built-in and your saved presets, then exit")
     p.add_argument("-v", "--verbose", action="store_true", help="Debug logging")
     p.add_argument("--version", action="version", version=f"%(prog)s v{VERSION}")
+    # Two passes: read --preset first, make its values the defaults, then
+    # parse again so options typed on the command line win over the preset
+    first, _ = p.parse_known_args(argv)
+    if first.list_presets:
+        for name in presets.names():
+            values = presets.get(name)
+            shown = ", ".join(f"{k}={v}" for k, v in values.items()) or "defaults"
+            print(f"{name}\n    {presets.describe(name)}\n    {shown}")
+        p.exit()
+    if first.preset:
+        values = presets.get(first.preset)
+        if values is None:
+            p.error(f"unknown preset {first.preset!r}; choose from: {', '.join(presets.names())}")
+        p.set_defaults(**values)
     args = p.parse_args(argv)
 
     if not 0 < args.threshold < 1:

@@ -1,4 +1,4 @@
-README.md v1.13.0 (Last Rev: 2026-10-02)
+README.md v1.14.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -15,6 +15,7 @@ For each recording you get:
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps.
+- Saved presets: built-in settings for installer wizards, web consoles, terminals, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
 - One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header. Every original frame is kept, so nothing you do in the editor is permanent.
 
@@ -43,6 +44,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `screencap.py` | The detection engine and command line tool. |
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
 | `gui_editor.py` | The GUI's Steps tab (step editor). |
+| `presets.py` | Built-in and saved presets (named sets of settings), shared by the GUI and `--preset`. |
 | `player.py` | Opens the recording in VLC media player at a given moment. |
 | `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
 | `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
@@ -71,7 +73,7 @@ Each run creates these files in the output folder:
 | `output/<video>/previous-*/` | The previous results, moved here (not deleted) when a recording is reprocessed with `--force`. |
 | `output/screencap.log` | Detailed log of every run. Check here first when something goes wrong. |
 
-The GUI remembers your last folders and settings in `%APPDATA%\ScreencapDocTool\gui_settings.json` on Windows, or `~/.config/screencap-doc-tool/gui_settings.json` on Linux and macOS (outside the install folder). Delete that file to reset the GUI.
+The GUI remembers your last folders and settings in `%APPDATA%\ScreencapDocTool\gui_settings.json` on Windows, or `~/.config/screencap-doc-tool/gui_settings.json` on Linux and macOS (outside the install folder). Delete that file to reset the GUI. Your saved presets are in `presets.json` in the same folder.
 
 Switches worth knowing for diagnostics (the full list is in the [Command Line Reference](#command-line-reference)):
 
@@ -166,7 +168,7 @@ The window is laid out top to bottom in the order you use it:
 
 1. **Folders.** Choose where recordings come from and where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the source folder recursively.
 2. **Videos.** Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
-3. **Detection Settings.** Pick a **Sensitivity** preset (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. **Remove duplicate screenshots** drops screenshots that look the same as an earlier one. **Highlight what changed in each step** draws the red box. **Blur passwords, keys, IP and email addresses** turns on automatic blurring, and **Also blur** adds your own patterns (see [Blurring Sensitive Information](#blurring-sensitive-information)). Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
+3. **Preset and Detection Settings.** Pick a **Preset** for the kind of recording (see [Presets](#presets)), or adjust the settings yourself. Pick a **Sensitivity** level (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. **Remove duplicate screenshots** drops screenshots that look the same as an earlier one. **Highlight what changed in each step** draws the red box. **Blur passwords, keys, IP and email addresses** turns on automatic blurring, and **Also blur** adds your own patterns (see [Blurring Sensitive Information](#blurring-sensitive-information)). Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
 4. **Steps tab.** The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
 5. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`.
 
@@ -209,6 +211,25 @@ Nothing is written until you click **Save Changes**. If you switch recordings, s
 `steps.md` is generated from `steps.json`, so write captions in the editor rather than in `steps.md`. If you do edit `steps.md` by hand and then save from the editor, your edited copy is kept as `steps.hand-edited-<date>-<time>.md` next to it.
 
 Output from v1.4.0 and earlier is upgraded automatically the first time you open it: the screenshots move into `originals/` and the old `steps.md` is kept as `steps.pre-upgrade-<date>-<time>.md`.
+
+### Presets
+
+A preset is a named set of the Detection Settings. Pick one from **Preset** above Detection Settings and every setting is filled in; settings the preset does not mention go back to their defaults.
+
+| Built-in preset | Use it for | What it changes |
+| --- | --- | --- |
+| **Installer wizard** | Setup wizards and settings dialogs with clear pauses (the default) | Nothing; the recommended defaults |
+| **Web console** | Admin portals and web apps | Ignores spinners and slow-loading pages: less sensitive, waits longer for the screen to settle |
+| **Terminal / command line** | Shells and consoles | Catches small text changes and analyzes at full resolution; merges bursts of typing |
+| **Fast clicking** | Recordings with short pauses between actions | Shorter waits, and analyzes more frames per second |
+
+To save your own, adjust the settings (including **Also blur** patterns), click **Save As...**, and give it a name, for example `Customer portal`. **Delete** removes a saved preset (built-in presets cannot be deleted). Saved presets are stored in your profile and can be used on the command line too:
+
+```powershell
+py -3 .\screencap.py --list-presets
+py -3 .\screencap.py --preset "Web console"
+py -3 .\screencap.py --preset "Customer portal" --force    # options you add override the preset
+```
 
 ### Tuning For Your Recordings
 
@@ -346,6 +367,8 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |
 | `--dry-run` | off | Lists the steps that would be captured without saving anything. |
 | `--ffmpeg`, `--ffprobe` | auto | Explicit paths to the FFmpeg executables. |
+| `--preset` | none | Start from a built-in or saved preset (name is not case-sensitive). Options given on the command line override it. |
+| `--list-presets` | | List the built-in and saved presets with their settings, then exit. |
 | `-v`, `--verbose` | off | Shows debug output on screen, including the exact FFmpeg commands. |
 
 Exit codes: `0` success, `1` one or more recordings failed, `2` setup problem (FFmpeg not found), `130` cancelled with Ctrl+C.

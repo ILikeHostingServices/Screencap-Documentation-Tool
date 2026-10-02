@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.6.0
+# Version: v1.7.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -14,6 +14,7 @@
 #   python -m unittest discover -s tests -v
 
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -26,6 +27,7 @@ sys.path.insert(0, str(ROOT))
 import export  # noqa: E402
 import imaging  # noqa: E402
 import player  # noqa: E402
+import presets  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import stepdoc  # noqa: E402
@@ -58,6 +60,44 @@ class PlayerTests(unittest.TestCase):
     def test_vlc_command(self):
         cmd = player.vlc_command("vlc", Path("Demo.mp4"), 12.5)
         self.assertEqual(cmd, ["vlc", "--no-one-instance", "--start-time=12.50", "Demo.mp4"])
+
+
+class PresetTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="screencap_presets_")
+        self.saved = {k: os.environ.get(k) for k in ("APPDATA", "XDG_CONFIG_HOME")}
+        os.environ["APPDATA"] = os.environ["XDG_CONFIG_HOME"] = self.tmp
+
+    def tearDown(self):
+        for k, v in self.saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_builtin_preset_sets_defaults_and_cli_overrides(self):
+        args = sc.parse_args(["--preset", "web console"])
+        self.assertEqual((args.threshold, args.debounce), (0.008, 2.0))
+        args = sc.parse_args(["--preset", "Web console", "--debounce", "3"])
+        self.assertEqual((args.threshold, args.debounce), (0.008, 3.0))
+
+    def test_user_preset_round_trip(self):
+        presets.save_user("Portal", {"threshold": 0.01, "no_highlight": True,
+                                     "redact_pattern": ["corp"], "bogus": 1})
+        self.assertIn("Portal", presets.names())
+        args = sc.parse_args(["--preset", "portal"])
+        self.assertTrue(args.no_highlight)
+        self.assertEqual(args.redact_pattern, ["corp"])
+        self.assertNotIn("bogus", presets.get("Portal"))
+        with self.assertRaises(ValueError):
+            presets.save_user("Web console", {})
+        self.assertTrue(presets.delete_user("Portal"))
+        self.assertNotIn("Portal", presets.names())
+
+    def test_unknown_preset_is_an_error(self):
+        with self.assertRaises(SystemExit):
+            sc.parse_args(["--preset", "does not exist"])
 
 
 @unittest.skipUnless(FFMPEG and FFPROBE, "FFmpeg is not installed")
