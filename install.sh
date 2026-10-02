@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
 # install.sh
-# 2026-10-01
-# Version: v1.1.0
+# 2026-10-02
+# Version: v1.2.0
 #
 # PURPOSE:
 # One-step Linux and macOS installer for the Screencap Documentation Tool.
-# Installs FFmpeg, Python 3, and Tkinter if missing, downloads the latest
+# Installs FFmpeg, Python 3, Tkinter, and (optional) Tesseract OCR if missing,
+# downloads the latest
 # version from GitHub, and adds screencap / screencap-gui launch commands.
 # Safe to re-run to update; your source and output folders are kept.
 #
@@ -35,6 +36,20 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # Prerequisites
 # ---------------------------------------------------------------------------
 
+install_optional_linux() {
+    # Tesseract OCR finds sensitive text to blur. Optional: failures only warn.
+    have tesseract && return 0
+    step "Installing Tesseract OCR (optional, for automatic blurring)"
+    if have apt-get; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tesseract-ocr || true
+    elif have dnf; then
+        dnf install -y -q tesseract tesseract-langpack-eng || dnf install -y -q tesseract || true
+    elif have pacman; then
+        pacman -S --needed --noconfirm tesseract tesseract-data-eng || true
+    fi
+    have tesseract || warn "Tesseract OCR was not installed. Sensitive text will not be found automatically; hand-drawn blur boxes still work."
+}
+
 linux_install_packages() {
     local need_ffmpeg=0 need_python=0
     have ffmpeg && have ffprobe || need_ffmpeg=1
@@ -61,7 +76,9 @@ linux_install_packages() {
         [ "$need_python" = 1 ] && pkgs+=(python)
         step "Installing packages with pacman: ${pkgs[*]}"
         pacman -S --needed --noconfirm "${pkgs[@]}"
-    else
+    fi
+    install_optional_linux
+    if ! have apt-get && ! have dnf && ! have pacman; then
         if [ "$need_ffmpeg" = 1 ] || [ "$need_python" = 1 ]; then
             die "Unsupported package manager. Install ffmpeg, python3 (3.8+), and python3 Tkinter yourself, then re-run this installer."
         fi
@@ -101,6 +118,10 @@ macos_install_packages() {
 
     step "Installing FFmpeg and Python with Homebrew"
     brew install ffmpeg python
+    if ! have tesseract; then
+        step "Installing Tesseract OCR (optional, for automatic blurring)"
+        brew install tesseract || warn "Tesseract OCR was not installed. Sensitive text will not be found automatically; hand-drawn blur boxes still work."
+    fi
     PYTHON="$(brew --prefix)/bin/python3"
     [ -x "$PYTHON" ] || die "Homebrew Python not found at $PYTHON"
 

@@ -2,7 +2,7 @@
 #
 # stepdoc.py
 # 2026-10-02
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -12,8 +12,11 @@
 # Folder layout for each recording:
 #   originals/capture_<time>.<ext>   full frames from the video, never modified
 #   step_NNN_<time>.<ext>            rendered screenshots used by steps.md
+#                                    (sensitive areas blurred when redaction is on)
+#   unredacted/step_NNN_<time>.<ext> the same screenshots without blurring
 #   steps.json                       the step document (source of truth)
 #   steps.md                         generated from steps.json
+#   steps-unredacted.md              same, using the unredacted screenshots
 
 import hashlib
 import json
@@ -24,11 +27,14 @@ import time
 from pathlib import Path
 
 import imaging
+import redact
 
 SCHEMA = 2
 INDEX_NAME = "steps.md"
 MANIFEST_NAME = "steps.json"
 ORIGINALS_DIR = "originals"
+UNREDACTED_DIR = "unredacted"
+UNREDACTED_INDEX = "steps-unredacted.md"
 
 log = logging.getLogger("screencap")
 
@@ -68,6 +74,8 @@ def new_document(video_name, duration, width, height, ext, settings, tool_versio
         "deleted_steps": [],
         "highlight": True,
         "crop": None,
+        "redact": True,
+        "redact_patterns": [],
         "generated_md_sha256": None,
     }
 
@@ -197,12 +205,43 @@ def clamp_rect(rect, width, height, minimum=16):
     return [x, y, w - w % 2, h - h % 2]
 
 
-def build_filter(step, doc):
-    """FFmpeg filter chain that turns an original frame into the finished
+BLUR_BLOCK = 12   # pixelation block size before blurring (makes text unreadable)
+
+
+def redaction_boxes(step, doc):
+    """Boxes to blur for a step: detected ones not switched off, plus boxes
+    drawn by hand. Empty when redaction is off for this step."""
+    if not effective(step, doc, "redact"):
+        return []
+    boxes = [r["box"] for r in step.get("auto_redactions") or [] if not r.get("ignored")]
+    return boxes + list(step.get("manual_redactions") or [])
+
+
+def blur_graph(boxes):
+    """Filter graph that pixelates and blurs each box, then passes the frame on."""
+    if not boxes:
+        return ""
+    n = len(boxes)
+    graph = [f"split={n + 1}[base]" + "".join(f"[r{i}]" for i in range(n))]
+    prev = "base"
+    for i, (x, y, w, h) in enumerate(boxes):
+        w, h = max(2, int(w)), max(2, int(h))
+        graph.append(f"[r{i}]crop={w}:{h}:{int(x)}:{int(y)},"
+                     f"scale=w='max(1,iw/{BLUR_BLOCK})':h='max(1,ih/{BLUR_BLOCK})',"
+                     f"scale={w}:{h}:flags=neighbor,boxblur=2[b{i}]")
+        out = f"o{i}"
+        graph.append(f"[{prev}][b{i}]overlay={int(x)}:{int(y)}" + ("" if i == n - 1 else f"[{out}]"))
+        prev = out
+    return ";".join(graph)
+
+
+def build_filter(step, doc, redacted=True):
+    """FFmpeg filter graph that turns an original frame into the finished
     screenshot, or None when the original is used as-is. The GUI preview uses
-    the same chain, so what you see is what gets saved. All coordinates are
-    in original-frame pixels."""
+    the same graph, so what you see is what gets saved. All coordinates are
+    in original-frame pixels. redacted=False gives the unblurred copy."""
     parts = []
+    blur = blur_graph(redaction_boxes(step, doc)) if redacted else ""
     box = step.get("change_box")
     if box and effective(step, doc, "highlight"):
         x, y, w, h = box
@@ -212,7 +251,10 @@ def build_filter(step, doc):
     if crop:   # always last, so everything above uses original coordinates
         x, y, w, h = crop
         parts.append(f"crop={w}:{h}:{x}:{y}")
-    return ",".join(parts) or None
+    chain = ",".join(parts)
+    if blur:   # blur first, so the highlight box is drawn on top, unblurred
+        return blur + ("," + chain if chain else "")
+    return chain or None
 
 
 def ensure_frame_size(out_dir, doc, ffmpeg):
@@ -244,9 +286,9 @@ def ensure_change_boxes(out_dir, doc, ffmpeg):
             thumb(i - 1), thumb(i), doc["width"], doc["height"])
 
 
-def render_image(ffmpeg, src, dest, step, doc, run):
+def render_image(ffmpeg, src, dest, step, doc, run, redacted=True):
     """Produce one screenshot from its original."""
-    vf = build_filter(step, doc)
+    vf = build_filter(step, doc, redacted)
     if not vf:
         shutil.copyfile(src, dest)
         return
@@ -266,14 +308,47 @@ def run_quiet(cmd):
                           text=True, encoding="utf-8", errors="replace")
 
 
-def render(out_dir, doc, ffmpeg, progress=None, cancel=None):
+def redaction_wanted(doc):
+    return doc.get("redact", True) or any(s.get("redact") for s in doc["steps"])
+
+
+def ensure_redactions(out_dir, doc, ffmpeg, tesseract, progress=None, cancel=None):
+    """Scan any step that has not been scanned for sensitive text yet.
+    Without Tesseract nothing is scanned (manual blur boxes still apply)."""
+    pending = [s for s in doc["steps"] if "auto_redactions" not in s]
+    if not pending or not tesseract:
+        if pending and not tesseract:
+            log.warning("Tesseract OCR not found: sensitive text was not detected "
+                        "automatically. Manual blur boxes still work.")
+        return
+    ensure_frame_size(out_dir, doc, ffmpeg)
+    for i, step in enumerate(pending, 1):
+        if cancel is not None and cancel.is_set():
+            raise Cancelled()
+        if progress is not None:
+            progress((i - 1) / len(pending), f"Scanning for sensitive text {i}/{len(pending)}")
+        step["auto_redactions"] = redact.scan_image(
+            tesseract, Path(out_dir) / step["original"], doc["width"], doc["height"],
+            doc.get("redact_patterns", []))
+    found = sum(len(s["auto_redactions"]) for s in pending)
+    log.info("  Sensitive text scan: %d area(s) to blur in %d screenshot(s)", found, len(pending))
+
+
+def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
     """Re-render every screenshot from its original, remove stale ones, and
-    save steps.md and steps.json."""
+    save steps.md and steps.json. When redaction is on, an unblurred copy of
+    every screenshot goes in unredacted/ with its own steps-unredacted.md."""
     out_dir = Path(out_dir)
     ext = doc.get("format", "png")
     keep = set()
     if doc.get("highlight", True) or any(s.get("highlight") for s in doc["steps"]):
         ensure_change_boxes(out_dir, doc, ffmpeg)
+    redacting = redaction_wanted(doc)
+    if redacting:
+        ensure_redactions(out_dir, doc, ffmpeg, tesseract, progress, cancel)
+    unredacted = out_dir / UNREDACTED_DIR
+    if redacting:
+        unredacted.mkdir(exist_ok=True)
     steps = doc["steps"]
     for i, step in enumerate(steps, 1):
         if cancel is not None and cancel.is_set():
@@ -285,11 +360,21 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None):
             raise RuntimeError(f"Original image missing: {src}")
         name = rendered_name(i, step, ext)
         render_image(ffmpeg, src, out_dir / name, step, doc, run_quiet)
+        if redacting:
+            render_image(ffmpeg, src, unredacted / name, step, doc, run_quiet, redacted=False)
         step["file"] = name
         keep.add(name)
-    for stale in out_dir.glob("step_*"):
-        if stale.is_file() and stale.suffix.lower() in (".png", ".jpg") and stale.name not in keep:
-            stale.unlink()
+    for folder in (out_dir, unredacted):
+        for stale in folder.glob("step_*"):
+            if stale.is_file() and stale.suffix.lower() in (".png", ".jpg") and \
+                    (stale.name not in keep or (folder == unredacted and not redacting)):
+                stale.unlink()
+    if not redacting:
+        if unredacted.is_dir() and not any(unredacted.iterdir()):
+            unredacted.rmdir()
+        (out_dir / UNREDACTED_INDEX).unlink(missing_ok=True)
+    else:
+        (out_dir / UNREDACTED_INDEX).write_text(markdown(doc, unredacted=True), encoding="utf-8")
     save(out_dir, doc)
 
 
@@ -297,12 +382,18 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None):
 # Markdown
 # ---------------------------------------------------------------------------
 
-def markdown(doc):
+def markdown(doc, unredacted=False):
     steps = doc["steps"]
     s = doc.get("settings", {})
     lines = [
         f"# {doc.get('document', {}).get('title') or 'Steps'}",
         "",
+    ]
+    if unredacted:
+        lines += ["> **UNREDACTED COPY.** These screenshots are not blurred and may show "
+                  "passwords, keys, or internal addresses. Do not publish or share this file. "
+                  f"Use `{INDEX_NAME}` instead.", ""]
+    lines += [
         f"- Source video: `{doc.get('source_video', '')}`",
         f"- Duration: {fmt_ts(doc.get('duration') or 0)}",
         f"- Generated: {time.strftime('%Y-%m-%d %H:%M:%S')} by screencap.py "
@@ -327,7 +418,8 @@ def markdown(doc):
             details.append(f"change score {step['score']:.3f}")
         if details:
             lines += ["_" + ", ".join(details) + "._", ""]
-        lines += [f"![Step {i}]({step['file']})", ""]
+        image = f"{UNREDACTED_DIR}/{step['file']}" if unredacted else step["file"]
+        lines += [f"![Step {i}]({image})", ""]
         caption = (step.get("caption") or "").strip()
         lines += [caption if caption else "_Notes:_", ""]
     return "\n".join(lines)

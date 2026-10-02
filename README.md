@@ -1,4 +1,4 @@
-README.md v1.10.0 (Last Rev: 2026-10-02)
+README.md v1.11.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -10,12 +10,13 @@ For each recording you get:
 
 - One full resolution screenshot per step, numbered in order.
 - A `steps.md` file listing every step with its timestamp, its screenshot, and its caption, ready to turn into documentation.
+- Passwords, license keys, tokens, and IP and email addresses blurred automatically, with an unblurred copy kept alongside in case you need the details.
 - A red box around what changed since the previous step, so readers see where to click or what appeared.
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps. Every original frame is kept, so nothing you do in the editor is permanent.
 
-You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. The only requirements are Python 3.8+ and [FFmpeg](https://ffmpeg.org/), both free and open source.
+You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring. All are free and open source, and the installers set them up for you.
 
 ### How It Finds The Steps
 
@@ -40,6 +41,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `screencap.py` | The detection engine and command line tool. |
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
 | `gui_editor.py` | The GUI's Steps tab (step editor). |
+| `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
 | `tests/` | Automated tests. Run `python -m unittest discover -s tests -v` from the repository root (needs FFmpeg). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
@@ -56,7 +58,9 @@ Each run creates these files in the output folder:
 | --- | --- |
 | `output/<video>/step_001_00-00-03.750.png` | Screenshot for each step, rendered from its original. The name holds the step number and timestamp. |
 | `output/<video>/originals/` | The untouched full frames captured from the video. Never modified, so edits can always be redone. |
-| `output/<video>/steps.md` | The steps in order, with screenshots, timestamps, and captions. Generated from `steps.json`. |
+| `output/<video>/steps.md` | The steps in order, with screenshots, timestamps, and captions. Generated from `steps.json`. Uses the blurred screenshots. |
+| `output/<video>/unredacted/` | The same screenshots without blurring, for your own reference. Only created while blurring is on. |
+| `output/<video>/steps-unredacted.md` | `steps.md` using the unblurred screenshots, marked "do not publish". |
 | `output/<video>/steps.json` | The step document: order, captions, deleted steps, and the settings used. This is the source of truth. |
 | `output/<video>/steps.hand-edited-*.md` | Backup of `steps.md`, made automatically if you edited it by hand and then saved from the editor. |
 | `output/<video>/previous-*/` | The previous results, moved here (not deleted) when a recording is reprocessed with `--force`. |
@@ -84,7 +88,7 @@ One command works for both kinds of install. The installer checks whether PowerS
 
 | Paste it into | You get |
 | --- | --- |
-| A normal PowerShell window | **Just you.** Python and FFmpeg are installed in your user profile, and the shortcuts go on your Start Menu and Desktop. No admin rights needed. Best for a single-user workstation. |
+| A normal PowerShell window | **Just you.** Python and FFmpeg are installed in your user profile, and the shortcuts go on your Start Menu and Desktop. No admin rights needed, except that Windows asks permission for the optional Tesseract OCR (used for automatic blurring), whose installer is always system-wide. Decline to skip it. Best for a single-user workstation. |
 | An **Administrator** PowerShell window (right-click Start > **Terminal (Admin)**) | **Everyone on this PC.** Python and FFmpeg are installed system-wide, the shortcuts go on the All Users Start Menu and Public Desktop, and every user can save into the default `source` and `output` folders. Best for shared or lab PCs. |
 
 The first line of the installer's output confirms which scope it chose. To choose explicitly instead, add a switch to the end of the command:
@@ -111,7 +115,7 @@ Paste into a terminal (works on Debian/Ubuntu, Fedora, and Arch based distributi
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
 ```
 
-This installs FFmpeg, Python 3, and Tkinter with your package manager, installs the tool in `/opt/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands plus an application menu entry. The program files are owned by root; the `source` and `output` folders belong to you, so you can use the tool without `sudo`.
+This installs FFmpeg, Python 3, Tkinter, and Tesseract OCR with your package manager, installs the tool in `/opt/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands plus an application menu entry. The program files are owned by root; the `source` and `output` folders belong to you, so you can use the tool without `sudo`.
 
 ### macOS
 
@@ -121,7 +125,7 @@ Paste into Terminal as your normal user (no `sudo`):
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
 ```
 
-This installs [Homebrew](https://brew.sh) if you do not have it (it will ask for your password), installs FFmpeg, Python, and Tkinter with Homebrew, installs the tool in `~/Applications/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands. In Finder you can also double-click `Screencap GUI.command` in that folder.
+This installs [Homebrew](https://brew.sh) if you do not have it (it will ask for your password), installs FFmpeg, Python, Tkinter, and Tesseract OCR with Homebrew, installs the tool in `~/Applications/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands. In Finder you can also double-click `Screencap GUI.command` in that folder.
 
 `~/Applications` is the standard macOS location for apps installed for just your user account, so no admin rights are needed after Homebrew is set up. To use a different folder on Linux or macOS, put `SCREENCAP_DIR=/your/path` in front of `bash`, for example `sudo SCREENCAP_DIR=/srv/screencap bash -c "..."`.
 
@@ -157,7 +161,7 @@ The window is laid out top to bottom in the order you use it:
 
 1. **Folders.** Choose where recordings come from and where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the source folder recursively.
 2. **Videos.** Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
-3. **Detection Settings.** Pick a **Sensitivity** preset (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. **Remove duplicate screenshots** drops screenshots that look the same as an earlier one. **Highlight what changed in each step** draws the red box. Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
+3. **Detection Settings.** Pick a **Sensitivity** preset (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. **Remove duplicate screenshots** drops screenshots that look the same as an earlier one. **Highlight what changed in each step** draws the red box. **Blur passwords, keys, IP and email addresses** turns on automatic blurring, and **Also blur** adds your own patterns (see [Blurring Sensitive Information](#blurring-sensitive-information)). Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
 4. **Steps tab.** The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
 5. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`.
 
@@ -179,11 +183,16 @@ Select a processed recording in the **Videos** list and the **Steps** tab shows 
 | **Crop: All Steps / This Step** | Drag a rectangle on the picture around the area to keep. **All Steps** sets the crop for the whole recording; **This Step** gives the selected step its own crop. Press Esc to cancel. |
 | **No Crop Here** | Leave the selected step uncropped even when the recording has a crop. |
 | **Clear All Crops** | Remove the recording-wide crop and every per-step crop. |
+| **Blur sensitive info** (top right) | Turn blurring on or off for the whole recording. |
+| **Blur this step** | Turn blurring on or off for the selected step only. |
+| **Add Blur Box** | Drag a rectangle around anything else to blur on the selected step. |
+| **Un-blur / Re-blur** | Click a blur box on the picture: a detected box is switched off (gray outline) or back on; a hand-drawn box is removed. |
+| **Re-scan All Steps for Sensitive Text** | Detect sensitive text again on every step and save, for example after installing Tesseract. Hand-drawn boxes are kept. |
 | **Show: Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
 | **Save Changes** | Re-render the screenshots from the originals and regenerate `steps.md` and `steps.json`. |
 | **Discard Changes** | Go back to the last saved version. |
 
-On **Original frame**, a dashed blue outline shows the crop and a dashed red outline shows the "what changed" box, so you can see what will be applied. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
+On **Original frame**, dashed outlines show what will be applied: blue for the crop, red for the "what changed" box, yellow for detected sensitive text (gray when switched off), and orange for hand-drawn blur boxes. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
 
 Nothing is written until you click **Save Changes**. If you switch recordings, start processing, or close the window with unsaved changes, the GUI asks whether to save them first.
 
@@ -212,6 +221,21 @@ After changing settings, reprocess with **Reprocess videos that are already done
 - Turn on Do Not Disturb so notification popups do not show up as extra steps.
 - [OBS Studio](https://obsproject.com/) (free, open source) and the built-in Windows Snipping Tool recorder both work well. In OBS, record to `.mkv`, which survives a crash mid-recording, and remux to `.mp4` if needed.
 
+### Blurring Sensitive Information
+
+When blurring is on (the default), each screenshot's text is read with Tesseract OCR and these are blurred automatically:
+
+- IPv4 and IPv6 addresses, MAC addresses, and email addresses
+- GUIDs (for example tenant or subscription IDs) and license or product keys such as `ABCDE-12345-FGHIJ-67890-KLMNO`
+- API tokens (GitHub, Slack, AWS, Google, JWT) and other long strings that mix letters and numbers
+- Masked passwords (rows of dots or asterisks)
+- Whatever follows a label such as `Password:`, `Token:`, `Secret:`, `API key:`, `Serial:`, or `Product key:` on the same line
+- Anything matching your own patterns in **Also blur** (GUI, separate several with `;`) or `--redact-pattern` (command line). Patterns are case-insensitive regular expressions, for example `corp\.example\.com` for an internal domain.
+
+Blurred areas are pixelated and then blurred, so the text cannot be read back. Blurring is applied only to the screenshots used by `steps.md`. A complete unblurred set is kept in `unredacted/` with its own `steps-unredacted.md`, in case you need a detail that was blurred. Treat that folder as sensitive.
+
+Automatic detection is a safety net, not a guarantee: OCR can misread text, and it cannot know that an ordinary-looking word is a secret. Always look through the screenshots before publishing, and use **Add Blur Box** for anything it missed. Without Tesseract installed, nothing is detected automatically, but hand-drawn blur boxes still work.
+
 ### Keeping Sensitive Data Out Of Git
 
 Setup recordings often capture passwords, license keys, API tokens, internal hostnames, and IP addresses. This repository is public, so `.gitignore` excludes everything in `source/` and `output/`, all video and image files, logs, and the `tools/` folder. Before you commit anything, run:
@@ -220,7 +244,7 @@ Setup recordings often capture passwords, license keys, API tokens, internal hos
 git status --short
 ```
 
-and confirm that no media, logs, or files containing secrets are listed. Also review, and blur or redact, screenshots before publishing documentation built from them.
+and confirm that no media, logs, or files containing secrets are listed. Also review the screenshots before publishing documentation built from them (see [Blurring Sensitive Information](#blurring-sensitive-information)), and never publish `unredacted/` or `steps-unredacted.md`.
 
 ### Updating And Uninstalling
 
@@ -300,6 +324,9 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--analyze-width` | `640` | Width used for analysis only. `0` uses full size. Screenshots are always full resolution. |
 | `--no-dedup` | off | Keep screenshots that look identical to an earlier one. |
 | `--dedup-threshold` | `0.01` | Two screenshots are duplicates when at most this percent of the picture differs. The default only matches virtually identical screens, so small changes such as a ticked checkbox are kept. Removed duplicates are kept as deleted steps and can be restored in the Steps tab. |
+| `--no-redact` | off | Do not blur sensitive information, and do not create the `unredacted/` copy. |
+| `--redact-pattern` | none | Extra text to blur, as a case-insensitive regular expression. Repeat for several. |
+| `--tesseract` | auto | Explicit path to the `tesseract` executable. |
 | `--crop` | none | Crop every screenshot to `X:Y:W:H` (pixels of the recording), for example `0:0:1920:1080` for the left monitor of a dual-screen recording. Width and height are rounded down to even numbers. Originals stay uncropped, and the crop can be changed in the Steps tab. |
 | `--no-highlight` | off | Do not draw the red "what changed" box. It can still be switched on later in the Steps tab, because the changed area is always worked out and saved. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
@@ -327,6 +354,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | `FFmpeg was not found` (exit code 2) | FFmpeg is not installed or not on the PATH. Open a **new** terminal and paste the Quick Start command again. Alternatively, use a portable copy in `tools\ffmpeg\bin\` or pass `--ffmpeg` / `--ffprobe`. |
 | `Python was not found; run without arguments to install from the Microsoft Store` | This is the Windows "App execution alias" placeholder, not real Python. Paste the Quick Start command again to install real Python, or turn the alias off in Settings > Apps > Advanced app settings > App execution aliases. |
 | `running scripts is disabled on this system` | PowerShell execution policy is blocking the script. The Quick Start command is not affected. For a local script, use the `powershell -ExecutionPolicy Bypass -File .\install.ps1` form shown in [Reviewing The Installer First](#reviewing-the-installer-first). |
+| `Tesseract OCR was not found` | Sensitive text is not detected automatically (hand-drawn blur boxes still work). Paste the Quick Start command again to install it, or install it yourself (Windows: `winget install --id UB-Mannheim.TesseractOCR -e`). Then click **Re-scan All Steps for Sensitive Text** in the Steps tab. On Windows its installer asks for administrator permission. |
 | `No module named 'tkinter'` | Python was installed without Tcl/Tk, which the GUI needs. Re-run the python.org installer, choose **Modify**, and tick **tcl/tk and IDLE**. The winget package includes it by default. |
 
 ### GUI Problems

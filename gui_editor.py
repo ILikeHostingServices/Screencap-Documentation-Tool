@@ -2,21 +2,24 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
 # recording. Reorder, delete (and restore) steps, write a caption for each
 # one, then Save to re-render the screenshots and regenerate steps.md from
 # the untouched originals. The red "what changed" box can be switched on or
-# off for the whole recording or for a single step, and screenshots can be
-# cropped by dragging a rectangle on the original frame.
+# off for the whole recording or for a single step, screenshots can be
+# cropped by dragging a rectangle on the original frame, and sensitive areas
+# can be blurred (detected automatically, or drawn by hand) with an
+# unblurred copy kept alongside.
 
 import threading
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import redact
 import stepdoc
 
 
@@ -38,6 +41,8 @@ class StepEditor(ttk.Frame):
         self.v_removed = tk.StringVar(value="")
         self.v_hl_doc = tk.BooleanVar(value=True)
         self.v_hl_step = tk.BooleanVar(value=True)
+        self.v_redact_doc = tk.BooleanVar(value=True)
+        self.v_redact_step = tk.BooleanVar(value=True)
         self._loading_caption = False
         self.view_map = None        # (scale, x offset, y offset) of the original-frame view
         self.draw = None            # active rectangle tool: dict(kind, scope, start, item)
@@ -56,6 +61,8 @@ class StepEditor(ttk.Frame):
         ttk.Label(top, textvariable=self.v_removed, foreground="gray").pack(side="left", padx=4)
         self.options_bar = ttk.Frame(top)   # per-recording toggles
         self.options_bar.pack(side="right")
+        ttk.Checkbutton(self.options_bar, text="Blur sensitive info", variable=self.v_redact_doc,
+                        command=self.toggle_doc_redact).pack(side="left", padx=4)
         ttk.Checkbutton(self.options_bar, text="Highlight changes", variable=self.v_hl_doc,
                         command=self.toggle_doc_highlight).pack(side="left", padx=4)
 
@@ -99,6 +106,17 @@ class StepEditor(ttk.Frame):
                    ).pack(side="left", fill="x", expand=True)
         ttk.Button(crop_row2, text="Clear All Crops", command=self.clear_crops
                    ).pack(side="left", fill="x", expand=True, padx=(4, 0))
+        ttk.Label(self.tools_frame, text="Blur (sensitive information):").pack(anchor="w", pady=(8, 0))
+        ttk.Checkbutton(self.tools_frame, text="Blur this step", variable=self.v_redact_step,
+                        command=self.toggle_step_redact).pack(anchor="w")
+        blur_row = ttk.Frame(self.tools_frame)
+        blur_row.pack(fill="x")
+        ttk.Button(blur_row, text="Add Blur Box", command=lambda: self.begin_draw("blur", "step")
+                   ).pack(side="left", fill="x", expand=True)
+        ttk.Button(blur_row, text="Un-blur / Re-blur", command=self.begin_pick
+                   ).pack(side="left", fill="x", expand=True, padx=(4, 0))
+        ttk.Button(self.tools_frame, text="Re-scan All Steps for Sensitive Text",
+                   command=self.rescan).pack(fill="x", pady=(4, 0))
 
         right = ttk.Frame(self)
         right.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
@@ -120,8 +138,9 @@ class StepEditor(ttk.Frame):
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
         self.winfo_toplevel().bind("<Escape>", lambda e: self.cancel_draw(), add="+")
 
-        ttk.Label(right, textvariable=self.v_info, anchor="w").grid(row=2, column=0, sticky="ew",
-                                                                    pady=(4, 0))
+        info = ttk.Label(right, textvariable=self.v_info, anchor="w", justify="left")
+        info.grid(row=2, column=0, sticky="ew", pady=(4, 0))
+        right.bind("<Configure>", lambda e: info.configure(wraplength=max(200, e.width - 10)))
         cap = ttk.Frame(right)
         cap.grid(row=3, column=0, sticky="ew", pady=(4, 0))
         cap.columnconfigure(1, weight=1)
@@ -166,6 +185,7 @@ class StepEditor(ttk.Frame):
             return
         self.v_title.set(self.doc.get("document", {}).get("title", ""))
         self.v_hl_doc.set(self.doc.get("highlight", True))
+        self.v_redact_doc.set(self.doc.get("redact", True))
         try:
             stepdoc.ensure_frame_size(self.out_dir, self.doc, self.app.ffmpeg)
         except Exception as exc:
@@ -230,6 +250,12 @@ class StepEditor(ttk.Frame):
         if crop:
             own = " (this step only)" if isinstance(step.get("crop"), list) else ""
             info += f" | cropped to {crop[2]}x{crop[3]}{own}"
+        if stepdoc.effective(step, self.doc, "redact"):
+            self.scan_if_needed(step)
+            n = len(stepdoc.redaction_boxes(step, self.doc))
+            if n:
+                info += f" | {n} area(s) blurred"
+        self.v_redact_step.set(bool(stepdoc.effective(step, self.doc, "redact")))
         self.v_info.set(info)
         self.v_hl_step.set(bool(stepdoc.effective(step, self.doc, "highlight")))
         self._set_caption(step.get("caption", ""))
@@ -321,6 +347,87 @@ class StepEditor(ttk.Frame):
         self.set_dirty()
         self.schedule_preview()
 
+    # ----------------------------------------------------------- redaction
+
+    def scan_if_needed(self, step):
+        """Scan one step for sensitive text right away (when it has never been
+        scanned) so the preview shows the blur before saving."""
+        if "auto_redactions" in step or not self.app.tesseract:
+            return
+        try:
+            step["auto_redactions"] = redact.scan_image(
+                self.app.tesseract, self.out_dir / step["original"], self.doc["width"],
+                self.doc["height"], self.doc.get("redact_patterns", []))
+        except Exception as exc:
+            self.app.log_error(f"Text scan failed: {exc}")
+
+    def toggle_doc_redact(self):
+        if not self.doc:
+            return
+        self.doc["redact"] = self.v_redact_doc.get()
+        if self.doc["redact"] and not self.app.tesseract:
+            messagebox.showinfo(self.app.name, redact.TESSERACT_MISSING_HELP,
+                                parent=self.winfo_toplevel())
+        self.set_dirty()
+        self.on_select()
+
+    def toggle_step_redact(self):
+        step = self.current_step()
+        if step is None:
+            return
+        step["redact"] = self.v_redact_step.get()
+        self.set_dirty()
+        self.on_select()
+
+    def rescan(self):
+        """Forget earlier scan results and scan every step again on save
+        (for example after Tesseract was installed). Hand-drawn boxes stay."""
+        if not self.doc:
+            return
+        if not self.app.tesseract:
+            messagebox.showinfo(self.app.name, redact.TESSERACT_MISSING_HELP,
+                                parent=self.winfo_toplevel())
+            return
+        for step in self.doc["steps"]:
+            step.pop("auto_redactions", None)
+        self.set_dirty()
+        self.save()
+
+    def begin_pick(self):
+        """Click a blur box on the original frame to switch it off or on.
+        Hand-drawn boxes are removed instead."""
+        if self.current_step() is None or not self.doc.get("width"):
+            return
+        self.draw = {"kind": "pick", "scope": "step", "start": None, "item": None}
+        self.v_view.set("original")
+        self.canvas.configure(cursor="hand2")
+        self.render_preview()
+        self.app.set_status("Click a blur box to switch it off (or back on). Esc cancels.")
+
+    def pick_box(self, x, y):
+        step = self.current_step()
+        hits = []
+        for r in step.get("auto_redactions") or []:
+            bx, by, bw, bh = r["box"]
+            if bx <= x <= bx + bw and by <= y <= by + bh:
+                hits.append((bw * bh, "auto", r))
+        for b in step.get("manual_redactions") or []:
+            bx, by, bw, bh = b
+            if bx <= x <= bx + bw and by <= y <= by + bh:
+                hits.append((bw * bh, "manual", b))
+        if not hits:
+            self.app.set_status("No blur box there.")
+            return
+        _, kind, item = min(hits, key=lambda h: h[0])
+        if kind == "auto":
+            item["ignored"] = not item.get("ignored")
+            self.app.set_status(f"{'Un-blurred' if item['ignored'] else 'Blurred again'}: "
+                                f"{item.get('reason', 'detected text')}.")
+        else:
+            step["manual_redactions"].remove(item)
+            self.app.set_status("Removed the hand-drawn blur box.")
+        self.set_dirty()
+
     # -------------------------------------------------------- rectangles
 
     def begin_draw(self, kind, scope):
@@ -332,7 +439,7 @@ class StepEditor(ttk.Frame):
         self.v_view.set("original")
         self.canvas.configure(cursor="crosshair")
         self.render_preview()
-        what = {"crop": "the area to keep"}.get(kind, "the area")
+        what = {"crop": "the area to keep", "blur": "the area to blur"}.get(kind, "the area")
         self.app.set_status(f"Drag a rectangle around {what}. Press Esc to cancel.")
 
     def cancel_draw(self):
@@ -344,6 +451,13 @@ class StepEditor(ttk.Frame):
 
     def on_press(self, event):
         if self.draw and self.view_map:
+            if self.draw["kind"] == "pick":
+                self.draw = None
+                self.canvas.configure(cursor="")
+                scale, ox, oy = self.view_map
+                self.pick_box((event.x - ox) / scale, (event.y - oy) / scale)
+                self.on_select()
+                return
             self.draw["start"] = (event.x, event.y)
 
     def on_drag(self, event):
@@ -380,6 +494,11 @@ class StepEditor(ttk.Frame):
                 step["crop"] = rect
             self.app.set_status(f"Crop set to {rect[2]}x{rect[3]} at {rect[0]},{rect[1]}"
                                 f"{' for all steps' if scope == 'all' else ' for this step'}.")
+        elif kind == "blur":
+            step.setdefault("manual_redactions", []).append(rect)
+            if not stepdoc.effective(step, self.doc, "redact"):
+                step["redact"] = True
+            self.app.set_status("Blur box added.")
         self.set_dirty()
         self.v_view.set("final")
         self.on_select()
@@ -455,15 +574,25 @@ class StepEditor(ttk.Frame):
         x0, y0 = ox + x * scale, oy + y * scale
         self.canvas.create_rectangle(x0, y0, x0 + w * scale, y0 + h * scale,
                                      outline=color, width=2, dash=(6, 3))
-        if label:
-            self.canvas.create_text(x0 + 4, y0 + 4, anchor="nw", text=label, fill=color)
+        if label:   # above the box, so it does not cover what is inside
+            above = y0 - 2 > 12
+            self.canvas.create_text(x0, y0 - 2 if above else y0 + h * scale + 2,
+                                    anchor="sw" if above else "nw", text=label, fill=color)
 
     def draw_overlays(self, step):
         """On the original frame, outline what will be applied: the crop
-        (blue) and the "what changed" box (red)."""
+        (blue), the "what changed" box (red), detected text to blur (yellow,
+        gray when switched off), and hand-drawn blur boxes (orange)."""
         crop = stepdoc.effective_crop(step, self.doc)
         if crop:
             self.overlay(crop, "#4FC3F7", "crop")
+        for r in step.get("auto_redactions") or []:
+            if r.get("ignored"):
+                self.overlay(r["box"], "#9E9E9E", "not blurred")
+            else:
+                self.overlay(r["box"], "#FFD54F", r.get("reason"))
+        for b in step.get("manual_redactions") or []:
+            self.overlay(b, "#FF9800", "blur")
         if step.get("change_box") and stepdoc.effective(step, self.doc, "highlight"):
             self.overlay(step["change_box"], "#E53935")
 
@@ -497,7 +626,8 @@ class StepEditor(ttk.Frame):
         def work():
             try:
                 stepdoc.render(out_dir, doc, self.app.ffmpeg,
-                               progress=lambda f, t: self.app.q.put(("status", t)))
+                               progress=lambda f, t: self.app.q.put(("status", t)),
+                               tesseract=self.app.tesseract)
                 result["ok"] = True
             except Exception as exc:
                 result["error"] = exc
