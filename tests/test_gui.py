@@ -2,7 +2,7 @@
 #
 # test_gui.py
 # 2026-10-02
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -38,11 +38,18 @@ class GuiTests(unittest.TestCase):
         cls.source = cls.tmp / "source"
         cls.source.mkdir()
         make_video(cls.source / "Demo.mp4")
+        # The folder is typed through a link, as on Windows where temp paths
+        # are short (8.3) names: the GUI must still match up its videos
+        cls.typed_source = cls.source
+        if os.name != "nt":
+            (cls.tmp / "link").symlink_to(cls.tmp, target_is_directory=True)
+            cls.typed_source = cls.tmp / "link" / "source"
         # Keep GUI settings and presets out of the real user profile
         cls.saved_env = {k: os.environ.get(k) for k in ("APPDATA", "XDG_CONFIG_HOME")}
         os.environ["APPDATA"] = os.environ["XDG_CONFIG_HOME"] = str(cls.tmp / "profile")
         # Dialogs would block an unattended run: answer them automatically
         cls.saved_dialogs = {}
+        cls.dialogs = []      # (dialog, message) shown, to explain failures
         for mod, name, answer in ((messagebox, "askyesno", True),
                                   (messagebox, "askyesnocancel", True),
                                   (messagebox, "showinfo", None),
@@ -50,7 +57,8 @@ class GuiTests(unittest.TestCase):
                                   (messagebox, "showerror", None),
                                   (simpledialog, "askstring", None)):
             cls.saved_dialogs[(mod, name)] = getattr(mod, name)
-            setattr(mod, name, lambda *a, _answer=answer, **k: _answer)
+            setattr(mod, name, lambda *a, _answer=answer, _name=name, **k:
+                    (cls.dialogs.append((_name, a[1] if len(a) > 1 else "")), _answer)[1])
         cls.gui = SourceFileLoader("screencap_gui", str(ROOT / "screencap_gui.pyw")).load_module()
 
     @classmethod
@@ -89,13 +97,13 @@ class GuiTests(unittest.TestCase):
         self.pump(0.5)
 
     def process(self, name):
-        self.app.v_source.set(str(self.source))
+        self.app.v_source.set(str(self.typed_source))
         self.app.v_output.set(str(self.tmp / name))
         self.app.refresh_videos()
         self.app.process_all()
         self.wait_for_worker()
         rows = [self.app.tree.set(i, "status") for i in self.app.tree.get_children()]
-        self.assertEqual(rows, ["Done"])
+        self.assertEqual(rows, ["Done"], f"dialogs shown: {self.dialogs}")
         self.app.tree.selection_set(self.app.tree.get_children()[0])
         self.pump()
         self.app.show_steps()

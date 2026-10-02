@@ -1,6 +1,6 @@
 # ci.yml
 # 2026-10-02
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Runs the automated tests on real Windows and Linux machines for every push
@@ -102,7 +102,9 @@ jobs:
 
       - name: Fail if any test was skipped
         run: |
-          if grep -E "skipped" test.log; then
+          # unittest marks a skipped test "... skipped 'reason'" and ends with
+          # "OK (skipped=N)"; the tool's own "skipped=0" summary is not a skip
+          if grep -E "\.\.\. skipped|^(OK|FAILED) \(.*skipped=" test.log; then
             echo "::error::Some tests were skipped (a tool is missing on this runner). See the lines above."
             exit 1
           fi
