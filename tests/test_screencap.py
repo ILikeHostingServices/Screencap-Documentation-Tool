@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -181,6 +181,48 @@ class DuplicateTests(unittest.TestCase):
         out = self.tmp / "nodedup"
         self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--no-dedup"]), 0)
         self.assertEqual(stepdoc.load(out / "Revisit")["deleted_steps"], [])
+
+    def test_highlight_box_surrounds_the_checkbox(self):
+        prev = imaging.thumbnail(FFMPEG, self.frame(10.5), imaging.CHANGE_SIZE)
+        cur = imaging.thumbnail(FFMPEG, self.frame(13.5), imaging.CHANGE_SIZE)
+        x, y, w, h = imaging.change_box(prev, cur, 1280, 720)
+        # checkbox drawn at 320,230 size 14x14; box must contain it and stay small
+        self.assertLessEqual(x, 320)
+        self.assertLessEqual(y, 230)
+        self.assertGreaterEqual(x + w, 334)
+        self.assertGreaterEqual(y + h, 244)
+        self.assertLess(w * h, 60 * 60)
+
+    def test_cursor_only_change_gets_no_box(self):
+        prev = imaging.thumbnail(FFMPEG, self.frame(1.0), imaging.CHANGE_SIZE)
+        cur = imaging.thumbnail(FFMPEG, self.frame(2.0), imaging.CHANGE_SIZE)
+        box = imaging.change_box(prev, cur, 1280, 720)
+        if box is not None:   # a cursor-sized box is acceptable, never a big one
+            self.assertLess(box[2] * box[3], 60 * 60)
+
+    def test_highlight_rendered_and_switchable(self):
+        out = self.tmp / "hl"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--no-dedup"]), 0)
+        folder = out / "Revisit"
+        doc = stepdoc.load(folder)
+        boxed = [s for s in doc["steps"] if s.get("change_box")]
+        self.assertTrue(boxed)
+        step = boxed[0]
+        self.assertNotEqual((folder / step["file"]).read_bytes(),
+                            (folder / step["original"]).read_bytes())
+        step["highlight"] = False
+        stepdoc.render(folder, doc, FFMPEG)
+        self.assertEqual((folder / step["file"]).read_bytes(),
+                         (folder / step["original"]).read_bytes())
+
+    def test_no_highlight_option(self):
+        out = self.tmp / "nohl"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--no-highlight"]), 0)
+        doc = stepdoc.load(out / "Revisit")
+        self.assertFalse(doc["highlight"])
+        for step in doc["steps"]:
+            self.assertEqual((out / "Revisit" / step["file"]).read_bytes(),
+                             (out / "Revisit" / step["original"]).read_bytes())
 
     def frame(self, t):
         dest = self.tmp / f"frame_{t}.png"

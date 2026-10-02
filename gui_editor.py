@@ -2,13 +2,14 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
 # recording. Reorder, delete (and restore) steps, write a caption for each
 # one, then Save to re-render the screenshots and regenerate steps.md from
-# the untouched originals.
+# the untouched originals. The red "what changed" box can be switched on or
+# off for the whole recording or for a single step.
 
 import threading
 
@@ -34,6 +35,8 @@ class StepEditor(ttk.Frame):
         self.v_view = tk.StringVar(value="final")
         self.v_dirty = tk.StringVar(value="")
         self.v_removed = tk.StringVar(value="")
+        self.v_hl_doc = tk.BooleanVar(value=True)
+        self.v_hl_step = tk.BooleanVar(value=True)
         self._loading_caption = False
         self.build()
 
@@ -48,8 +51,10 @@ class StepEditor(ttk.Frame):
         ttk.Label(top, textvariable=self.v_title, font=("TkDefaultFont", 10, "bold")).pack(side="left")
         ttk.Label(top, textvariable=self.v_dirty, foreground="#b06000").pack(side="left", padx=10)
         ttk.Label(top, textvariable=self.v_removed, foreground="gray").pack(side="left", padx=4)
-        self.options_bar = ttk.Frame(top)   # per-video toggles added by later features
+        self.options_bar = ttk.Frame(top)   # per-recording toggles
         self.options_bar.pack(side="right")
+        ttk.Checkbutton(self.options_bar, text="Highlight changes", variable=self.v_hl_doc,
+                        command=self.toggle_doc_highlight).pack(side="left", padx=4)
 
         left = ttk.Frame(self)
         left.grid(row=1, column=0, sticky="ns")
@@ -74,6 +79,10 @@ class StepEditor(ttk.Frame):
         # Rows 1-2 hold the four buttons above; extra tools go from row 3
         self.tools_frame = ttk.Frame(left)
         self.tools_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        self.chk_hl_step = ttk.Checkbutton(self.tools_frame, text="Highlight this step",
+                                           variable=self.v_hl_step,
+                                           command=self.toggle_step_highlight)
+        self.chk_hl_step.pack(anchor="w")
 
         right = ttk.Frame(self)
         right.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
@@ -136,6 +145,7 @@ class StepEditor(ttk.Frame):
                               "Select a processed video to edit its steps.")
             return
         self.v_title.set(self.doc.get("document", {}).get("title", ""))
+        self.v_hl_doc.set(self.doc.get("highlight", True))
         self.refresh_list(0)
 
     def show_message(self, text):
@@ -190,7 +200,10 @@ class StepEditor(ttk.Frame):
         if step.get("still_from") is not None and step.get("still_to") is not None:
             info += (f" | screen stable {stepdoc.fmt_ts(step['still_from'])} to "
                      f"{stepdoc.fmt_ts(step['still_to'])}")
+        if "change_box" in step and not step["change_box"]:
+            info += " | no highlight (first step, nothing changed, or whole screen changed)"
         self.v_info.set(info)
+        self.v_hl_step.set(bool(stepdoc.effective(step, self.doc, "highlight")))
         self._set_caption(step.get("caption", ""))
         self.schedule_preview()
 
@@ -254,6 +267,31 @@ class StepEditor(ttk.Frame):
         self.set_dirty()
         self.refresh_list(self.current_index() or 0)
         self.app.set_status(f"Restored {n} step(s). Click Save Changes to keep them.")
+
+    def ensure_boxes(self):
+        try:
+            stepdoc.ensure_change_boxes(self.out_dir, self.doc, self.app.ffmpeg)
+        except Exception as exc:
+            self.app.log_error(f"Could not work out what changed: {exc}")
+
+    def toggle_doc_highlight(self):
+        if not self.doc:
+            return
+        self.doc["highlight"] = self.v_hl_doc.get()
+        if self.doc["highlight"]:
+            self.ensure_boxes()
+        self.set_dirty()
+        self.on_select()
+
+    def toggle_step_highlight(self):
+        step = self.current_step()
+        if step is None:
+            return
+        step["highlight"] = self.v_hl_step.get()
+        if step["highlight"]:
+            self.ensure_boxes()
+        self.set_dirty()
+        self.schedule_preview()
 
     # ------------------------------------------------------------- preview
 
