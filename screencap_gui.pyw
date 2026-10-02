@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.10.1
+# Version: v1.10.2
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -40,7 +40,7 @@ import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.10.1"   # this file; the release version is in version.py
+GUI_VERSION = "1.10.2"   # this file; the release version is in version.py
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -538,8 +538,10 @@ class App:
         selected = {self.videos[i][0] for i in self.tree.selection() if i in self.videos}
         self.tree.delete(*self.tree.get_children())
         self.videos.clear()
-        source = Path(self.v_source.get()).expanduser()
-        output = Path(self.v_output.get()).expanduser()
+        # Resolve like start() does, so a short (8.3), junction, or symlinked
+        # path names the videos the same way in both places
+        source = Path(self.v_source.get()).expanduser().resolve()
+        output = Path(self.v_output.get()).expanduser().resolve()
         if not source.is_dir():
             self.set_status(f"Source folder does not exist yet: {source}")
             self.show_steps()
