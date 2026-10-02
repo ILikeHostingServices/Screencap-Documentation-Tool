@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -23,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import imaging  # noqa: E402
 import screencap as sc  # noqa: E402
 import stepdoc  # noqa: E402
 
@@ -134,6 +135,58 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(doc["schema"], stepdoc.SCHEMA)
         self.assertTrue((out / doc["steps"][0]["original"]).is_file())
         self.assertEqual(len(list(out.glob("steps.pre-upgrade-*.md"))), 1)
+
+
+# The dialog opens (3 s), closes (6 s), and opens again (9 s); a small
+# checkbox is ticked at 12 s and the mouse cursor moves the whole time.
+REVISIT_FILTER = ("drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:"
+                  "enable='between(t,3,6)+gte(t,9)',"
+                  "drawbox=x=320:y=230:w=14:h=14:color=black:t=fill:enable='gte(t,12)',"
+                  "drawbox=x='100+t*40':y=600:w=12:h=18:color=black:t=fill")
+
+
+@unittest.skipUnless(FFMPEG and FFPROBE, "FFmpeg is not installed")
+class DuplicateTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="screencap_dedup_"))
+        cls.source = cls.tmp / "source"
+        cls.source.mkdir()
+        make_video(cls.source / "Revisit.mp4", REVISIT_FILTER, duration=15)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_revisited_screen_is_removed_and_restorable(self):
+        out = self.tmp / "dedup"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out)]), 0)
+        doc = stepdoc.load(out / "Revisit")
+        self.assertEqual(len(doc["deleted_steps"]), 1)
+        dup = doc["deleted_steps"][0]
+        self.assertEqual(dup["deleted_reason"], "duplicate")
+        self.assertTrue((out / "Revisit" / dup["original"]).is_file())
+        kept = len(doc["steps"])
+        stepdoc.restore_deleted(doc)
+        self.assertEqual(len(doc["steps"]), kept + 1)
+
+    def test_small_change_is_not_a_duplicate(self):
+        a = imaging.thumbnail(FFMPEG, self.frame(10.5))
+        b = imaging.thumbnail(FFMPEG, self.frame(13.5))   # only the checkbox differs
+        c = imaging.thumbnail(FFMPEG, self.frame(11.0))   # only the cursor moved
+        self.assertIsNone(imaging.find_duplicate(b, [a], 0.01))
+        self.assertEqual(imaging.find_duplicate(c, [a], 0.01), 0)
+
+    def test_no_dedup_keeps_everything(self):
+        out = self.tmp / "nodedup"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--no-dedup"]), 0)
+        self.assertEqual(stepdoc.load(out / "Revisit")["deleted_steps"], [])
+
+    def frame(self, t):
+        dest = self.tmp / f"frame_{t}.png"
+        sc.run([FFMPEG, "-loglevel", "error", "-y", "-ss", str(t), "-i",
+                str(self.source / "Revisit.mp4"), "-frames:v", "1", str(dest)])
+        return dest
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -33,6 +33,7 @@ class StepEditor(ttk.Frame):
         self.v_title = tk.StringVar(value="")
         self.v_view = tk.StringVar(value="final")
         self.v_dirty = tk.StringVar(value="")
+        self.v_removed = tk.StringVar(value="")
         self._loading_caption = False
         self.build()
 
@@ -46,6 +47,7 @@ class StepEditor(ttk.Frame):
         top.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
         ttk.Label(top, textvariable=self.v_title, font=("TkDefaultFont", 10, "bold")).pack(side="left")
         ttk.Label(top, textvariable=self.v_dirty, foreground="#b06000").pack(side="left", padx=10)
+        ttk.Label(top, textvariable=self.v_removed, foreground="gray").pack(side="left", padx=4)
         self.options_bar = ttk.Frame(top)   # per-video toggles added by later features
         self.options_bar.pack(side="right")
 
@@ -139,6 +141,7 @@ class StepEditor(ttk.Frame):
     def show_message(self, text):
         self.doc = None
         self.v_title.set("")
+        self.v_removed.set("")
         self.step_list.delete(0, "end")
         self.canvas.delete("all")
         self._set_caption("")
@@ -159,8 +162,10 @@ class StepEditor(ttk.Frame):
             self.canvas.delete("all")
             self._set_caption("")
             self.v_info.set("No steps. Use Restore Deleted to bring steps back.")
-        if deleted:
-            self.v_info.set(self.v_info.get() + f"  ({deleted} deleted step(s) can be restored)")
+        dups = sum(1 for d in self.doc["deleted_steps"] if d.get("deleted_reason") == "duplicate")
+        extra = f", {dups} duplicate(s)" if dups else ""
+        self.v_removed.set(f"{deleted} removed{extra} (Restore Deleted brings them back)"
+                           if deleted else "")
 
     # ------------------------------------------------------------ editing
 

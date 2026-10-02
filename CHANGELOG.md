@@ -1,8 +1,18 @@
-CHANGELOG.md v1.5.0 (Last Rev: 2026-10-02)
+CHANGELOG.md v1.6.0 (Last Rev: 2026-10-02)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.6.0 - Duplicate screenshot removal (2026-10-02)
+
+**New**
+- Screenshots that look virtually identical to one already kept, for example when you go back to a screen you already captured, are removed automatically.
+- Removed duplicates are not deleted: they are kept as deleted steps with their original frames, and **Restore Deleted** in the Steps tab brings them back. The Steps tab shows how many were removed as duplicates.
+- GUI: **Remove duplicate screenshots** checkbox and **Duplicate if differs by (%)** in Detection Settings.
+- Command line: `--no-dedup` and `--dedup-threshold` (default 0.01 percent).
+- The default only matches near-exact copies. In testing, a moving mouse cursor counted as no change while a ticked 14 pixel checkbox did not count as a duplicate, so small but real changes are kept.
+- The final screenshot of a recording is always kept, so the end result is always documented.
 
 ## v1.5.0 - Step editor (2026-10-02)
 

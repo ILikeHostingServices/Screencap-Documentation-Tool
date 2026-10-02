@@ -1,4 +1,4 @@
-README.md v1.7.0 (Last Rev: 2026-10-02)
+README.md v1.8.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -10,6 +10,7 @@ For each recording you get:
 
 - One full resolution screenshot per step, numbered in order.
 - A `steps.md` file listing every step with its timestamp, its screenshot, and its caption, ready to turn into documentation.
+- Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - A step editor in the GUI to remove, reorder, and caption steps. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. The only requirements are Python 3.8+ and [FFmpeg](https://ffmpeg.org/), both free and open source.
@@ -21,6 +22,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 1. **Detect changes.** FFmpeg samples the video (5 frames per second at 640 px wide, which keeps it fast) and scores how different each frame is from the one before. A score above the sensitivity threshold counts as a change.
 2. **Group bursts.** Changes that happen close together, like typing, a window animating open, or a fade, are merged into a single change. You get one screenshot per step, not twenty.
 3. **Capture the step.** The stable stretch between two changes is one step. By default the screenshot is taken just before the next change starts, so each step is shown finished: fields filled in, progress bar complete, mouse on the button about to be clicked. Screenshots come from the original video at full resolution.
+4. **Drop duplicates.** Each screenshot is compared with the ones already kept. If it is virtually identical to one of them (you went back to a screen you already captured), it is set aside as a deleted step you can restore.
 
 ## Files
 
@@ -35,6 +37,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `screencap.py` | The detection engine and command line tool. |
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
 | `gui_editor.py` | The GUI's Steps tab (step editor). |
+| `imaging.py` | Image comparisons (duplicate detection) using FFmpeg and the Python standard library. |
 | `tests/` | Automated tests. Run `python -m unittest discover -s tests -v` from the repository root (needs FFmpeg). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
@@ -151,7 +154,7 @@ The window is laid out top to bottom in the order you use it:
 
 1. **Folders.** Choose where recordings come from and where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the source folder recursively.
 2. **Videos.** Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
-3. **Detection Settings.** Pick a **Sensitivity** preset (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
+3. **Detection Settings.** Pick a **Sensitivity** preset (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. **Remove duplicate screenshots** drops screenshots that look the same as an earlier one. Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
 4. **Steps tab.** The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
 5. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`.
 
@@ -186,6 +189,7 @@ The defaults are tuned for typical setup wizards. If a recording gives you too m
 | --- | --- | --- |
 | Too many near-duplicate screenshots (hover effects, small redraws) | Sensitivity **Low**, or raise **Merge changes within** to 2 | `--threshold 0.015` and/or `--debounce 2` |
 | Missing steps (a checkbox or small text change not caught) | Sensitivity **High**, or set **Analyze width** to 0 | `--threshold 0.002` and/or `--analyze-width 0` |
+| A screenshot you wanted was removed as a duplicate | Click **Restore Deleted** in the Steps tab, or lower **Duplicate if differs by (%)** (for example to 0.005), or untick **Remove duplicate screenshots** | `--dedup-threshold 0.005`, or `--no-dedup` |
 | Screenshots show a half-drawn window | **Screenshot taken**: Finished state, or raise **Settle after change** | `--capture-point end`, or raise `--settle` |
 
 After changing settings, reprocess with **Reprocess videos that are already done** ticked (command line: `--force`).
@@ -283,6 +287,8 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--min-gap` | `1.0` | Never takes two screenshots closer together than this many seconds. |
 | `--analyze-fps` | `5` | Frames per second examined. `0` examines every frame (slower, rarely needed). |
 | `--analyze-width` | `640` | Width used for analysis only. `0` uses full size. Screenshots are always full resolution. |
+| `--no-dedup` | off | Keep screenshots that look identical to an earlier one. |
+| `--dedup-threshold` | `0.01` | Two screenshots are duplicates when at most this percent of the picture differs. The default only matches virtually identical screens, so small changes such as a ticked checkbox are kept. Removed duplicates are kept as deleted steps and can be restored in the Steps tab. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
 | `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |
 | `--dry-run` | off | Lists the steps that would be captured without saving anything. |
