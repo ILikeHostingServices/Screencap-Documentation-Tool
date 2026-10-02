@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.6.0
+# Version: v1.7.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -87,9 +87,15 @@ class StepEditor(ttk.Frame):
         self.step_list.bind("<<ListboxSelect>>", lambda e: self.on_select())
         self.step_list.bind("<Double-1>", lambda e: self.open_image())
         self.step_list.bind("<Delete>", lambda e: self.delete_step())
+        # Ctrl+Up/Down reorder; plain Up/Down page through steps (see on_arrow)
+        self.step_list.bind("<Control-Up>", lambda e: self.move(-1) or "break")
+        self.step_list.bind("<Control-Down>", lambda e: self.move(1) or "break")
+        top = self.winfo_toplevel()
+        top.bind("<Up>", lambda e: self.on_arrow(e, -1), add="+")
+        top.bind("<Down>", lambda e: self.on_arrow(e, 1), add="+")
         self.step_buttons = []
-        for r, (text, cmd) in enumerate((("Move Up", lambda: self.move(-1)),
-                                         ("Move Down", lambda: self.move(1)),
+        for r, (text, cmd) in enumerate((("Move Step Up", lambda: self.move(-1)),
+                                         ("Move Step Down", lambda: self.move(1)),
                                          ("Delete Step", self.delete_step),
                                          ("Restore Deleted", self.restore_deleted)), 1):
             b = ttk.Button(left, text=text, command=cmd)
@@ -277,6 +283,9 @@ class StepEditor(ttk.Frame):
         if step is None:
             return
         i = self.current_index()
+        # Keep the list's keyboard cursor on the selected step, so arrow keys
+        # continue from here after a button or Prev/Next changed the step
+        self.step_list.activate(i)
         info = f"Step {i + 1} of {len(self.doc['steps'])} at {stepdoc.fmt_ts(step['time'])}"
         if step.get("still_from") is not None and step.get("still_to") is not None:
             info += (f" | screen stable {stepdoc.fmt_ts(step['still_from'])} to "
@@ -332,7 +341,21 @@ class StepEditor(ttk.Frame):
         self.step_list.see(i)
         self.on_select()
 
+    def on_arrow(self, event, delta):
+        """Up/Down page through the steps from anywhere in the Steps tab, so
+        they still work after clicking a button or the picture. The step list
+        and text fields keep their own arrow-key behavior."""
+        if not self.winfo_ismapped() or not self.doc:
+            return
+        focus = self.focus_get()
+        if focus is self.step_list or isinstance(focus, (tk.Text, tk.Entry, ttk.Entry,
+                                                         ttk.Treeview, ttk.Combobox)):
+            return
+        self.step_by(delta)
+
     def move(self, delta):
+        """Reorder: the selected step moves and stays selected, so the picture
+        keeps showing the step you are moving."""
         i = self.current_index()
         if i is None:
             return
@@ -340,6 +363,11 @@ class StepEditor(ttk.Frame):
         if j != i:
             self.set_dirty()
             self.refresh_list(j)
+            self.app.set_status(f"Moved the step from position {i + 1} to {j + 1}. "
+                                "Use Up/Down (or < Prev / Next >) to look at other steps.")
+        else:
+            self.app.set_status("That step is already at the "
+                                f"{'top' if delta < 0 else 'bottom'} of the list.")
 
     def delete_step(self):
         i = self.current_index()

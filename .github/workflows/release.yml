@@ -1,18 +1,18 @@
 # release.yml
 # 2026-10-01
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
-# 1. Retires tags listed in .github/releases/retired.txt (deletes the release
-#    and tag, only while the tag still points at the listed commit).
-# 2. Creates any annotated version tag listed in .github/releases/manifest.txt
+# 1. Creates any annotated version tag listed in .github/releases/manifest.txt
 #    that does not exist yet, using .github/releases/<tag>.md as the message.
-# 3. Publishes a GitHub release for every version tag that does not have one
+# 2. Publishes a GitHub release for every version tag that does not have one
 #    yet, using the annotated tag's message as the release notes, and marks
 #    the highest version as "Latest".
 # Versions are Major.Minor.Patch only (vX.Y.Z); anything else is rejected.
 # Runs when a tag is pushed, or by hand (Actions > Publish releases > Run
-# workflow). Safe to re-run: finished work is skipped.
+# workflow). Safe to re-run: finished work is skipped. It only ever creates
+# tags and releases. It never deletes or rewrites existing ones; the only
+# change to an existing release is moving the "Latest" label to the newest.
 
 name: Publish releases
 
@@ -41,34 +41,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Retire tags listed in retired.txt
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Create missing tags from the release manifest
         run: |
           set -euo pipefail
           # Re-fetch tags so annotated tags keep their messages (checkout can
           # replace the triggering tag with a lightweight one)
           git fetch --force --tags origin
-          retired=.github/releases/retired.txt
-          [ -f "$retired" ] || exit 0
-          grep -v '^\s*#' "$retired" | while read -r tag sha; do
-            [ -n "${tag:-}" ] || continue
-            current="$(git rev-parse -q --verify "refs/tags/$tag^{commit}" || true)"
-            if [ "$current" != "$sha" ]; then
-              echo "Not retiring $tag (absent or re-created on another commit)"
-              continue
-            fi
-            echo "Retiring $tag ($sha)"
-            if gh release view "$tag" >/dev/null 2>&1; then
-              gh release delete "$tag" --yes
-            fi
-            git push origin ":refs/tags/$tag"
-            git tag -d "$tag"
-          done
-
-      - name: Create missing tags from the release manifest
-        run: |
-          set -euo pipefail
           manifest=.github/releases/manifest.txt
           [ -f "$manifest" ] || { echo "No manifest; nothing to tag."; exit 0; }
           grep -v '^\s*#' "$manifest" | while read -r tag sha; do

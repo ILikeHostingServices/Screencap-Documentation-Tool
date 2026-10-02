@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.9.0
+# Version: v1.9.1
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -33,10 +33,11 @@ import imaging  # noqa: E402
 import presets  # noqa: E402
 import redact  # noqa: E402
 import stepdoc  # noqa: E402
+import version  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.9.0"
+VERSION = "1.9.1"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -521,7 +522,8 @@ def parse_args(argv):
     p.add_argument("--list-presets", action="store_true",
                    help="List the built-in and your saved presets, then exit")
     p.add_argument("-v", "--verbose", action="store_true", help="Debug logging")
-    p.add_argument("--version", action="version", version=f"%(prog)s v{VERSION}")
+    p.add_argument("--version", action="version",
+                   version=f"{version.APP_NAME} v{version.RELEASE} (screencap.py v{VERSION})")
     # Two passes: read --preset first, make its values the defaults, then
     # parse again so options typed on the command line win over the preset
     first, _ = p.parse_known_args(argv)
@@ -593,7 +595,7 @@ def main(argv=None):
     source = args.source.expanduser().resolve()
     output = args.output.expanduser().resolve()
     setup_logging(output, args.verbose)
-    log.info("screencap.py v%s", VERSION)
+    log.info("%s v%s (screencap.py v%s)", version.APP_NAME, version.RELEASE, VERSION)
 
     ffmpeg = find_tool("ffmpeg", args.ffmpeg)
     ffprobe = find_tool("ffprobe", args.ffprobe)
