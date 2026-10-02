@@ -1,8 +1,16 @@
-CHANGELOG.md v1.10.0 (Last Rev: 2026-10-02)
+CHANGELOG.md v1.11.0 (Last Rev: 2026-10-02)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.11.0 - Play a step in VLC (2026-10-02)
+
+**New**
+- **Play in VLC** in the Steps tab opens the original recording in VLC media player 3 seconds before the selected step's screen appeared, so you can watch the click or keystroke that led to it.
+- VLC is found on the PATH or in its standard install folders (Windows `Program Files\VideoLAN\VLC`, macOS `/Applications/VLC.app`).
+- Each new VLC window starts at the right moment even if VLC is set to allow only one instance.
+- Processed recordings now remember where the source video is, so this keeps working when the recording is not selected in the Videos list.
 
 ## v1.10.0 - Export to HTML, Word, and PDF (2026-10-02)
 

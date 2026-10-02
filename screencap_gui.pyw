@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.7.0
+# Version: v1.8.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -32,12 +32,13 @@ from tkinter.scrolledtext import ScrolledText
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import export  # noqa: E402
+import player  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.7.0"
+GUI_VERSION = "1.8.0"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -105,6 +106,7 @@ class App:
         self.tesseract = redact.find_tesseract()
         self.pandoc = export.find_pandoc()
         self.browser = export.find_browser()
+        self.vlc = player.find_vlc()
         self.defaults = sc.parse_args([])
 
         root.title(f"{APP_NAME} v{GUI_VERSION}")
@@ -503,6 +505,8 @@ class App:
                 sc.log.info("Pandoc not found: Word export unavailable (HTML and PDF still work).")
             if not self.browser:
                 sc.log.info("Edge/Chrome/Chromium not found: PDF export unavailable.")
+            if not self.vlc:
+                sc.log.info("VLC not found: Play in VLC unavailable.")
             return True
         sc.log.error(sc.FFMPEG_MISSING_HELP)
         messagebox.showwarning(APP_NAME, sc.FFMPEG_MISSING_HELP, parent=self.root)

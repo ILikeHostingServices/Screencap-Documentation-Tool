@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.5.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -12,14 +12,17 @@
 # off for the whole recording or for a single step, screenshots can be
 # cropped by dragging a rectangle on the original frame, and sensitive areas
 # can be blurred (detected automatically, or drawn by hand) with an
-# unblurred copy kept alongside. Finished steps export to HTML, Word, or PDF.
+# unblurred copy kept alongside. Finished steps export to HTML, Word, or PDF,
+# and Play in VLC opens the recording just before the selected step.
 
 import threading
+from pathlib import Path
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 import export
+import player
 import redact
 import stepdoc
 
@@ -181,8 +184,9 @@ class StepEditor(ttk.Frame):
         ttk.Button(bar, text="< Prev", command=lambda: self.step_by(-1)).pack(side="left")
         ttk.Button(bar, text="Next >", command=lambda: self.step_by(1)).pack(side="left", padx=4)
         ttk.Button(bar, text="Open Image", command=self.open_image).pack(side="left", padx=4)
-        self.action_bar = ttk.Frame(bar)    # extra actions added by later features
+        self.action_bar = ttk.Frame(bar)
         self.action_bar.pack(side="left", padx=4)
+        ttk.Button(self.action_bar, text="Play in VLC", command=self.play).pack(side="left")
         self.btn_save = ttk.Button(bar, text="Save Changes", command=self.save)
         self.btn_save.pack(side="right")
         ttk.Button(bar, text="Discard Changes", command=self.discard).pack(side="right", padx=4)
@@ -776,6 +780,37 @@ class StepEditor(ttk.Frame):
             path = self.out_dir / step["original"]
         if path.is_file():
             self.app.open_path(path)
+
+    def source_video(self):
+        """The recording this output came from: the one selected in the
+        Videos list, or the path saved when it was processed."""
+        if self.video and Path(self.video).is_file():
+            return Path(self.video)
+        saved = self.doc.get("source_path") if self.doc else None
+        if saved and Path(saved).is_file():
+            return Path(saved)
+        return None
+
+    def play(self):
+        step = self.current_step()
+        if step is None:
+            return
+        if not self.app.vlc:
+            messagebox.showinfo(self.app.name, player.VLC_MISSING_HELP,
+                                parent=self.winfo_toplevel())
+            return
+        video = self.source_video()
+        if video is None:
+            messagebox.showinfo(self.app.name, "The original recording was not found. It may "
+                                "have been moved or deleted from the source folder.",
+                                parent=self.winfo_toplevel())
+            return
+        start = player.start_time(step)
+        try:
+            player.open_at(self.app.vlc, video, start)
+            self.app.set_status(f"Opened {video.name} in VLC at {stepdoc.fmt_ts(start)}")
+        except OSError as exc:
+            self.app.log_error(f"Could not start VLC: {exc}")
 
     def open_folder(self):
         if self.out_dir and self.out_dir.is_dir():

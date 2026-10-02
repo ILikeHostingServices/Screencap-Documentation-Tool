@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.5.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 
 import export  # noqa: E402
 import imaging  # noqa: E402
+import player  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import stepdoc  # noqa: E402
@@ -46,6 +47,17 @@ def make_video(path, vf=DEMO_FILTER, duration=18):
                   "-c:v", "libx264", "-pix_fmt", "yuv420p", str(path)])
     if res.returncode != 0:
         raise RuntimeError(res.stderr)
+
+
+class PlayerTests(unittest.TestCase):
+    def test_start_time_shows_the_lead_up(self):
+        self.assertEqual(player.start_time({"time": 7.75, "still_from": 4.0}), 1.0)
+        self.assertEqual(player.start_time({"time": 1.0, "still_from": 0.0}), 0.0)
+        self.assertEqual(player.start_time({"time": 9.0, "still_from": None}), 6.0)
+
+    def test_vlc_command(self):
+        cmd = player.vlc_command("vlc", Path("Demo.mp4"), 12.5)
+        self.assertEqual(cmd, ["vlc", "--no-one-instance", "--start-time=12.50", "Demo.mp4"])
 
 
 @unittest.skipUnless(FFMPEG and FFPROBE, "FFmpeg is not installed")
@@ -70,6 +82,7 @@ class EngineTests(unittest.TestCase):
     def test_process_keeps_originals_and_renders_steps(self):
         out = self.process("basic")
         doc = stepdoc.load(out)
+        self.assertEqual(Path(doc["source_path"]), (self.source / "Demo.mp4").resolve())
         self.assertEqual(doc["schema"], stepdoc.SCHEMA)
         self.assertGreaterEqual(len(doc["steps"]), 3)
         for step in doc["steps"]:
