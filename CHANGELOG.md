@@ -1,8 +1,18 @@
-CHANGELOG.md v1.7.0 (Last Rev: 2026-10-02)
+CHANGELOG.md v1.8.0 (Last Rev: 2026-10-02)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.8.0 - Adjustable cropping (2026-10-02)
+
+**New**
+- Crop screenshots by dragging a rectangle on the picture in the Steps tab: **Crop: All Steps** for the whole recording, or **This Step** for one step. Press Esc to cancel.
+- **No Crop Here** leaves one step uncropped, and **Clear All Crops** removes every crop.
+- On **Original frame**, dashed outlines show the crop (blue) and the "what changed" box (red) that will be applied.
+- Command line: `--crop X:Y:W:H`, for example `--crop 0:0:1920:1080` to keep the left monitor of a dual-screen recording.
+- The originals are never cropped, so a crop can be adjusted or removed at any time and nothing is lost.
+- Crop sizes are rounded down to even numbers and kept inside the frame, so every image format can save them.
 
 ## v1.7.0 - Red box around what changed (2026-10-02)
 
