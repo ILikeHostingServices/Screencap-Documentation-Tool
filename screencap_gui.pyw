@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.10.0
+# Version: v1.10.1
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -40,7 +40,7 @@ import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.10.0"   # this file; the release version is in version.py
+GUI_VERSION = "1.10.1"   # this file; the release version is in version.py
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -121,7 +121,7 @@ class App:
         self.load_settings()
         self.refresh_videos()
         self.check_ffmpeg()
-        self.root.after(100, self.poll_queue)
+        self.poll_job = self.root.after(100, self.poll_queue)
 
     # ------------------------------------------------------------------ UI
 
@@ -735,7 +735,7 @@ class App:
                     self.on_done(msg[1], msg[2])
         except queue.Empty:
             pass
-        self.root.after(100, self.poll_queue)
+        self.poll_job = self.root.after(100, self.poll_queue)
 
     def on_done(self, results, dry_run):
         self.set_running(False)
@@ -829,6 +829,13 @@ class App:
             self.worker.join(timeout=10)
         self.save_settings()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+        # Cancel scheduled callbacks so none fire after the window is gone
+        for job in (getattr(self, "poll_job", None), self.editor.preview_job):
+            if job:
+                try:
+                    self.root.after_cancel(job)
+                except tk.TclError:
+                    pass
         self.root.destroy()
 
 

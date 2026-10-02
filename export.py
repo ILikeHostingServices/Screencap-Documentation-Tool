@@ -2,7 +2,7 @@
 #
 # export.py
 # 2026-10-02
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
@@ -227,8 +227,10 @@ def export(out_dir, doc, fmt, unredacted=False, pandoc=None, browser=None):
                    "--no-pdf-header-footer", "--print-to-pdf-no-header",
                    f"--user-data-dir={Path(tmp) / 'profile'}",
                    f"--print-to-pdf={dest}", page.as_uri()]
-            if hasattr(os, "geteuid") and os.geteuid() == 0:
-                cmd.insert(1, "--no-sandbox")   # Chromium refuses to run as root otherwise
+            if (hasattr(os, "geteuid") and os.geteuid() == 0) or os.environ.get("SCREENCAP_NO_SANDBOX"):
+                # Chromium refuses to run as root, and some Linux CI machines
+                # block its sandbox; SCREENCAP_NO_SANDBOX=1 is set only there
+                cmd.insert(1, "--no-sandbox")
             _run(cmd, "The browser", timeout=180)
             if not dest.is_file():
                 raise RuntimeError("The browser did not produce a PDF.")
