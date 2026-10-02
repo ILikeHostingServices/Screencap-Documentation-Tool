@@ -1,4 +1,4 @@
-README.md v1.6.0 (Last Rev: 2026-10-01)
+README.md v1.7.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -9,7 +9,8 @@ Record your screen while you install or configure a program, drop the recording 
 For each recording you get:
 
 - One full resolution screenshot per step, numbered in order.
-- A `steps.md` file listing every step with its timestamp, its screenshot, and a blank notes spot, ready to turn into documentation.
+- A `steps.md` file listing every step with its timestamp, its screenshot, and its caption, ready to turn into documentation.
+- A step editor in the GUI to remove, reorder, and caption steps. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. The only requirements are Python 3.8+ and [FFmpeg](https://ffmpeg.org/), both free and open source.
 
@@ -32,6 +33,10 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
 | `screencap.py` | The detection engine and command line tool. |
+| `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
+| `gui_editor.py` | The GUI's Steps tab (step editor). |
+| `tests/` | Automated tests. Run `python -m unittest discover -s tests -v` from the repository root (needs FFmpeg). |
+| `ROADMAP.md` | Ideas on hold until they have been discussed further. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
 | `CHANGELOG.md` | What changed in every release. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one. |
@@ -43,9 +48,12 @@ Each run creates these files in the output folder:
 
 | Path | Purpose |
 | --- | --- |
-| `output/<video>/step_001_00-00-03.750.png` | Screenshot for each step. The name holds the step number and timestamp. |
-| `output/<video>/steps.md` | The steps in order, with screenshots, timestamps, and notes placeholders. |
-| `output/<video>/steps.json` | The same data in machine-readable form, plus the settings used. |
+| `output/<video>/step_001_00-00-03.750.png` | Screenshot for each step, rendered from its original. The name holds the step number and timestamp. |
+| `output/<video>/originals/` | The untouched full frames captured from the video. Never modified, so edits can always be redone. |
+| `output/<video>/steps.md` | The steps in order, with screenshots, timestamps, and captions. Generated from `steps.json`. |
+| `output/<video>/steps.json` | The step document: order, captions, deleted steps, and the settings used. This is the source of truth. |
+| `output/<video>/steps.hand-edited-*.md` | Backup of `steps.md`, made automatically if you edited it by hand and then saved from the editor. |
+| `output/<video>/previous-*/` | The previous results, moved here (not deleted) when a recording is reprocessed with `--force`. |
 | `output/screencap.log` | Detailed log of every run. Check here first when something goes wrong. |
 
 The GUI remembers your last folders and settings in `%APPDATA%\ScreencapDocTool\gui_settings.json` on Windows, or `~/.config/screencap-doc-tool/gui_settings.json` on Linux and macOS (outside the install folder). Delete that file to reset the GUI.
@@ -115,7 +123,7 @@ This installs [Homebrew](https://brew.sh) if you do not have it (it will ask for
 
 1. Put your recordings in the `source` folder inside the install folder, or point the GUI at the folder your recorder already saves to.
 2. Start the GUI (Start Menu shortcut on Windows, `screencap-gui` on Linux and macOS) and click **Process All**.
-3. Review the results in the **Preview** tab, then click **Open steps.md** and start writing. VS Code, Obsidian, Typora, or any Markdown viewer shows the screenshots inline.
+3. Clean up the steps in the **Steps** tab (delete extras, reorder, add captions) and click **Save Changes**, then click **steps.md** to open the document. VS Code, Obsidian, Typora, or any Markdown viewer shows the screenshots inline.
 
 Prefer the command line? Run `screencap` on Linux and macOS, or `Run-Screencap.bat` in the install folder on Windows.
 
@@ -144,10 +152,31 @@ The window is laid out top to bottom in the order you use it:
 1. **Folders.** Choose where recordings come from and where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the source folder recursively.
 2. **Videos.** Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
 3. **Detection Settings.** Pick a **Sensitivity** preset (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
-4. **Preview tab.** Page through the captured steps with **< Prev** and **Next >**. Double-click a step or click **Open Image** to see it full size, and click **Open steps.md** to start writing.
+4. **Steps tab.** The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
 5. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`.
 
 Your folders and settings are saved when you process or close the window and restored the next time you open it.
+
+### Editing Steps
+
+Select a processed recording in the **Videos** list and the **Steps** tab shows its steps.
+
+| Control | What it does |
+| --- | --- |
+| Step list | Every step with its time and caption. **< Prev** / **Next >** page through them. |
+| **Move Up** / **Move Down** | Change the order of steps. |
+| **Delete Step** (or the Delete key) | Remove a step. Its original frame is kept. |
+| **Restore Deleted** | Put every deleted step back at its place in the video's timeline. |
+| **Caption** | The text shown under the step in `steps.md`, replacing the `_Notes:_` placeholder. |
+| **Show: Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
+| **Save Changes** | Re-render the screenshots from the originals and regenerate `steps.md` and `steps.json`. |
+| **Discard Changes** | Go back to the last saved version. |
+
+Nothing is written until you click **Save Changes**. If you switch recordings, start processing, or close the window with unsaved changes, the GUI asks whether to save them first.
+
+`steps.md` is generated from `steps.json`, so write captions in the editor rather than in `steps.md`. If you do edit `steps.md` by hand and then save from the editor, your edited copy is kept as `steps.hand-edited-<date>-<time>.md` next to it.
+
+Output from v1.4.0 and earlier is upgraded automatically the first time you open it: the screenshots move into `originals/` and the old `steps.md` is kept as `steps.pre-upgrade-<date>-<time>.md`.
 
 ### Tuning For Your Recordings
 
@@ -255,7 +284,7 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--analyze-fps` | `5` | Frames per second examined. `0` examines every frame (slower, rarely needed). |
 | `--analyze-width` | `640` | Width used for analysis only. `0` uses full size. Screenshots are always full resolution. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
-| `--force` | off | Reprocesses recordings that already have output. Without it, finished recordings are skipped. |
+| `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |
 | `--dry-run` | off | Lists the steps that would be captured without saving anything. |
 | `--ffmpeg`, `--ffprobe` | auto | Explicit paths to the FFmpeg executables. |
 | `-v`, `--verbose` | off | Shows debug output on screen, including the exact FFmpeg commands. |
