@@ -1,0 +1,196 @@
+# installers.yml
+# 2026-10-02
+# Version: v1.0.0
+#
+# PURPOSE:
+# Runs the real one-step installers on clean Windows, Linux, and macOS
+# machines, then checks the installed tool: files, version, shortcuts and
+# taskbar identity (Windows), folder permissions (system-wide install),
+# processing and exporting a recording, and that re-running the installer
+# (an update) keeps the user's files.
+#
+# Runs when an installer changes, once a week (the installers depend on
+# winget, apt, and Homebrew, which change on their own), and on demand
+# (Actions > Installers > Run workflow). Read-only token, no secrets.
+
+name: Installers
+
+on:
+  push:
+    paths:
+      - install.ps1
+      - Install-Prerequisites.ps1
+      - install.sh
+      - .github/workflows/installers.yml
+  schedule:
+    - cron: "17 6 * * 1"     # Mondays 06:17 UTC (02:17 US Eastern)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows (${{ matrix.scope }})
+    strategy:
+      fail-fast: false
+      matrix:
+        scope: [user, machine]
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      INSTALL_DIR: C:\DATA\Tools\Screencap-Documentation-Tool
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the installer
+        run: |
+          # The installer downloads the commit being tested, exactly as the
+          # Quick Start command downloads the latest one
+          $hasWinget = [bool](Get-Command winget -ErrorAction SilentlyContinue)
+          "HAS_WINGET=$hasWinget" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $scopeSwitch = if ('${{ matrix.scope }}' -eq 'user') { @{ UserOnly = $true } } else { @{ SystemWide = $true } }
+          if (-not $hasWinget) {
+            Write-Host "::warning::winget is not available on this runner image, so the prerequisite installs (winget) were not tested. Installing FFmpeg with Chocolatey instead."
+            choco install ffmpeg -y --no-progress
+            & .\install.ps1 -InstallDir $env:INSTALL_DIR -Ref '${{ github.sha }}' -SkipPrerequisites @scopeSwitch
+          } else {
+            & .\install.ps1 -InstallDir $env:INSTALL_DIR -Ref '${{ github.sha }}' @scopeSwitch
+          }
+
+      - name: Check the installed files and version
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($f in 'screencap.py', 'screencap_gui.pyw', 'version.py', 'assets\icon.ico', 'source', 'output') {
+            if (-not (Test-Path (Join-Path $env:INSTALL_DIR $f))) { throw "Missing after install: $f" }
+          }
+          $expected = (Select-String -Path version.py -Pattern 'RELEASE = "(.+)"').Matches[0].Groups[1].Value
+          $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User') + ';' + $env:Path
+          $out = & py -3 (Join-Path $env:INSTALL_DIR 'screencap.py') --version
+          Write-Host $out
+          if ($out -notmatch [regex]::Escape("v$expected")) { throw "Expected version v$expected, got: $out" }
+
+      - name: Check the shortcuts
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $name = 'Screencap Documentation Tool.lnk'
+          $folder = if ('${{ matrix.scope }}' -eq 'user') { [Environment]::GetFolderPath('Programs') } else { [Environment]::GetFolderPath('CommonPrograms') }
+          $lnkPath = Join-Path $folder $name
+          if (-not (Test-Path $lnkPath)) { throw "Start Menu shortcut missing: $lnkPath" }
+          $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($lnkPath)
+          Write-Host "Target: $($lnk.TargetPath) $($lnk.Arguments)"
+          Write-Host "Icon:   $($lnk.IconLocation)"
+          if ($lnk.IconLocation -notmatch 'icon\.ico') { throw 'Shortcut does not use the app icon' }
+          $item = (New-Object -ComObject Shell.Application).Namespace($folder).ParseName($name)
+          $appId = $item.ExtendedProperty('System.AppUserModel.ID')
+          Write-Host "AppUserModelID: $appId"
+          if ($appId -ne 'MVTS.ScreencapDocumentationTool.GUI') { throw "Taskbar identity not set on the shortcut (got '$appId')" }
+
+      - name: Check folder permissions (system-wide only)
+        if: matrix.scope == 'machine'
+        run: |
+          $acl = (Get-Acl (Join-Path $env:INSTALL_DIR 'source')).Access |
+                 Where-Object { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -eq 'S-1-5-32-545' }
+          $acl | Format-Table IdentityReference, FileSystemRights -AutoSize | Out-String | Write-Host
+          if (-not ($acl | Where-Object { $_.FileSystemRights -match 'Modify|FullControl' })) { throw 'Users group cannot write to the source folder' }
+
+      - name: Process and export a recording with the installed tool
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User') + ';' + $env:Path
+          $src = Join-Path $env:INSTALL_DIR 'source'
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=1280x720:r=30:d=12 `
+            -vf "drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)'" `
+            -c:v libx264 -pix_fmt yuv420p (Join-Path $src 'CI Demo.mp4')
+          & py -3 (Join-Path $env:INSTALL_DIR 'screencap.py') --export html,pdf
+          if ($LASTEXITCODE -ne 0) { throw "screencap.py failed ($LASTEXITCODE)" }
+          $out = Join-Path $env:INSTALL_DIR 'output\CI Demo'
+          Get-ChildItem -Recurse $out | Select-Object FullName | Out-String | Write-Host
+          foreach ($f in 'steps.md', 'export\CI Demo.html', 'export\CI Demo.pdf') {
+            if (-not (Test-Path (Join-Path $out $f))) { throw "Missing output: $f" }
+          }
+
+      - name: Re-run the installer (update) and check files are kept
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scopeSwitch = if ('${{ matrix.scope }}' -eq 'user') { @{ UserOnly = $true } } else { @{ SystemWide = $true } }
+          & .\install.ps1 -InstallDir $env:INSTALL_DIR -Ref '${{ github.sha }}' -SkipPrerequisites @scopeSwitch
+          foreach ($f in 'source\CI Demo.mp4', 'output\CI Demo\steps.md') {
+            if (-not (Test-Path (Join-Path $env:INSTALL_DIR $f))) { throw "Update removed $f" }
+          }
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the installer
+        run: sudo SCREENCAP_REF="${{ github.sha }}" bash install.sh
+
+      - name: Check the installed tool
+        run: |
+          set -euo pipefail
+          expected="$(sed -n 's/^RELEASE = "\(.*\)"/\1/p' version.py)"
+          screencap --version | tee /dev/stderr | grep -q "v$expected"
+          test -x /usr/local/bin/screencap-gui
+          grep -q "assets/icon.png" /usr/share/applications/screencap-documentation-tool.desktop
+          # source/ and output/ must belong to the installing user, not root
+          test "$(stat -c %U /opt/Screencap-Documentation-Tool/source)" = "$(id -un)"
+
+      - name: Process and export a recording with the installed tool
+        run: |
+          set -euo pipefail
+          src=/opt/Screencap-Documentation-Tool/source
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=1280x720:r=30:d=12 \
+            -vf "drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)'" \
+            -c:v libx264 -pix_fmt yuv420p "$src/CI Demo.mp4"
+          screencap --export html
+          test -f "/opt/Screencap-Documentation-Tool/output/CI Demo/steps.md"
+          test -f "/opt/Screencap-Documentation-Tool/output/CI Demo/export/CI Demo.html"
+
+      - name: Re-run the installer (update) and check files are kept
+        run: |
+          sudo SCREENCAP_REF="${{ github.sha }}" bash install.sh
+          test -f "/opt/Screencap-Documentation-Tool/source/CI Demo.mp4"
+          test -f "/opt/Screencap-Documentation-Tool/output/CI Demo/steps.md"
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the installer
+        run: SCREENCAP_REF="${{ github.sha }}" bash install.sh
+
+      - name: Check the installed tool
+        run: |
+          set -euo pipefail
+          expected="$(sed -n 's/^RELEASE = "\(.*\)"/\1/p' version.py)"
+          screencap --version | tee /dev/stderr | grep -q "v$expected"
+          command -v screencap-gui
+          test -x "$HOME/Applications/Screencap-Documentation-Tool/Screencap GUI.command"
+          "$(brew --prefix)/bin/python3" -c "import tkinter; print('Tkinter OK')"
+
+      - name: Process and export a recording with the installed tool
+        run: |
+          set -euo pipefail
+          src="$HOME/Applications/Screencap-Documentation-Tool/source"
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=1280x720:r=30:d=12 \
+            -vf "drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)'" \
+            -c:v libx264 -pix_fmt yuv420p "$src/CI Demo.mp4"
+          screencap --export html,docx
+          out="$HOME/Applications/Screencap-Documentation-Tool/output/CI Demo"
+          test -f "$out/steps.md"
+          test -f "$out/export/CI Demo.html"
+          test -f "$out/export/CI Demo.docx"

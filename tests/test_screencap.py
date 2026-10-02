@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.8.0
+# Version: v1.9.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -17,13 +17,12 @@ import json
 import os
 import re
 import shutil
-import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+from helpers import FFMPEG, FFPROBE, ROOT, make_video  # noqa: E402
 
 import export  # noqa: E402
 import imaging  # noqa: E402
@@ -33,24 +32,6 @@ import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import stepdoc  # noqa: E402
 import version  # noqa: E402
-
-FFMPEG = sc.find_tool("ffmpeg")
-FFPROBE = sc.find_tool("ffprobe")
-
-# A white "desktop" where a dialog opens at 4 s, a title bar appears at 8 s,
-# and a progress bar fills from 13 s.
-DEMO_FILTER = ("drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)',"
-               "drawbox=x=320:y=220:w=560:h=40:color=blue:t=fill:enable='between(t,8,12)',"
-               "drawbox=x=320:y=300:w='min(560,(t-13)*400)':h=30:color=green:t=fill:"
-               "enable='gte(t,13)'")
-
-
-def make_video(path, vf=DEMO_FILTER, duration=18):
-    res = sc.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-                  "-i", f"color=white:s=1280x720:r=30:d={duration}", "-vf", vf,
-                  "-c:v", "libx264", "-pix_fmt", "yuv420p", str(path)])
-    if res.returncode != 0:
-        raise RuntimeError(res.stderr)
 
 
 class VersionTests(unittest.TestCase):
@@ -68,6 +49,20 @@ class PlayerTests(unittest.TestCase):
         self.assertEqual(player.start_time({"time": 7.75, "still_from": 4.0}), 1.0)
         self.assertEqual(player.start_time({"time": 1.0, "still_from": 0.0}), 0.0)
         self.assertEqual(player.start_time({"time": 9.0, "still_from": None}), 6.0)
+
+    @unittest.skipUnless(os.environ.get("SCREENCAP_TEST_VLC") and player.find_vlc(),
+                         "set SCREENCAP_TEST_VLC=1 with VLC installed (opens a VLC window)")
+    def test_vlc_launches(self):
+        tmp = Path(tempfile.mkdtemp(prefix="screencap_vlc_"))
+        try:
+            make_video(tmp / "Demo.mp4", duration=6)
+            proc = player.open_at(player.find_vlc(), tmp / "Demo.mp4", 2.0)
+            time.sleep(3)
+            self.assertIsNone(proc.poll(), "VLC exited right away")
+            proc.terminate()
+            proc.wait(timeout=10)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_vlc_command(self):
         cmd = player.vlc_command("vlc", Path("Demo.mp4"), 12.5)

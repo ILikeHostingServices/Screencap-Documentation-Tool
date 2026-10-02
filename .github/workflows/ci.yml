@@ -1,0 +1,108 @@
+# ci.yml
+# 2026-10-02
+# Version: v1.0.0
+#
+# PURPOSE:
+# Runs the automated tests on real Windows and Linux machines for every push
+# and pull request: code checks, the full test suite (engine, blurring,
+# export, presets, VLC), and the GUI test that drives the real window.
+# Every optional tool is installed, and the run fails if any test was
+# skipped, so a missing tool can never let a test pass silently.
+#
+# Read-only: the workflow token can read the code and nothing else, and no
+# secrets are used. GitHub Actions is free for public repositories.
+
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      SCREENCAP_TEST_VLC: "1"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install FFmpeg, Tesseract, Pandoc, VLC (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install ffmpeg tesseract pandoc vlc -y --no-progress
+          # Tesseract, Pandoc, and VLC install to Program Files without
+          # touching PATH; the tool finds them there, like on a real PC
+
+      - name: Install FFmpeg, Tesseract, Pandoc, VLC (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg tesseract-ocr pandoc vlc xvfb
+          # Ubuntu blocks Chrome's sandbox for unprivileged users on CI
+          echo "SCREENCAP_NO_SANDBOX=1" >> "$GITHUB_ENV"
+
+      - name: Check code
+        run: |
+          python -m pip install --quiet pyflakes
+          python -m pyflakes *.py *.pyw tests/*.py assets/*.py
+
+      - name: Check shell installer
+        if: runner.os == 'Linux'
+        run: |
+          shellcheck install.sh
+          bash -n install.sh
+
+      - name: Check PowerShell scripts parse
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($f in 'install.ps1', 'Install-Prerequisites.ps1') {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors)
+            if ($errors) { $errors | ForEach-Object { Write-Host "::error file=$f::$($_.Message)" }; $failed = $true }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Show tool versions
+        run: |
+          python --version
+          python -c "import screencap, redact, export, player; print('ffmpeg:', screencap.find_tool('ffmpeg')); print('tesseract:', redact.find_tesseract()); print('pandoc:', export.find_pandoc()); print('browser:', export.find_browser()); print('vlc:', player.find_vlc())"
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a python -m unittest discover -s tests -v 2>&1 | tee test.log
+          else
+            python -m unittest discover -s tests -v 2>&1 | tee test.log
+          fi
+
+      - name: Fail if any test was skipped
+        run: |
+          if grep -E "skipped" test.log; then
+            echo "::error::Some tests were skipped (a tool is missing on this runner). See the lines above."
+            exit 1
+          fi
