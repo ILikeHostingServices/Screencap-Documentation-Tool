@@ -1,6 +1,6 @@
 # installers.yml
 # 2026-10-02
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Runs the real one-step installers on clean Windows, Linux, and macOS
@@ -48,7 +48,7 @@ jobs:
     env:
       INSTALL_DIR: C:\DATA\Tools\Screencap-Documentation-Tool
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run the installer
         run: |
@@ -131,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run the installer
         run: sudo SCREENCAP_REF="${{ github.sha }}" bash install.sh
@@ -168,7 +168,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run the installer
         run: SCREENCAP_REF="${{ github.sha }}" bash install.sh
