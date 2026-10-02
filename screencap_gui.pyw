@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.9.0
+# Version: v1.10.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -34,17 +34,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import export  # noqa: E402
 import player  # noqa: E402
 import presets  # noqa: E402
+import version  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
-APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.9.0"
+APP_NAME = version.APP_NAME
+GUI_VERSION = "1.10.0"   # this file; the release version is in version.py
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
 APP_USER_MODEL_ID = "ILHS.ScreencapDocumentationTool.GUI"
-BUILD_DATE = "2026-10-02"
 
 SENSITIVITY_PRESETS = {
     "High (more shots)": 0.002,
@@ -106,7 +106,7 @@ class App:
         self.vlc = player.find_vlc()
         self.defaults = sc.parse_args([])
 
-        root.title(f"{APP_NAME} v{GUI_VERSION}")
+        root.title(f"{APP_NAME} v{version.RELEASE}")
         root.geometry("1440x880")
         root.minsize(1180, 720)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -229,7 +229,7 @@ class App:
                   anchor="w").grid(row=0, column=0, sticky="w")
         self.progress = ttk.Progressbar(bottom, maximum=1000)
         self.progress.grid(row=0, column=1, sticky="ew", padx=(6, 0))
-        ttk.Label(main, text=f"{APP_NAME} - v{GUI_VERSION} - Built {BUILD_DATE}",
+        ttk.Label(main, text=f"{APP_NAME} - v{version.RELEASE} - Built {version.RELEASE_DATE}",
                   foreground="gray").grid(row=3, column=0, columnspan=2, pady=(6, 0))
 
     def build_presets(self, parent):
@@ -576,6 +576,8 @@ class App:
     # ---------------------------------------------------------- processing
 
     def check_ffmpeg(self):
+        sc.log.info("%s v%s (GUI v%s, engine screencap.py v%s)", APP_NAME, version.RELEASE,
+                    GUI_VERSION, sc.VERSION)
         if self.ffmpeg and self.ffprobe:
             sc.log.info("Using FFmpeg: %s", self.ffmpeg)
             if self.tesseract:

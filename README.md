@@ -1,4 +1,4 @@
-README.md v1.14.0 (Last Rev: 2026-10-02)
+README.md v1.15.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -44,6 +44,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `screencap.py` | The detection engine and command line tool. |
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
 | `gui_editor.py` | The GUI's Steps tab (step editor). |
+| `version.py` | The release version of the tool as a whole, shown in the GUI title bar and footer and by `screencap.py --version`. |
 | `presets.py` | Built-in and saved presets (named sets of settings), shared by the GUI and `--preset`. |
 | `player.py` | Opens the recording in VLC media player at a given moment. |
 | `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
@@ -180,8 +181,8 @@ Select a processed recording in the **Videos** list and the **Steps** tab shows 
 
 | Control | What it does |
 | --- | --- |
-| Step list | Every step with its time and caption. **< Prev** / **Next >** page through them. |
-| **Move Up** / **Move Down** | Change the order of steps. |
+| Step list | Every step with its time and caption. **< Prev** / **Next >**, or the **Up** and **Down** arrow keys, page through them. The arrow keys work anywhere in the Steps tab except while typing a caption or title. |
+| **Move Step Up** / **Move Step Down** (or **Ctrl+Up** / **Ctrl+Down** in the list) | Change the order of steps. The step you move stays selected, so the picture keeps showing it; the status bar says where it moved to. |
 | **Delete Step** (or the Delete key) | Remove a step. Its original frame is kept. |
 | **Restore Deleted** | Put every deleted step back at its place in the video's timeline. |
 | **Caption** | The text shown under the step in `steps.md`, replacing the `_Notes:_` placeholder. |
@@ -317,9 +318,9 @@ winget uninstall --id Python.Python.3.12 --scope user
 
 ### Releases And Versions
 
-Each release is an annotated git tag (`v1.4.0`, for example) with notes on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) and in `CHANGELOG.md`. The tag is the version of the project as a whole. Each script also carries its own version in its header, which only changes when that script changes.
+Each release is an annotated git tag (`v1.12.1`, for example) with notes on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) and in `CHANGELOG.md`. The tag is the version of the project as a whole, and it is what the GUI shows in its title bar and footer and what `screencap.py --version` prints. It is set in `version.py`. Each script also carries its own version in its header, which only changes when that script changes; the Log tab lists them at startup.
 
-To cut a new release, add a `vX.Y.Z <commit SHA>` line to `.github/releases/manifest.txt` and the notes in `.github/releases/vX.Y.Z.md`, push, then run **Actions > Publish releases > Run workflow** on GitHub. The workflow creates the annotated tag and the release; anything that already exists is skipped.
+To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them.
 
 The Quick Start commands always install the latest code on the default branch. To install a specific release instead, for example to keep several PCs on the same version:
 

@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.7.0
+# Version: v1.8.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -15,6 +15,7 @@
 
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -31,6 +32,7 @@ import presets  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import stepdoc  # noqa: E402
+import version  # noqa: E402
 
 FFMPEG = sc.find_tool("ffmpeg")
 FFPROBE = sc.find_tool("ffprobe")
@@ -49,6 +51,16 @@ def make_video(path, vf=DEMO_FILTER, duration=18):
                   "-c:v", "libx264", "-pix_fmt", "yuv420p", str(path)])
     if res.returncode != 0:
         raise RuntimeError(res.stderr)
+
+
+class VersionTests(unittest.TestCase):
+    def test_release_version_matches_changelog(self):
+        """The footer and --version show version.RELEASE; it must be the
+        newest release in CHANGELOG.md."""
+        text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        newest = re.search(r"^## (v\d+\.\d+\.\d+) ", text, re.MULTILINE).group(1)
+        self.assertEqual(newest, "v" + version.RELEASE)
+        self.assertRegex(version.RELEASE_DATE, r"^\d{4}-\d{2}-\d{2}$")
 
 
 class PlayerTests(unittest.TestCase):
