@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.4.0
+# Version: v1.5.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -12,13 +12,14 @@
 # off for the whole recording or for a single step, screenshots can be
 # cropped by dragging a rectangle on the original frame, and sensitive areas
 # can be blurred (detected automatically, or drawn by hand) with an
-# unblurred copy kept alongside.
+# unblurred copy kept alongside. Finished steps export to HTML, Word, or PDF.
 
 import threading
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import export
 import redact
 import stepdoc
 
@@ -43,6 +44,11 @@ class StepEditor(ttk.Frame):
         self.v_hl_step = tk.BooleanVar(value=True)
         self.v_redact_doc = tk.BooleanVar(value=True)
         self.v_redact_step = tk.BooleanVar(value=True)
+        self.v_doc_title = tk.StringVar(value="")
+        self.v_doc_version = tk.StringVar(value="")
+        self.v_doc_author = tk.StringVar(value="")
+        self.v_export_unredacted = tk.BooleanVar(value=False)
+        self._loading_meta = False
         self._loading_caption = False
         self.view_map = None        # (scale, x offset, y offset) of the original-frame view
         self.draw = None            # active rectangle tool: dict(kind, scope, start, item)
@@ -149,6 +155,27 @@ class StepEditor(ttk.Frame):
         self.caption.grid(row=0, column=1, sticky="ew")
         self.caption.bind("<<Modified>>", self.on_caption_modified)
 
+        docrow = ttk.Frame(right)
+        docrow.grid(row=4, column=0, sticky="ew", pady=(6, 0))
+        for col, (label, var, width) in enumerate((("Title:", self.v_doc_title, 24),
+                                                   ("Version:", self.v_doc_version, 7),
+                                                   ("Author:", self.v_doc_author, 12))):
+            ttk.Label(docrow, text=label).pack(side="left", padx=(8 if col else 0, 2))
+            ttk.Entry(docrow, textvariable=var, width=width).pack(side="left")
+            var.trace_add("write", lambda *a: self.on_meta_changed())
+        exprow = ttk.Frame(right)
+        exprow.grid(row=5, column=0, sticky="ew", pady=(4, 0))
+        ttk.Label(exprow, text="Export:").pack(side="left")
+        self.export_buttons = []
+        for fmt, text in (("html", "HTML"), ("docx", "Word"), ("pdf", "PDF")):
+            b = ttk.Button(exprow, text=text, width=6, command=lambda f=fmt: self.export(f))
+            b.pack(side="left", padx=(4, 0))
+            self.export_buttons.append(b)
+        ttk.Checkbutton(exprow, text="Unblurred copy",
+                        variable=self.v_export_unredacted).pack(side="left", padx=6)
+        ttk.Button(exprow, text="Open Exports", command=self.open_export_folder
+                   ).pack(side="left", padx=(4, 0))
+
         bar = ttk.Frame(self)
         bar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(6, 0))
         ttk.Button(bar, text="< Prev", command=lambda: self.step_by(-1)).pack(side="left")
@@ -186,6 +213,12 @@ class StepEditor(ttk.Frame):
         self.v_title.set(self.doc.get("document", {}).get("title", ""))
         self.v_hl_doc.set(self.doc.get("highlight", True))
         self.v_redact_doc.set(self.doc.get("redact", True))
+        meta = export.metadata(self.doc)
+        self._loading_meta = True
+        self.v_doc_title.set(meta["title"])
+        self.v_doc_version.set(meta["version"])
+        self.v_doc_author.set(meta["author"])
+        self._loading_meta = False
         try:
             stepdoc.ensure_frame_size(self.out_dir, self.doc, self.app.ffmpeg)
         except Exception as exc:
@@ -346,6 +379,77 @@ class StepEditor(ttk.Frame):
             self.ensure_boxes()
         self.set_dirty()
         self.schedule_preview()
+
+    # -------------------------------------------------------------- export
+
+    def on_meta_changed(self):
+        if self._loading_meta or not self.doc:
+            return
+        meta = self.doc.setdefault("document", {})
+        new = {"title": self.v_doc_title.get().strip(),
+               "version": self.v_doc_version.get().strip(),
+               "author": self.v_doc_author.get().strip()}
+        if any(meta.get(k, "") != v for k, v in new.items()):
+            meta.update(new)
+            self.v_title.set(new["title"])
+            self.set_dirty()
+
+    def export(self, fmt):
+        """Export the saved steps. Unsaved edits are saved first, so the
+        document matches what the editor shows."""
+        if not self.doc:
+            return
+        parent = self.winfo_toplevel()
+        if self.dirty:
+            if not messagebox.askyesno(self.app.name, "Save your changes before exporting?",
+                                       parent=parent):
+                return
+            if not self.save(wait=True):
+                return
+        unredacted = self.v_export_unredacted.get()
+        if unredacted and not messagebox.askyesno(
+                self.app.name, "The unblurred screenshots may show passwords, keys, or "
+                "internal addresses. Export them anyway? The file name will include "
+                "UNREDACTED.", icon="warning", parent=parent):
+            return
+        doc, out_dir = self.doc, self.out_dir
+        result = {}
+
+        def work():
+            try:
+                result["path"] = export.export(out_dir, doc, fmt, unredacted,
+                                               pandoc=self.app.pandoc, browser=self.app.browser)
+            except Exception as exc:
+                result["error"] = exc
+
+        for b in self.export_buttons:
+            b.configure(state="disabled")
+        self.app.set_status(f"Exporting {fmt.upper()}...")
+        thread = threading.Thread(target=work, daemon=True)
+        thread.start()
+
+        def check():
+            if thread.is_alive():
+                self.after(150, check)
+                return
+            for b in self.export_buttons:
+                b.configure(state="normal")
+            if "error" in result:
+                self.app.log_error(f"Export failed: {result['error']}")
+                messagebox.showerror(self.app.name, f"Export failed:\n{result['error']}",
+                                     parent=parent)
+                return
+            self.app.set_status(f"Exported {result['path'].name}")
+            self.app.open_path(result["path"])
+
+        check()
+
+    def open_export_folder(self):
+        folder = self.out_dir / export.EXPORT_DIR if self.out_dir else None
+        if folder and folder.is_dir():
+            self.app.open_path(folder)
+        elif self.out_dir:
+            self.app.set_status("Nothing has been exported yet.")
 
     # ----------------------------------------------------------- redaction
 

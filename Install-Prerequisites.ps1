@@ -5,12 +5,13 @@
 .DESCRIPTION
     Checks for Python 3 and FFmpeg on Windows 11 and installs any that are
     missing using winget (built into Windows 11), plus the optional Tesseract OCR
-    used to blur sensitive text automatically. Safe to run more than once.
+    (blurs sensitive text automatically) and Pandoc (Word export). Safe to run
+    more than once.
     -Scope user (default) installs for the current user only, no admin needed.
     -Scope machine installs for all users and must be run as Administrator.
 
 .NOTES
-    Version: v1.3.0
+    Version: v1.4.0
     Last Edit Date: 2026-10-02
 
 .EXAMPLE
@@ -122,6 +123,27 @@ if (Test-Tesseract) {
         Write-Host '[OK]      Tesseract OCR installed.' -ForegroundColor Green
     } else {
         Write-Host '[WARN]    Tesseract OCR was not installed. Sensitive text will not be found automatically, but hand-drawn blur boxes still work. Run this command again to retry.' -ForegroundColor Yellow
+    }
+}
+
+# Optional: Pandoc converts the steps to a Word document. PDF export uses the
+# Microsoft Edge that comes with Windows 11, so nothing is needed for that.
+function Test-Pandoc {
+    if (Test-Command 'pandoc') { return $true }
+    foreach ($base in @($env:LOCALAPPDATA, $env:ProgramFiles)) {
+        if ($base -and (Test-Path (Join-Path $base 'Pandoc\pandoc.exe'))) { return $true }
+    }
+    return $false
+}
+if (Test-Pandoc) {
+    Write-Host '[OK]      Pandoc (optional, for Word export) is already installed.' -ForegroundColor Green
+} else {
+    Write-Host '[INSTALL] Pandoc (JohnMacFarlane.Pandoc) via winget...' -ForegroundColor Yellow
+    & winget install --id JohnMacFarlane.Pandoc -e --accept-source-agreements --accept-package-agreements @scopeArgs
+    if (Test-Pandoc) {
+        Write-Host '[OK]      Pandoc installed.' -ForegroundColor Green
+    } else {
+        Write-Host '[WARN]    Pandoc was not installed. Word export is unavailable; HTML and PDF export still work. Run this command again to retry.' -ForegroundColor Yellow
     }
 }
 

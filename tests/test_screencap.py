@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.4.0
+# Version: v1.5.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -23,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import export  # noqa: E402
 import imaging  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
@@ -335,6 +336,34 @@ class RedactionTests(unittest.TestCase):
         self.assertFalse((folder / stepdoc.UNREDACTED_INDEX).exists())
         self.assertFalse(list((folder / stepdoc.UNREDACTED_DIR).glob("step_*"))
                          if (folder / stepdoc.UNREDACTED_DIR).exists() else [])
+
+    def test_exports(self):
+        out = self.tmp / "export"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--export", "html",
+                                  "--doc-author", "MVTS IT", "--doc-version", "v2.0.0"]), 0)
+        folder = out / "Login"
+        page = (folder / "export" / "Login.html").read_text(encoding="utf-8")
+        self.assertIn("MVTS IT", page)
+        self.assertIn("v2.0.0", page)
+        doc = stepdoc.load(folder)
+        self.assertEqual(page.count("data:image/png;base64,"), len(doc["steps"]))
+        self.assertNotIn("UNREDACTED", page)
+
+        doc["steps"][0]["caption"] = "Type <b>nothing</b> & wait"
+        unredacted = export.export(folder, doc, "html", unredacted=True)
+        self.assertIn("-UNREDACTED", unredacted.name)
+        text = unredacted.read_text(encoding="utf-8")
+        self.assertIn("UNREDACTED COPY", text)
+        self.assertIn("Type &lt;b&gt;nothing&lt;/b&gt; &amp; wait", text)
+
+        if export.find_pandoc():
+            docx = export.export(folder, doc, "docx")
+            self.assertGreater(docx.stat().st_size, 1000)
+        browser = export.find_browser() or next(
+            (p for p in ("/opt/pw-browsers/chromium",) if Path(p).is_file()), None)
+        if browser:
+            pdf = export.export(folder, doc, "pdf", browser=browser)
+            self.assertTrue(pdf.read_bytes().startswith(b"%PDF"))
 
     def test_no_redact_option(self):
         out = self.tmp / "noredact"

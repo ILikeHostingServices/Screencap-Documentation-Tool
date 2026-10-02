@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.6.0
+# Version: v1.7.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -28,13 +28,14 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
+import export  # noqa: E402
 import imaging  # noqa: E402
 import redact  # noqa: E402
 import stepdoc  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -293,7 +294,7 @@ def clear_previous_output(out_dir):
     targets = [f for f in out_dir.glob("step_*")
                if f.is_file() and f.suffix.lower() in (".png", ".jpg")]
     targets += [out_dir / n for n in (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR,
-                                      UNREDACTED_DIR, UNREDACTED_INDEX)
+                                      UNREDACTED_DIR, UNREDACTED_INDEX, export.EXPORT_DIR)
                 if (out_dir / n).exists()]
     targets += [f for f in out_dir.glob("steps.*.md") if f.is_file()]
     if not targets:
@@ -396,6 +397,38 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
 # Main
 # ---------------------------------------------------------------------------
 
+def parse_formats(text):
+    formats = [f.strip().lower() for f in text.split(",") if f.strip()]
+    bad = [f for f in formats if f not in export.FORMATS]
+    if bad or not formats:
+        raise argparse.ArgumentTypeError(f"choose from {', '.join(export.FORMATS)}")
+    return formats
+
+
+def export_video(out_dir, args):
+    """Export one processed recording in every format asked for. Returns the
+    number of exports that failed."""
+    doc = stepdoc.load(out_dir)
+    if doc is None:
+        return 0
+    meta = doc.setdefault("document", {})
+    if args.doc_author is not None or args.doc_version is not None:
+        if args.doc_author is not None:
+            meta["author"] = args.doc_author
+        if args.doc_version is not None:
+            meta["version"] = args.doc_version
+        stepdoc.save(out_dir, doc)
+    failed = 0
+    for fmt in args.export:
+        try:
+            dest = export.export(out_dir, doc, fmt, pandoc=args.pandoc, browser=args.browser)
+            log.info("  Exported %s", dest)
+        except Exception as exc:
+            failed += 1
+            log.error("  Export to %s failed: %s", fmt, exc)
+    return failed
+
+
 def parse_crop(text):
     try:
         values = [int(v) for v in text.split(":")]
@@ -460,6 +493,16 @@ def parse_args(argv):
                    help="Extra text to blur, as a regular expression (case-insensitive). "
                         "Repeat for several, e.g. --redact-pattern \"corp\\.example\\.com\"")
     p.add_argument("--tesseract", help="Path to the tesseract executable (OCR)")
+    p.add_argument("--export", type=parse_formats, metavar="FORMATS",
+                   help="After processing, export each recording as a document: any "
+                        "of html, docx, pdf, comma separated (e.g. html,pdf). Already "
+                        "processed recordings are exported too")
+    p.add_argument("--doc-author", help="Author shown in exported documents")
+    p.add_argument("--doc-version", help="Version shown in exported documents "
+                                          "(default: v1.0.0)")
+    p.add_argument("--pandoc", help="Path to pandoc (needed for docx export)")
+    p.add_argument("--browser", help="Path to Microsoft Edge, Google Chrome, or "
+                                     "Chromium (needed for pdf export)")
     p.add_argument("--no-highlight", action="store_true",
                    help="Do not draw a red box around what changed in each step")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",
@@ -557,6 +600,8 @@ def main(argv=None):
         try:
             status, _ = process_video(ffmpeg, ffprobe, video, out_dir, args)
             results[status] += 1
+            if args.export and not args.dry_run and export_video(out_dir, args):
+                results["failed"] += 1
         except Exception as exc:  # keep going with the remaining videos
             results["failed"] += 1
             log.error("FAILED %s: %s", video.name, exc)

@@ -1,4 +1,4 @@
-README.md v1.11.0 (Last Rev: 2026-10-02)
+README.md v1.12.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -14,9 +14,10 @@ For each recording you get:
 - A red box around what changed since the previous step, so readers see where to click or what appeared.
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
-- A step editor in the GUI to remove, reorder, and caption steps. Every original frame is kept, so nothing you do in the editor is permanent.
+- A step editor in the GUI to remove, reorder, and caption steps.
+- One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header. Every original frame is kept, so nothing you do in the editor is permanent.
 
-You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring. All are free and open source, and the installers set them up for you.
+You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring and [Pandoc](https://pandoc.org/) for Word export. PDF export uses Microsoft Edge (included with Windows 11) or Google Chrome/Chromium. All are free and open source, and the installers set them up for you.
 
 ### How It Finds The Steps
 
@@ -41,6 +42,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `screencap.py` | The detection engine and command line tool. |
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
 | `gui_editor.py` | The GUI's Steps tab (step editor). |
+| `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
 | `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
 | `tests/` | Automated tests. Run `python -m unittest discover -s tests -v` from the repository root (needs FFmpeg). |
@@ -60,6 +62,7 @@ Each run creates these files in the output folder:
 | `output/<video>/originals/` | The untouched full frames captured from the video. Never modified, so edits can always be redone. |
 | `output/<video>/steps.md` | The steps in order, with screenshots, timestamps, and captions. Generated from `steps.json`. Uses the blurred screenshots. |
 | `output/<video>/unredacted/` | The same screenshots without blurring, for your own reference. Only created while blurring is on. |
+| `output/<video>/export/` | Exported documents (`<title>.html`, `.docx`, `.pdf`). Exports of the unblurred screenshots have `-UNREDACTED` in the name. |
 | `output/<video>/steps-unredacted.md` | `steps.md` using the unblurred screenshots, marked "do not publish". |
 | `output/<video>/steps.json` | The step document: order, captions, deleted steps, and the settings used. This is the source of truth. |
 | `output/<video>/steps.hand-edited-*.md` | Backup of `steps.md`, made automatically if you edited it by hand and then saved from the editor. |
@@ -115,7 +118,7 @@ Paste into a terminal (works on Debian/Ubuntu, Fedora, and Arch based distributi
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
 ```
 
-This installs FFmpeg, Python 3, Tkinter, and Tesseract OCR with your package manager, installs the tool in `/opt/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands plus an application menu entry. The program files are owned by root; the `source` and `output` folders belong to you, so you can use the tool without `sudo`.
+This installs FFmpeg, Python 3, Tkinter, Tesseract OCR, and Pandoc with your package manager, installs the tool in `/opt/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands plus an application menu entry. The program files are owned by root; the `source` and `output` folders belong to you, so you can use the tool without `sudo`.
 
 ### macOS
 
@@ -125,7 +128,7 @@ Paste into Terminal as your normal user (no `sudo`):
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
 ```
 
-This installs [Homebrew](https://brew.sh) if you do not have it (it will ask for your password), installs FFmpeg, Python, Tkinter, and Tesseract OCR with Homebrew, installs the tool in `~/Applications/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands. In Finder you can also double-click `Screencap GUI.command` in that folder.
+This installs [Homebrew](https://brew.sh) if you do not have it (it will ask for your password), installs FFmpeg, Python, Tkinter, Tesseract OCR, and Pandoc with Homebrew, installs the tool in `~/Applications/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands. In Finder you can also double-click `Screencap GUI.command` in that folder.
 
 `~/Applications` is the standard macOS location for apps installed for just your user account, so no admin rights are needed after Homebrew is set up. To use a different folder on Linux or macOS, put `SCREENCAP_DIR=/your/path` in front of `bash`, for example `sudo SCREENCAP_DIR=/srv/screencap bash -c "..."`.
 
@@ -188,6 +191,10 @@ Select a processed recording in the **Videos** list and the **Steps** tab shows 
 | **Add Blur Box** | Drag a rectangle around anything else to blur on the selected step. |
 | **Un-blur / Re-blur** | Click a blur box on the picture: a detected box is switched off (gray outline) or back on; a hand-drawn box is removed. |
 | **Re-scan All Steps for Sensitive Text** | Detect sensitive text again on every step and save, for example after installing Tesseract. Hand-drawn boxes are kept. |
+| **Title / Version / Author** | The header of exported documents. Title defaults to the recording's name and version to `v1.0.0`; the date is the day you export. |
+| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. |
+| **Unblurred copy** | Export the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). |
+| **Open Exports** | Open the `export/` folder. |
 | **Show: Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
 | **Save Changes** | Re-render the screenshots from the originals and regenerate `steps.md` and `steps.json`. |
 | **Discard Changes** | Go back to the last saved version. |
@@ -324,6 +331,9 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--analyze-width` | `640` | Width used for analysis only. `0` uses full size. Screenshots are always full resolution. |
 | `--no-dedup` | off | Keep screenshots that look identical to an earlier one. |
 | `--dedup-threshold` | `0.01` | Two screenshots are duplicates when at most this percent of the picture differs. The default only matches virtually identical screens, so small changes such as a ticked checkbox are kept. Removed duplicates are kept as deleted steps and can be restored in the Steps tab. |
+| `--export` | none | After processing, export each recording: any of `html`, `docx`, `pdf`, comma separated (for example `--export html,pdf`). Recordings that were already processed are exported too, so this also works for re-exporting. |
+| `--doc-author`, `--doc-version` | none, `v1.0.0` | Author and version in the header of exported documents (saved for next time). |
+| `--pandoc`, `--browser` | auto | Explicit paths to Pandoc (Word export) and to Edge, Chrome, or Chromium (PDF export). |
 | `--no-redact` | off | Do not blur sensitive information, and do not create the `unredacted/` copy. |
 | `--redact-pattern` | none | Extra text to blur, as a case-insensitive regular expression. Repeat for several. |
 | `--tesseract` | auto | Explicit path to the `tesseract` executable. |
@@ -355,6 +365,8 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | `Python was not found; run without arguments to install from the Microsoft Store` | This is the Windows "App execution alias" placeholder, not real Python. Paste the Quick Start command again to install real Python, or turn the alias off in Settings > Apps > Advanced app settings > App execution aliases. |
 | `running scripts is disabled on this system` | PowerShell execution policy is blocking the script. The Quick Start command is not affected. For a local script, use the `powershell -ExecutionPolicy Bypass -File .\install.ps1` form shown in [Reviewing The Installer First](#reviewing-the-installer-first). |
 | `Tesseract OCR was not found` | Sensitive text is not detected automatically (hand-drawn blur boxes still work). Paste the Quick Start command again to install it, or install it yourself (Windows: `winget install --id UB-Mannheim.TesseractOCR -e`). Then click **Re-scan All Steps for Sensitive Text** in the Steps tab. On Windows its installer asks for administrator permission. |
+| `Pandoc was not found, so Word export is unavailable` | Paste the Quick Start command again to install it, or install it yourself (Windows: `winget install --id JohnMacFarlane.Pandoc -e`). HTML and PDF export do not need it. |
+| `No Microsoft Edge, Google Chrome, or Chromium was found` | PDF export prints with a Chromium-based browser. Windows 11 includes Edge; on Linux install Chromium, or export HTML and print it to PDF from any browser. |
 | `No module named 'tkinter'` | Python was installed without Tcl/Tk, which the GUI needs. Re-run the python.org installer, choose **Modify**, and tick **tcl/tk and IDLE**. The winget package includes it by default. |
 
 ### GUI Problems

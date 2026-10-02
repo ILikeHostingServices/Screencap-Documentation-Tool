@@ -2,11 +2,12 @@
 #
 # install.sh
 # 2026-10-02
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # One-step Linux and macOS installer for the Screencap Documentation Tool.
-# Installs FFmpeg, Python 3, Tkinter, and (optional) Tesseract OCR if missing,
+# Installs FFmpeg, Python 3, Tkinter, and (optional) Tesseract OCR and Pandoc
+# if missing,
 # downloads the latest
 # version from GitHub, and adds screencap / screencap-gui launch commands.
 # Safe to re-run to update; your source and output folders are kept.
@@ -37,6 +38,18 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # ---------------------------------------------------------------------------
 
 install_optional_linux() {
+    # Pandoc makes Word exports. Optional: failures only warn.
+    if ! have pandoc; then
+        step "Installing Pandoc (optional, for Word export)"
+        if have apt-get; then
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq pandoc || true
+        elif have dnf; then
+            dnf install -y -q pandoc || true
+        elif have pacman; then
+            pacman -S --needed --noconfirm pandoc-cli || true
+        fi
+        have pandoc || warn "Pandoc was not installed. Word export is unavailable; HTML export still works."
+    fi
     # Tesseract OCR finds sensitive text to blur. Optional: failures only warn.
     have tesseract && return 0
     step "Installing Tesseract OCR (optional, for automatic blurring)"
@@ -121,6 +134,10 @@ macos_install_packages() {
     if ! have tesseract; then
         step "Installing Tesseract OCR (optional, for automatic blurring)"
         brew install tesseract || warn "Tesseract OCR was not installed. Sensitive text will not be found automatically; hand-drawn blur boxes still work."
+    fi
+    if ! have pandoc; then
+        step "Installing Pandoc (optional, for Word export)"
+        brew install pandoc || warn "Pandoc was not installed. Word export is unavailable; HTML and PDF export still work."
     fi
     PYTHON="$(brew --prefix)/bin/python3"
     [ -x "$PYTHON" ] || die "Homebrew Python not found at $PYTHON"
