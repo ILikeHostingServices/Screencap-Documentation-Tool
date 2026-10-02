@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -28,11 +28,12 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
+import imaging  # noqa: E402
 import stepdoc  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      fmt_ts)
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -278,7 +279,8 @@ def extract_frame(ffmpeg, video, t, dest, args):
 def settings_snapshot(args):
     return {k: getattr(args, k) for k in
             ("threshold", "debounce", "capture_point", "settle", "lead",
-             "max_wait", "min_gap", "analyze_fps", "analyze_width", "format")}
+             "max_wait", "min_gap", "analyze_fps", "analyze_width", "format",
+             "no_dedup", "dedup_threshold")}
 
 
 def clear_previous_output(out_dir):
@@ -336,23 +338,46 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
 
     doc = stepdoc.new_document(video.name, duration, width, height, args.format,
                                settings_snapshot(args), VERSION)
+    kept_thumbs = []
+
+    def dedup_check(new, image):
+        """Mark new as a duplicate of an earlier kept step, if it is one.
+        The final step is always kept so the end result is documented."""
+        if args.no_dedup:
+            return False
+        thumb = imaging.thumbnail(ffmpeg, image)
+        dup = imaging.find_duplicate(thumb, kept_thumbs, args.dedup_threshold)
+        if dup is not None and new["reason"] != "end":
+            new["deleted_reason"] = "duplicate"
+            new["duplicate_of_time"] = doc["steps"][dup]["time"]
+            log.debug("  %s duplicates step at %s", fmt_ts(new["time"]),
+                      fmt_ts(new["duplicate_of_time"]))
+            return True
+        kept_thumbs.append(thumb)
+        return False
     for i, step in enumerate(steps, 1):
         if cancel is not None and cancel.is_set():
             raise Cancelled()
         report(0.85 + 0.10 * (i - 1) / len(steps), f"Saving screenshot {i}/{len(steps)}")
         orig = f"{ORIGINALS_DIR}/{stepdoc.capture_name(step['time'], args.format)}"
         extract_frame(ffmpeg, video, step["time"], out_dir / orig, args)
-        doc["steps"].append(stepdoc.new_step(step["time"], orig, step["still_from"],
-                                             step["still_to"], step["score"],
-                                             step["reason"]))
+        new = stepdoc.new_step(step["time"], orig, step["still_from"], step["still_to"],
+                               step["score"], step["reason"])
+        if dedup_check(new, out_dir / orig):
+            doc["deleted_steps"].append(new)
+        else:
+            doc["steps"].append(new)
+    if doc["deleted_steps"]:
+        log.info("  %d duplicate screenshot(s) removed (restore them in the Steps tab)",
+                 len(doc["deleted_steps"]))
 
     stepdoc.render(out_dir, doc, ffmpeg,
                    progress=(lambda f, t: report(0.95 + 0.05 * f, t)) if progress else None,
                    cancel=cancel)
-    log.info("  Saved %d screenshots to %s (%.1fs)", len(steps), out_dir,
+    log.info("  Saved %d screenshots to %s (%.1fs)", len(doc["steps"]), out_dir,
              time.monotonic() - started)
     report(1.0, "Done")
-    return "ok", len(steps)
+    return "ok", len(doc["steps"])
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +421,11 @@ def parse_args(argv):
     p.add_argument("--analyze-width", type=int, default=640,
                    help="Downscale width used for analysis only, 0 = full size. "
                         "Screenshots are always full resolution (default: 640)")
+    p.add_argument("--no-dedup", action="store_true",
+                   help="Keep screenshots that look identical to an earlier one")
+    p.add_argument("--dedup-threshold", type=float, default=0.01,
+                   help="Two screenshots count as duplicates when at most this "
+                        "percent of the picture differs (default: 0.01)")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",
                    help="Screenshot image format (default: png)")
     p.add_argument("--force", action="store_true",
@@ -411,7 +441,7 @@ def parse_args(argv):
     if not 0 < args.threshold < 1:
         p.error("--threshold must be between 0 and 1")
     for name in ("debounce", "settle", "lead", "max_wait", "min_gap",
-                 "analyze_fps"):
+                 "analyze_fps", "dedup_threshold"):
         if getattr(args, name) < 0:
             p.error(f"--{name.replace('_', '-')} cannot be negative")
     return args

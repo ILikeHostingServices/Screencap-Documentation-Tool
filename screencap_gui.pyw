@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -34,7 +34,7 @@ import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.2.0"
+GUI_VERSION = "1.3.0"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -136,6 +136,8 @@ class App:
         self.v_fps = tk.StringVar(value=str(d.analyze_fps))
         self.v_width = tk.StringVar(value=str(d.analyze_width))
         self.v_format = tk.StringVar(value=d.format)
+        self.v_dedup = tk.BooleanVar(value=not d.no_dedup)
+        self.v_dedup_thr = tk.StringVar(value=str(d.dedup_threshold))
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
@@ -263,8 +265,13 @@ class App:
         label("Analyze width (px):", 5, 2)
         entry(self.v_width, 5, 3)
 
+        ttk.Checkbutton(box, text="Remove duplicate screenshots",
+                        variable=self.v_dedup).grid(row=6, column=0, columnspan=2, sticky="w", **pad)
+        label("Duplicate if differs by (%):", 6, 2)
+        entry(self.v_dedup_thr, 6, 3)
+
         opts = ttk.Frame(box)
-        opts.grid(row=6, column=0, columnspan=4, sticky="ew", pady=(4, 0))
+        opts.grid(row=7, column=0, columnspan=4, sticky="ew", pady=(4, 0))
         ttk.Checkbutton(opts, text="Reprocess videos that are already done",
                         variable=self.v_force).grid(row=0, column=0, sticky="w", padx=4)
         ttk.Checkbutton(opts, text="Dry run (count steps only, save nothing)",
@@ -309,8 +316,9 @@ class App:
                            (self.v_min_gap, d.min_gap), (self.v_max_wait, d.max_wait),
                            (self.v_lead, d.lead), (self.v_settle, d.settle),
                            (self.v_fps, d.analyze_fps), (self.v_width, d.analyze_width),
-                           (self.v_format, d.format)):
+                           (self.v_format, d.format), (self.v_dedup_thr, d.dedup_threshold)):
             var.set(str(value))
+        self.v_dedup.set(not d.no_dedup)
         self.v_capture.set(list(CAPTURE_POINTS)[0])
         self.v_preset.set(self.preset_for_threshold())
 
@@ -320,7 +328,8 @@ class App:
                 "capture": self.v_capture, "debounce": self.v_debounce,
                 "min_gap": self.v_min_gap, "max_wait": self.v_max_wait,
                 "lead": self.v_lead, "settle": self.v_settle, "fps": self.v_fps,
-                "width": self.v_width, "format": self.v_format}
+                "width": self.v_width, "format": self.v_format,
+                "dedup": self.v_dedup, "dedup_threshold": self.v_dedup_thr}
 
     def load_settings(self):
         try:
@@ -352,7 +361,9 @@ class App:
                    ("Lead", self.v_lead, "--lead", 0, None, True),
                    ("Settle", self.v_settle, "--settle", 0, None, True),
                    ("Analyze fps", self.v_fps, "--analyze-fps", 0, None, True),
-                   ("Analyze width", self.v_width, "--analyze-width", 0, None, True)]
+                   ("Analyze width", self.v_width, "--analyze-width", 0, None, True),
+                   ("Duplicate tolerance", self.v_dedup_thr, "--dedup-threshold", 0, 100,
+                    True)]
         cli = ["-s", self.v_source.get().strip(), "-o", self.v_output.get().strip(),
                "-c", CAPTURE_POINTS.get(self.v_capture.get(), "end"),
                "-f", self.v_format.get()]
@@ -371,6 +382,8 @@ class App:
             raise ValueError("Choose both a source folder and an output folder.")
         if self.v_recursive.get():
             cli.append("-r")
+        if not self.v_dedup.get():
+            cli.append("--no-dedup")
         if self.v_force.get():
             cli.append("--force")
         if self.v_dry.get():

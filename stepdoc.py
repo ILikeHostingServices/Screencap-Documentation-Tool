@@ -281,7 +281,7 @@ def restore_deleted(doc):
     restored = sorted(doc["deleted_steps"], key=lambda s: s["time"])
     for step in restored:
         step.pop("deleted_reason", None)
-        step.pop("duplicate_of", None)
+        step.pop("duplicate_of_time", None)
         pos = 0
         for i, existing in enumerate(doc["steps"]):
             if existing["time"] <= step["time"]:
