@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.7.0
+# Version: v1.7.1
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -149,6 +149,8 @@ class StepEditor(ttk.Frame):
         self.canvas.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
         self.canvas.bind("<Configure>", lambda e: self.schedule_preview())
         self.canvas.bind("<ButtonPress-1>", self.on_press)
+        # Clicking the picture takes the keyboard, so Up/Down page from there
+        self.canvas.bind("<ButtonPress-1>", lambda e: self.canvas.focus_set(), add="+")
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
         self.winfo_toplevel().bind("<Escape>", lambda e: self.cancel_draw(), add="+")
@@ -347,10 +349,15 @@ class StepEditor(ttk.Frame):
         and text fields keep their own arrow-key behavior."""
         if not self.winfo_ismapped() or not self.doc:
             return
-        focus = self.focus_get()
-        if focus is self.step_list or isinstance(focus, (tk.Text, tk.Entry, ttk.Entry,
-                                                         ttk.Treeview, ttk.Combobox)):
+        # The widget that received the key, not focus_get(): on Windows focus
+        # can be left on a widget in the other tab, or be None while the
+        # window is in the background
+        target = event.widget
+        if target is self.step_list or isinstance(target, (tk.Text, tk.Entry, ttk.Entry,
+                                                           ttk.Combobox)):
             return
+        if isinstance(target, ttk.Treeview) and target.winfo_viewable():
+            return                        # a visible list keeps its own arrows
         self.step_by(delta)
 
     def move(self, delta):

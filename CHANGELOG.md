@@ -14,6 +14,7 @@ Every release of the Screencap Documentation Tool, newest first. Each version is
 
 **Fixed**
 - GUI: **Process All** and **Process Selected** did nothing except say "The source folder changed. Click Refresh" when the source folder was typed as a Windows short name (such as `C:\Users\RUNNER~1\...`), through a junction, or through a symbolic link. Found by the first Windows test run.
+- Steps tab: clicking the picture now takes the keyboard, so **Up** and **Down** page through the steps afterwards. Before, the keys could keep moving through the Videos list instead.
 - PDF export works when the tool runs as root or in a locked-down Linux container (set `SCREENCAP_NO_SANDBOX=1` if Chrome refuses to start).
 
 ## v1.12.1 - Clearer step navigation and the release version in the footer (2026-10-02)

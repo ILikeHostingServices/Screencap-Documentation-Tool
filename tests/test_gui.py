@@ -2,7 +2,7 @@
 #
 # test_gui.py
 # 2026-10-02
-# Version: v1.0.1
+# Version: v1.0.2
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -74,6 +74,10 @@ class GuiTests(unittest.TestCase):
 
     def setUp(self):
         self.root = tk.Tk()
+        # Bring the window to the front so it gets keyboard events (a CI
+        # runner's window can otherwise stay in the background on Windows)
+        self.root.attributes("-topmost", True)
+        self.root.focus_force()
         self.app = self.gui.App(self.root)
         self.errors = []
         self.root.report_callback_exception = lambda *a: self.errors.append(a)
@@ -123,8 +127,15 @@ class GuiTests(unittest.TestCase):
         self.assertGreaterEqual(steps, 3)
         self.assertEqual(self.shown_step(ed), 0)
 
-        ed.canvas.focus_set()
-        ed.canvas.event_generate("<Down>")            # Down outside the list pages
+        # Clicking the picture takes the keyboard from the Videos list, then
+        # Down pages through the steps
+        self.app.tree.focus_force()
+        self.pump()
+        ed.canvas.event_generate("<ButtonPress-1>", x=5, y=5)
+        ed.canvas.event_generate("<ButtonRelease-1>", x=5, y=5)
+        self.pump()
+        self.assertIs(self.root.focus_get(), ed.canvas)
+        ed.canvas.event_generate("<Down>")
         self.pump()
         self.assertEqual(self.shown_step(ed), 1)
 
