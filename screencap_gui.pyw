@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.8.0
+# Version: v1.9.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -27,18 +27,19 @@ import traceback
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from tkinter.scrolledtext import ScrolledText
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import export  # noqa: E402
 import player  # noqa: E402
+import presets  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.8.0"
+GUI_VERSION = "1.9.0"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -58,11 +59,7 @@ CAPTURE_POINTS = {
 
 # Settings live in the user profile, not the repo, because they contain
 # local folder paths (which can include the Windows user name).
-if os.name == "nt":
-    SETTINGS_DIR = Path(os.environ.get("APPDATA", Path.home())) / "ScreencapDocTool"
-else:
-    SETTINGS_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) \
-        / "screencap-doc-tool"
+SETTINGS_DIR = presets.settings_dir()
 SETTINGS_FILE = SETTINGS_DIR / "gui_settings.json"
 
 
@@ -149,6 +146,7 @@ class App:
         self.v_highlight = tk.BooleanVar(value=not d.no_highlight)
         self.v_redact = tk.BooleanVar(value=not d.no_redact)
         self.v_patterns = tk.StringVar(value="")
+        self.v_profile = tk.StringVar(value="Installer wizard")
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
@@ -212,7 +210,8 @@ class App:
         for b in (self.btn_all, self.btn_sel, self.btn_cancel, self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
 
-        self.build_settings(left).grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        self.build_presets(left).grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        self.build_settings(left).grid(row=2, column=0, sticky="ew", pady=(4, 0))
 
         # Right column: preview + log
         nb = ttk.Notebook(main)
@@ -232,6 +231,17 @@ class App:
         self.progress.grid(row=0, column=1, sticky="ew", padx=(6, 0))
         ttk.Label(main, text=f"{APP_NAME} - v{GUI_VERSION} - Built {BUILD_DATE}",
                   foreground="gray").grid(row=3, column=0, columnspan=2, pady=(6, 0))
+
+    def build_presets(self, parent):
+        bar = ttk.Frame(parent)
+        ttk.Label(bar, text="Preset:").pack(side="left")
+        self.cmb_profile = ttk.Combobox(bar, textvariable=self.v_profile, state="readonly",
+                                        values=presets.names(), width=26)
+        self.cmb_profile.pack(side="left", padx=4)
+        self.cmb_profile.bind("<<ComboboxSelected>>", lambda e: self.apply_profile())
+        ttk.Button(bar, text="Save As...", command=self.save_profile).pack(side="left", padx=(4, 0))
+        ttk.Button(bar, text="Delete", command=self.delete_profile).pack(side="left", padx=(4, 0))
+        return bar
 
     def build_settings(self, parent):
         box = ttk.LabelFrame(parent, text="Detection Settings", padding=6)
@@ -345,6 +355,75 @@ class App:
         self.v_redact.set(not d.no_redact)
         self.v_capture.set(list(CAPTURE_POINTS)[0])
         self.v_preset.set(self.preset_for_threshold())
+        self.v_patterns.set("")
+        self.v_profile.set("Installer wizard")
+
+    # ------------------------------------------------------------ presets
+
+    def profile_vars(self):
+        """Preset key -> (Tk variable, to_form, from_form) converters."""
+        cap_rev = {v: k for k, v in CAPTURE_POINTS.items()}
+        num = (str, lambda v: v)
+        neg = (lambda v: not v, lambda v: not v)
+        return {
+            "threshold": (self.v_threshold,) + num, "debounce": (self.v_debounce,) + num,
+            "settle": (self.v_settle,) + num, "lead": (self.v_lead,) + num,
+            "max_wait": (self.v_max_wait,) + num, "min_gap": (self.v_min_gap,) + num,
+            "analyze_fps": (self.v_fps,) + num, "analyze_width": (self.v_width,) + num,
+            "dedup_threshold": (self.v_dedup_thr,) + num, "format": (self.v_format,) + num,
+            "capture_point": (self.v_capture, lambda v: cap_rev.get(v, list(CAPTURE_POINTS)[0]),
+                              lambda v: v),
+            "no_dedup": (self.v_dedup,) + neg, "no_highlight": (self.v_highlight,) + neg,
+            "no_redact": (self.v_redact,) + neg,
+            "redact_pattern": (self.v_patterns, lambda v: "; ".join(v or []), lambda v: v),
+        }
+
+    def apply_profile(self):
+        """Fill the form from the chosen preset. Settings the preset does not
+        mention go back to their defaults."""
+        name = self.v_profile.get()
+        values = presets.get(name)
+        if values is None:
+            return
+        d = self.defaults
+        for key, (var, to_form, _) in self.profile_vars().items():
+            var.set(to_form(values.get(key, getattr(d, key))))
+        self.v_preset.set(self.preset_for_threshold())
+        self.set_status(f"Preset '{name}': {presets.describe(name)}")
+
+    def save_profile(self):
+        try:
+            args = self.build_args()
+        except ValueError as exc:
+            messagebox.showerror(APP_NAME, str(exc), parent=self.root)
+            return
+        name = simpledialog.askstring(APP_NAME, "Name for this preset:", parent=self.root,
+                                      initialvalue="" if presets.is_builtin(self.v_profile.get())
+                                      else self.v_profile.get())
+        if not name:
+            return
+        if name.strip() in presets.load_user() and not messagebox.askyesno(
+                APP_NAME, f'Replace the preset "{name.strip()}"?', parent=self.root):
+            return
+        try:
+            presets.save_user(name, {k: getattr(args, k) for k in presets.KEYS})
+        except (ValueError, OSError) as exc:
+            messagebox.showerror(APP_NAME, f"Could not save the preset:\n{exc}", parent=self.root)
+            return
+        self.cmb_profile.configure(values=presets.names())
+        self.v_profile.set(name.strip())
+        self.set_status(f"Saved preset '{name.strip()}'.")
+
+    def delete_profile(self):
+        name = self.v_profile.get()
+        if presets.is_builtin(name):
+            messagebox.showinfo(APP_NAME, "Built-in presets cannot be deleted.", parent=self.root)
+            return
+        if messagebox.askyesno(APP_NAME, f'Delete the preset "{name}"?', parent=self.root):
+            presets.delete_user(name)
+            self.cmb_profile.configure(values=presets.names())
+            self.v_profile.set("Installer wizard")
+            self.set_status(f"Deleted preset '{name}'.")
 
     def setting_vars(self):
         return {"source": self.v_source, "output": self.v_output,
@@ -355,7 +434,7 @@ class App:
                 "width": self.v_width, "format": self.v_format,
                 "dedup": self.v_dedup, "dedup_threshold": self.v_dedup_thr,
                 "highlight": self.v_highlight, "redact": self.v_redact,
-                "redact_patterns": self.v_patterns}
+                "redact_patterns": self.v_patterns, "preset": self.v_profile}
 
     def load_settings(self):
         try:
@@ -369,6 +448,8 @@ class App:
                 except tk.TclError:
                     pass
         self.v_preset.set(self.preset_for_threshold())
+        if presets.get(self.v_profile.get()) is None:
+            self.v_profile.set("Installer wizard")
 
     def save_settings(self):
         try:

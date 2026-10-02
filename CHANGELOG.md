@@ -1,8 +1,21 @@
-CHANGELOG.md v1.11.0 (Last Rev: 2026-10-02)
+CHANGELOG.md v1.12.0 (Last Rev: 2026-10-02)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.12.0 - Saved presets (2026-10-02)
+
+**New**
+- **Preset** dropdown above Detection Settings fills in every setting at once for the kind of recording:
+  - **Installer wizard:** the recommended defaults.
+  - **Web console:** ignores spinners and slow-loading pages.
+  - **Terminal / command line:** catches small text changes and merges bursts of typing.
+  - **Fast clicking:** for recordings with short pauses between actions.
+- **Save As...** saves the current settings, including **Also blur** patterns, as your own preset. **Delete** removes one. Built-in presets cannot be overwritten or deleted.
+- Saved presets live in your profile (`presets.json` next to the GUI settings) and are shared with the command line.
+- Command line: `--preset NAME` (not case-sensitive; options you add override the preset) and `--list-presets`.
+- The last preset you used is remembered.
 
 ## v1.11.0 - Play a step in VLC (2026-10-02)
 
