@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.7.0
+# Version: v1.8.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -35,7 +35,7 @@ import stepdoc  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -344,6 +344,7 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     doc = stepdoc.new_document(video.name, duration, width, height, args.format,
                                settings_snapshot(args), VERSION)
     doc["highlight"] = not args.no_highlight
+    doc["source_path"] = str(video.resolve())   # lets the GUI open it in VLC
     if args.crop:
         doc["crop"] = stepdoc.clamp_rect(args.crop, width, height)
     doc["redact"] = not args.no_redact
