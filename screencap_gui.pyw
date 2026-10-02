@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -34,7 +34,7 @@ import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.3.0"
+GUI_VERSION = "1.4.0"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -138,6 +138,7 @@ class App:
         self.v_format = tk.StringVar(value=d.format)
         self.v_dedup = tk.BooleanVar(value=not d.no_dedup)
         self.v_dedup_thr = tk.StringVar(value=str(d.dedup_threshold))
+        self.v_highlight = tk.BooleanVar(value=not d.no_highlight)
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
@@ -270,8 +271,12 @@ class App:
         label("Duplicate if differs by (%):", 6, 2)
         entry(self.v_dedup_thr, 6, 3)
 
+        ttk.Checkbutton(box, text="Highlight what changed in each step (red box)",
+                        variable=self.v_highlight).grid(row=7, column=0, columnspan=4,
+                                                        sticky="w", **pad)
+
         opts = ttk.Frame(box)
-        opts.grid(row=7, column=0, columnspan=4, sticky="ew", pady=(4, 0))
+        opts.grid(row=8, column=0, columnspan=4, sticky="ew", pady=(4, 0))
         ttk.Checkbutton(opts, text="Reprocess videos that are already done",
                         variable=self.v_force).grid(row=0, column=0, sticky="w", padx=4)
         ttk.Checkbutton(opts, text="Dry run (count steps only, save nothing)",
@@ -319,6 +324,7 @@ class App:
                            (self.v_format, d.format), (self.v_dedup_thr, d.dedup_threshold)):
             var.set(str(value))
         self.v_dedup.set(not d.no_dedup)
+        self.v_highlight.set(not d.no_highlight)
         self.v_capture.set(list(CAPTURE_POINTS)[0])
         self.v_preset.set(self.preset_for_threshold())
 
@@ -329,7 +335,8 @@ class App:
                 "min_gap": self.v_min_gap, "max_wait": self.v_max_wait,
                 "lead": self.v_lead, "settle": self.v_settle, "fps": self.v_fps,
                 "width": self.v_width, "format": self.v_format,
-                "dedup": self.v_dedup, "dedup_threshold": self.v_dedup_thr}
+                "dedup": self.v_dedup, "dedup_threshold": self.v_dedup_thr,
+                "highlight": self.v_highlight}
 
     def load_settings(self):
         try:
@@ -384,6 +391,8 @@ class App:
             cli.append("-r")
         if not self.v_dedup.get():
             cli.append("--no-dedup")
+        if not self.v_highlight.get():
+            cli.append("--no-highlight")
         if self.v_force.get():
             cli.append("--force")
         if self.v_dry.get():

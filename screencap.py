@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -33,7 +33,7 @@ import stepdoc  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      fmt_ts)
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -280,7 +280,7 @@ def settings_snapshot(args):
     return {k: getattr(args, k) for k in
             ("threshold", "debounce", "capture_point", "settle", "lead",
              "max_wait", "min_gap", "analyze_fps", "analyze_width", "format",
-             "no_dedup", "dedup_threshold")}
+             "no_dedup", "dedup_threshold", "no_highlight")}
 
 
 def clear_previous_output(out_dir):
@@ -338,6 +338,7 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
 
     doc = stepdoc.new_document(video.name, duration, width, height, args.format,
                                settings_snapshot(args), VERSION)
+    doc["highlight"] = not args.no_highlight
     kept_thumbs = []
 
     def dedup_check(new, image):
@@ -370,6 +371,8 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     if doc["deleted_steps"]:
         log.info("  %d duplicate screenshot(s) removed (restore them in the Steps tab)",
                  len(doc["deleted_steps"]))
+    # Always analyze, so highlighting can be switched on later in the editor
+    stepdoc.ensure_change_boxes(out_dir, doc, ffmpeg)
 
     stepdoc.render(out_dir, doc, ffmpeg,
                    progress=(lambda f, t: report(0.95 + 0.05 * f, t)) if progress else None,
@@ -426,6 +429,8 @@ def parse_args(argv):
     p.add_argument("--dedup-threshold", type=float, default=0.01,
                    help="Two screenshots count as duplicates when at most this "
                         "percent of the picture differs (default: 0.01)")
+    p.add_argument("--no-highlight", action="store_true",
+                   help="Do not draw a red box around what changed in each step")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",
                    help="Screenshot image format (default: png)")
     p.add_argument("--force", action="store_true",

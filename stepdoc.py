@@ -2,7 +2,7 @@
 #
 # stepdoc.py
 # 2026-10-02
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -22,6 +22,8 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+
+import imaging
 
 SCHEMA = 2
 INDEX_NAME = "steps.md"
@@ -64,6 +66,7 @@ def new_document(video_name, duration, width, height, ext, settings, tool_versio
         "document": {"title": Path(video_name).stem},
         "steps": [],
         "deleted_steps": [],
+        "highlight": True,
         "generated_md_sha256": None,
     }
 
@@ -159,11 +162,56 @@ def rendered_name(index, step, ext):
     return f"step_{index:03d}_{fmt_ts(step['time'], sep='-')}.{ext}"
 
 
+HIGHLIGHT_COLOR = "0xE53935"   # red
+
+
+def effective(step, doc, key, default=True):
+    """A per-step setting (True/False) overrides the recording-wide one."""
+    value = step.get(key)
+    return doc.get(key, default) if value is None else value
+
+
 def build_filter(step, doc):
     """FFmpeg filter chain that turns an original frame into the finished
     screenshot, or None when the original is used as-is. The GUI preview uses
-    the same chain, so what you see is what gets saved."""
-    return None
+    the same chain, so what you see is what gets saved. All coordinates are
+    in original-frame pixels."""
+    parts = []
+    box = step.get("change_box")
+    if box and effective(step, doc, "highlight"):
+        x, y, w, h = box
+        thick = max(3, round((doc.get("width") or 1280) / 320))
+        parts.append(f"drawbox=x={x}:y={y}:w={w}:h={h}:color={HIGHLIGHT_COLOR}@1:t={thick}")
+    return ",".join(parts) or None
+
+
+def ensure_frame_size(out_dir, doc, ffmpeg):
+    if not doc.get("width") or not doc.get("height"):
+        first = next((s for s in doc["steps"] + doc["deleted_steps"]), None)
+        if first:
+            doc["width"], doc["height"] = imaging.image_size(ffmpeg, Path(out_dir) / first["original"])
+
+
+def ensure_change_boxes(out_dir, doc, ffmpeg):
+    """Work out what changed since the previous step for any step that has
+    not been analyzed yet (new captures, or output from older versions)."""
+    pending = [i for i, s in enumerate(doc["steps"]) if "change_box" not in s]
+    if not pending:
+        return
+    ensure_frame_size(out_dir, doc, ffmpeg)
+    out_dir = Path(out_dir)
+    thumbs = {}
+
+    def thumb(i):
+        if i not in thumbs:
+            thumbs[i] = imaging.thumbnail(ffmpeg, out_dir / doc["steps"][i]["original"],
+                                          imaging.CHANGE_SIZE)
+        return thumbs[i]
+
+    for i in pending:
+        step = doc["steps"][i]
+        step["change_box"] = None if i == 0 else imaging.change_box(
+            thumb(i - 1), thumb(i), doc["width"], doc["height"])
 
 
 def render_image(ffmpeg, src, dest, step, doc, run):
@@ -194,6 +242,8 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None):
     out_dir = Path(out_dir)
     ext = doc.get("format", "png")
     keep = set()
+    if doc.get("highlight", True) or any(s.get("highlight") for s in doc["steps"]):
+        ensure_change_boxes(out_dir, doc, ffmpeg)
     steps = doc["steps"]
     for i, step in enumerate(steps, 1):
         if cancel is not None and cancel.is_set():

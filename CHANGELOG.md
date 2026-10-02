@@ -1,8 +1,18 @@
-CHANGELOG.md v1.6.0 (Last Rev: 2026-10-02)
+CHANGELOG.md v1.7.0 (Last Rev: 2026-10-02)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.7.0 - Red box around what changed (2026-10-02)
+
+**New**
+- Each screenshot gets a red box around the area that changed since the previous step, so readers can see where to click or what appeared.
+- The box hugs the change: in testing it fit a 14 pixel checkbox with a 28 pixel box. Whole-screen changes (a new window) get no box, and small far-away changes such as a moving mouse cursor are left out.
+- Steps tab: **Highlight changes** turns the box on or off for the whole recording, and **Highlight this step** overrides it for one step. The preview updates immediately.
+- GUI: **Highlight what changed in each step** in Detection Settings. Command line: `--no-highlight`.
+- The box is drawn only on the rendered screenshot. The original frame in `originals/` is never changed, so the box can be turned off again at any time.
+- Output from earlier versions gets its change areas worked out the first time it is saved in the editor.
 
 ## v1.6.0 - Duplicate screenshot removal (2026-10-02)
 
