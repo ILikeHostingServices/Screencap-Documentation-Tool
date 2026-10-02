@@ -1,4 +1,4 @@
-README.md v1.15.0 (Last Rev: 2026-10-02)
+README.md v1.16.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -50,10 +50,12 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
 | `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
-| `tests/` | Automated tests. Run `python -m unittest discover -s tests -v` from the repository root (needs FFmpeg). |
+| `tests/` | Automated tests, including a GUI test that drives the real window. See [Automated Testing](#automated-testing). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
 | `CHANGELOG.md` | What changed in every release. |
+| `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
+| `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one. |
 | `source/` | Default folder for your recordings. |
 | `output/` | Default folder for results, one subfolder per recording. |
@@ -315,6 +317,22 @@ The old per-user copies of Python and FFmpeg keep working but are no longer need
 winget uninstall --id Gyan.FFmpeg --scope user
 winget uninstall --id Python.Python.3.12 --scope user
 ```
+
+### Automated Testing
+
+Every push and pull request runs the **Tests** workflow on real Windows and Linux machines in GitHub Actions: code checks, the full test suite (detection, duplicates, highlight, crop, blurring, export to HTML/Word/PDF, presets, VLC), and a GUI test that drives the real window. FFmpeg, Tesseract, Pandoc, and VLC are installed first, and the run fails if any test was skipped, so a missing tool can never hide a problem.
+
+The **Installers** workflow runs the one-step installers on clean Windows (just-you and everyone), Linux, and macOS machines, then checks the installed tool: version, Start Menu shortcut and taskbar identity, write access for all users after a system-wide install, processing and exporting a recording, and that running the installer again (an update) keeps your files. It runs when an installer changes, every Monday (winget, apt, and Homebrew change on their own), and on demand from **Actions > Installers > Run workflow**.
+
+Both workflows can only read the code: they use a read-only token and no secrets. Results are on the repository's **Actions** tab.
+
+To run the tests on your own machine, from the repository folder:
+
+```powershell
+py -3 -m unittest discover -s tests -v
+```
+
+Tests that need a missing tool (for example Tesseract) are skipped and say why. The VLC test opens a VLC window, so it only runs when `SCREENCAP_TEST_VLC=1` is set.
 
 ### Releases And Versions
 
