@@ -1,8 +1,23 @@
-CHANGELOG.md v1.4.1 (Last Rev: 2026-10-01)
+CHANGELOG.md v1.5.0 (Last Rev: 2026-10-02)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.5.0 - Step editor (2026-10-02)
+
+**New**
+- **Steps tab (step editor)** replaces the Preview tab. For the selected recording you can delete steps, restore deleted steps, move steps up or down, and write a caption for each step. Click **Save Changes** to re-render the screenshots and regenerate `steps.md`.
+- Every captured frame is now kept untouched in `originals/`, and the screenshots in `steps.md` are rendered from those originals. Edits never destroy anything, and later features (crop, highlight, redaction) build on this.
+- Captions replace the `_Notes:_` placeholder in `steps.md`.
+- Unsaved edits are protected: the GUI asks before switching recordings, processing, or closing.
+- `ROADMAP.md` records the ideas on hold for discussion: narration to captions, watch folder, Windows test automation, and a single-file Windows app.
+- Automated tests in `tests/` (run with `python -m unittest discover -s tests -v`).
+
+**Changed**
+- Reprocessing with `--force` (or "Reprocess videos that are already done") now moves the previous results, including captions, into a `previous-<date>-<time>` folder instead of deleting them.
+- If `steps.md` was edited by hand, saving from the editor keeps the hand-edited copy as `steps.hand-edited-<date>-<time>.md`.
+- Output from v1.4.0 and earlier is upgraded automatically when opened. The old `steps.md` is kept as a backup.
 
 ## v1.4.0 - Automatic per-user or system-wide install on Windows (2026-10-01)
 

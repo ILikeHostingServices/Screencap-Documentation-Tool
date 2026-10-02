@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-10-01
-# Version: v1.1.0
+# 2026-10-02
+# Version: v1.2.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
-# settings, process recordings with live progress, and review the captured
-# step screenshots without leaving the app.
+# settings, process recordings with live progress, then review and edit the
+# captured steps in the Steps tab (see gui_editor.py).
 #
 # Requires: Python 3.8+ with Tkinter (included with the python.org / winget
 # Windows installer) and FFmpeg. The .pyw extension runs without a console
@@ -31,14 +31,15 @@ from tkinter.scrolledtext import ScrolledText
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import screencap as sc  # noqa: E402
+from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.1.0"
+GUI_VERSION = "1.2.0"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
 APP_USER_MODEL_ID = "MVTS.ScreencapDocumentationTool.GUI"
-BUILD_DATE = "2026-10-01"
+BUILD_DATE = "2026-10-02"
 
 SENSITIVITY_PRESETS = {
     "High (more shots)": 0.002,
@@ -85,23 +86,24 @@ class QueueLogHandler(logging.Handler):
 
 
 class App:
+    name = APP_NAME
+    is_windows = os.name == "nt"
+
     def __init__(self, root):
         self.root = root
         self.q = queue.Queue()
         self.worker = None
         self.cancel = threading.Event()
         self.videos = {}          # tree iid -> (video Path, output dir Path)
-        self.preview_files = []   # image paths for the selected video
-        self.preview_image = None
-        self.preview_job = None
+        self.editor_iid = None    # video currently open in the Steps tab
         self.temp_dir = Path(tempfile.mkdtemp(prefix="screencap_preview_"))
         self.ffmpeg = sc.find_tool("ffmpeg")
         self.ffprobe = sc.find_tool("ffprobe")
         self.defaults = sc.parse_args([])
 
         root.title(f"{APP_NAME} v{GUI_VERSION}")
-        root.geometry("1280x780")
-        root.minsize(980, 620)
+        root.geometry("1440x880")
+        root.minsize(1180, 720)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
         root.report_callback_exception = self.on_ui_error
 
@@ -137,7 +139,6 @@ class App:
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
-        self.v_step_info = tk.StringVar(value="Select a processed video to preview its steps.")
 
     def build_ui(self):
         pad = {"padx": 6, "pady": 4}
@@ -185,6 +186,7 @@ class App:
         sb.grid(row=0, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.bind("<<TreeviewSelect>>", lambda e: self.show_steps())
+        self.tree.bind("<Return>", lambda e: self.show_steps())
         self.tree.bind("<Double-1>", lambda e: self.open_selected_output())
 
         btns = ttk.Frame(vids)
@@ -203,7 +205,8 @@ class App:
         nb = ttk.Notebook(main)
         nb.grid(row=1, column=1, sticky="nsew", padx=(8, 0), pady=(8, 0))
         self.notebook = nb
-        nb.add(self.build_preview(nb), text="Preview")
+        self.editor = StepEditor(nb, self)
+        nb.add(self.editor, text="Steps")
         nb.add(self.build_log(nb), text="Log")
 
         # Progress + footer
@@ -270,32 +273,6 @@ class App:
         ttk.Button(opts, text="Reset Defaults", command=self.reset_defaults).grid(
             row=0, column=1, rowspan=2, sticky="e", padx=4)
         return box
-
-    def build_preview(self, parent):
-        frame = ttk.Frame(parent, padding=6)
-        frame.columnconfigure(1, weight=1)
-        frame.rowconfigure(0, weight=1)
-        self.step_list = tk.Listbox(frame, width=18, exportselection=False,
-                                    activestyle="none", font=("Consolas", 10)
-                                    if os.name == "nt" else ("Courier", 10))
-        self.step_list.grid(row=0, column=0, sticky="ns")
-        self.step_list.bind("<<ListboxSelect>>", lambda e: self.schedule_preview())
-        self.step_list.bind("<Double-1>", lambda e: self.open_current_image())
-        self.canvas = tk.Canvas(frame, background="#202020", highlightthickness=0)
-        self.canvas.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
-        self.canvas.bind("<Configure>", lambda e: self.schedule_preview())
-        ttk.Label(frame, textvariable=self.v_step_info, anchor="w",
-                  wraplength=600).grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        bar = ttk.Frame(frame)
-        bar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        ttk.Button(bar, text="< Prev", command=lambda: self.step_move(-1)).pack(side="left")
-        ttk.Button(bar, text="Next >", command=lambda: self.step_move(1)).pack(side="left", padx=6)
-        ttk.Button(bar, text="Open Image", command=self.open_current_image).pack(side="left")
-        ttk.Button(bar, text="Open steps.md",
-                   command=self.open_selected_index).pack(side="right")
-        ttk.Button(bar, text="Open Folder",
-                   command=self.open_selected_output).pack(side="right", padx=6)
-        return frame
 
     def build_log(self, parent):
         frame = ttk.Frame(parent, padding=6)
@@ -423,6 +400,10 @@ class App:
     def refresh_videos(self):
         if self.worker and self.worker.is_alive():
             return
+        if not self.editor.confirm_discard():
+            return
+        self.editor_iid = None
+        self.editor.load(None, None)
         selected = {self.videos[i][0] for i in self.tree.selection() if i in self.videos}
         self.tree.delete(*self.tree.get_children())
         self.videos.clear()
@@ -497,6 +478,8 @@ class App:
             args = self.build_args()
         except ValueError as exc:
             messagebox.showerror(APP_NAME, str(exc), parent=self.root)
+            return
+        if self.editor_iid in iids and not self.editor.confirm_discard():
             return
         self.save_settings()
         for iid in iids:
@@ -591,6 +574,8 @@ class App:
                     self.progress["value"] = overall * 1000
                     self.tree.set(iid, "status", f"Processing {frac * 100:.0f}%")
                     self.set_status(text)
+                elif kind == "status":
+                    self.set_status(msg[1])
                 elif kind == "row":
                     _, iid, status, count = msg
                     if iid in self.videos:
@@ -599,6 +584,8 @@ class App:
                             self.tree.set(iid, "steps", count)
                         if status.startswith("Done"):
                             self.update_row_from_disk(iid)
+                            if iid == self.editor_iid:
+                                self.editor.reload()
                         if iid in self.tree.selection():
                             self.show_steps()
                 elif kind == "done":
@@ -621,95 +608,27 @@ class App:
                                    parent=self.root)
         elif results["ok"] and not dry_run:
             self.notebook.select(0)
+            self.editor_iid = None
             self.show_steps()
 
-    # ------------------------------------------------------------- preview
+    # --------------------------------------------------------------- steps
 
     def selected_video(self):
         sel = [i for i in self.tree.selection() if i in self.videos]
         return self.videos[sel[0]] if sel else None
 
     def show_steps(self):
-        self.step_list.delete(0, "end")
-        self.preview_files = []
-        self.canvas.delete("all")
-        current = self.selected_video()
-        if not current:
-            self.v_step_info.set("Select a processed video to preview its steps.")
+        """Open the first selected video in the Steps tab. If it has unsaved
+        edits and the user cancels, keep the current video selected."""
+        sel = [i for i in self.tree.selection() if i in self.videos]
+        iid = sel[0] if sel else None
+        if iid == self.editor_iid and iid is not None:
             return
-        video, out_dir = current
-        manifest = self.read_manifest(out_dir)
-        if manifest is None:
-            self.v_step_info.set(f"{video.name} has not been processed yet.")
-            return
-        for i, step in enumerate(manifest.get("steps", []), 1):
-            path = out_dir / step.get("file", "")
-            self.preview_files.append((path, step))
-            self.step_list.insert("end", f"{i:03d}  {sc.fmt_ts(step['time'])}")
-        if self.preview_files:
-            self.step_list.selection_set(0)
-            self.schedule_preview()
-        else:
-            self.v_step_info.set("No steps were captured for this video.")
-
-    def step_move(self, delta):
-        if not self.preview_files:
-            return
-        sel = self.step_list.curselection()
-        idx = (sel[0] if sel else 0) + delta
-        idx = max(0, min(idx, len(self.preview_files) - 1))
-        self.step_list.selection_clear(0, "end")
-        self.step_list.selection_set(idx)
-        self.step_list.see(idx)
-        self.schedule_preview()
-
-    def schedule_preview(self):
-        # Debounce resize/selection events so FFmpeg is not run on every pixel
-        if self.preview_job:
-            self.root.after_cancel(self.preview_job)
-        self.preview_job = self.root.after(150, self.render_preview)
-
-    def render_preview(self):
-        self.preview_job = None
-        sel = self.step_list.curselection()
-        if not sel or not self.preview_files:
-            return
-        path, step = self.preview_files[sel[0]]
-        w = max(self.canvas.winfo_width(), 50)
-        h = max(self.canvas.winfo_height(), 50)
-        info = f"Step {sel[0] + 1} of {len(self.preview_files)} at {sc.fmt_ts(step['time'])}"
-        if step.get("still_from") is not None and step.get("still_to") is not None:
-            info += (f" | screen stable {sc.fmt_ts(step['still_from'])} to "
-                     f"{sc.fmt_ts(step['still_to'])}")
-        self.v_step_info.set(f"{info} | {path.name}")
-        self.canvas.delete("all")
-        if not path.is_file():
-            self.canvas.create_text(w // 2, h // 2, fill="white",
-                                    text="Screenshot file is missing (deleted or moved).")
-            return
-        # Tk cannot scale images or read JPEG, so let FFmpeg make a fitted PNG
-        thumb = self.temp_dir / "preview.png"
-        try:
-            if not self.ffmpeg:
-                raise RuntimeError("FFmpeg is required for previews")
-            res = sc.run([self.ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
-                          "-i", str(path), "-vf",
-                          f"scale={w}:{h}:force_original_aspect_ratio=decrease",
-                          "-frames:v", "1", str(thumb)])
-            if res.returncode != 0:
-                raise RuntimeError(res.stderr.strip()[-200:])
-            self.preview_image = tk.PhotoImage(file=str(thumb))
-            self.canvas.create_image(w // 2, h // 2, image=self.preview_image)
-        except Exception as exc:
-            self.canvas.create_text(w // 2, h // 2, fill="white", width=w - 20,
-                                    text=f"Preview unavailable: {exc}")
-
-    def open_current_image(self):
-        sel = self.step_list.curselection()
-        if sel and self.preview_files:
-            path = self.preview_files[sel[0]][0]
-            if path.is_file():
-                open_path(path)
+        video, out_dir = self.videos[iid] if iid else (None, None)
+        if self.editor.load(video, out_dir):
+            self.editor_iid = iid
+        elif self.editor_iid in self.videos:
+            self.tree.selection_set(self.editor_iid)
 
     def open_selected_output(self):
         current = self.selected_video()
@@ -719,13 +638,19 @@ class App:
             messagebox.showinfo(APP_NAME, "This video has not been processed yet.",
                                 parent=self.root)
 
-    def open_selected_index(self):
-        current = self.selected_video()
-        if current and (current[1] / sc.INDEX_NAME).is_file():
-            open_path(current[1] / sc.INDEX_NAME)
-        elif current:
-            messagebox.showinfo(APP_NAME, "This video has not been processed yet.",
-                                parent=self.root)
+    def on_steps_saved(self, out_dir):
+        for iid, (_, d) in self.videos.items():
+            if d == out_dir:
+                self.update_row_from_disk(iid)
+
+    def run(self, cmd):
+        return sc.run(cmd)
+
+    def open_path(self, path):
+        open_path(path)
+
+    def log_error(self, text):
+        sc.log.error(text)
 
     # ----------------------------------------------------------------- misc
 
@@ -751,6 +676,8 @@ class App:
                              parent=self.root)
 
     def on_close(self):
+        if not self.editor.confirm_discard():
+            return
         if self.worker and self.worker.is_alive():
             if not messagebox.askyesno(APP_NAME, "Processing is still running. "
                                        "Cancel it and exit?", parent=self.root):

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-10-01
-# Version: v1.1.0
+# 2026-10-02
+# Version: v1.2.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
 # scene detection to find the moments where the screen changes, and saves a
 # screenshot of each step plus a Markdown index for writing documentation.
+# Full frames are kept in originals/ so steps can be edited and re-rendered
+# (see stepdoc.py and the GUI step editor).
 #
 # Requires: Python 3.8+ and FFmpeg (ffmpeg + ffprobe). Standard library only.
 # Works on Windows 11, Linux, and macOS.
@@ -24,11 +26,14 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "1.1.0"
-VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 SCRIPT_DIR = Path(__file__).resolve().parent
-INDEX_NAME = "steps.md"
-MANIFEST_NAME = "steps.json"
+sys.path.insert(0, str(SCRIPT_DIR))
+import stepdoc  # noqa: E402
+from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
+                     fmt_ts)
+
+VERSION = "1.2.0"
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
     "FFmpeg was not found. Install it and try again:\n"
@@ -49,13 +54,7 @@ PTS_RE = re.compile(r"pts_time:\s*([0-9]+(?:\.[0-9]+)?)")
 SCORE_RE = re.compile(r"lavfi\.scene_score=\s*([0-9]+(?:\.[0-9]+)?)")
 OUT_TIME_RE = re.compile(r"^out_time_(?:us|ms)=([0-9]+)")
 
-# Keep FFmpeg from flashing a console window when launched from the GUI
-# (pythonw.exe) on Windows. Zero (no flags) everywhere else.
-NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-
-
-class Cancelled(Exception):
-    """Raised when the user cancels a run from the GUI."""
+NO_WINDOW = stepdoc.NO_WINDOW
 
 
 # ---------------------------------------------------------------------------
@@ -79,20 +78,9 @@ def find_tool(name, explicit=None):
     return shutil.which(name)
 
 
-def run(cmd, **kwargs):
+def run(cmd):
     """Run a command and capture text output without ever invoking a shell."""
-    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                          stdin=subprocess.DEVNULL, creationflags=NO_WINDOW,
-                          text=True, encoding="utf-8", errors="replace", **kwargs)
-
-
-def fmt_ts(seconds, sep=":"):
-    """Format seconds as HH:MM:SS.mmm (sep '-' gives a Windows-safe filename)."""
-    ms_total = int(round(max(seconds, 0.0) * 1000))
-    h, rem = divmod(ms_total, 3_600_000)
-    m, rem = divmod(rem, 60_000)
-    s, ms = divmod(rem, 1000)
-    return f"{h:02d}{sep}{m:02d}{sep}{s:02d}.{ms:03d}"
+    return stepdoc.run_quiet(cmd)
 
 
 # ---------------------------------------------------------------------------
@@ -287,63 +275,29 @@ def extract_frame(ffmpeg, video, t, dest, args):
 # Output
 # ---------------------------------------------------------------------------
 
-def write_index(out_dir, video, duration, steps, args):
-    lines = [
-        f"# {video.stem}",
-        "",
-        f"- Source video: `{video.name}`",
-        f"- Duration: {fmt_ts(duration)}",
-        f"- Generated: {time.strftime('%Y-%m-%d %H:%M:%S')} by screencap.py v{VERSION}",
-        f"- Settings: threshold={args.threshold}, debounce={args.debounce}s, "
-        f"capture-point={args.capture_point}, min-gap={args.min_gap}s",
-        f"- Steps captured: {len(steps)}",
-        "",
-    ]
-    for i, step in enumerate(steps, 1):
-        label = ""
-        if step["reason"] == "start":
-            label = " (start of video)"
-        elif i == len(steps):
-            label = " (end of video)"
-        lines.append(f"## Step {i} - {fmt_ts(step['time'])}{label}")
-        lines.append("")
-        details = []
-        if step["still_from"] is not None and step["still_to"] is not None:
-            details.append(f"Screen stable from {fmt_ts(step['still_from'])} "
-                           f"to {fmt_ts(step['still_to'])}")
-        if step["score"] is not None:
-            details.append(f"change score {step['score']:.3f}")
-        if details:
-            lines.append("_" + ", ".join(details) + "._")
-            lines.append("")
-        lines.append(f"![Step {i}]({step['file']})")
-        lines.append("")
-        lines.append("_Notes:_")
-        lines.append("")
-    (out_dir / INDEX_NAME).write_text("\n".join(lines), encoding="utf-8")
-
-    manifest = {
-        "tool_version": VERSION,
-        "source_video": video.name,
-        "duration": duration,
-        "settings": {k: getattr(args, k) for k in
-                     ("threshold", "debounce", "capture_point", "settle", "lead",
-                      "max_wait", "min_gap",
-                      "analyze_fps", "analyze_width", "format")},
-        "steps": steps,
-    }
-    (out_dir / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+def settings_snapshot(args):
+    return {k: getattr(args, k) for k in
+            ("threshold", "debounce", "capture_point", "settle", "lead",
+             "max_wait", "min_gap", "analyze_fps", "analyze_width", "format")}
 
 
 def clear_previous_output(out_dir):
-    """Remove only files this tool created, never anything else in the folder."""
-    for f in out_dir.glob("step_*"):
-        if f.is_file() and f.suffix.lower() in (".png", ".jpg"):
-            f.unlink()
-    for name in (INDEX_NAME, MANIFEST_NAME):
-        f = out_dir / name
-        if f.is_file():
-            f.unlink()
+    """Before reprocessing, move the previous run's files (including any
+    captions in steps.json and notes in steps.md) into a dated backup folder
+    instead of deleting them. Only files this tool creates are touched."""
+    targets = [f for f in out_dir.glob("step_*")
+               if f.is_file() and f.suffix.lower() in (".png", ".jpg")]
+    targets += [out_dir / n for n in (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR)
+                if (out_dir / n).exists()]
+    targets += [f for f in out_dir.glob("steps.*.md") if f.is_file()]
+    if not targets:
+        return None
+    backup = out_dir / f"previous-{time.strftime('%Y%m%d-%H%M%S')}"
+    backup.mkdir()
+    for f in targets:
+        shutil.move(str(f), str(backup / f.name))
+    log.info("  Previous output moved to %s", backup.name)
+    return backup
 
 
 def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=None):
@@ -378,16 +332,23 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     out_dir.mkdir(parents=True, exist_ok=True)
     if args.force:
         clear_previous_output(out_dir)
+    (out_dir / ORIGINALS_DIR).mkdir(exist_ok=True)
 
+    doc = stepdoc.new_document(video.name, duration, width, height, args.format,
+                               settings_snapshot(args), VERSION)
     for i, step in enumerate(steps, 1):
-        name = f"step_{i:03d}_{fmt_ts(step['time'], sep='-')}.{args.format}"
         if cancel is not None and cancel.is_set():
             raise Cancelled()
-        report(0.85 + 0.15 * (i - 1) / len(steps), f"Saving screenshot {i}/{len(steps)}")
-        extract_frame(ffmpeg, video, step["time"], out_dir / name, args)
-        step["file"] = name
+        report(0.85 + 0.10 * (i - 1) / len(steps), f"Saving screenshot {i}/{len(steps)}")
+        orig = f"{ORIGINALS_DIR}/{stepdoc.capture_name(step['time'], args.format)}"
+        extract_frame(ffmpeg, video, step["time"], out_dir / orig, args)
+        doc["steps"].append(stepdoc.new_step(step["time"], orig, step["still_from"],
+                                             step["still_to"], step["score"],
+                                             step["reason"]))
 
-    write_index(out_dir, video, duration, steps, args)
+    stepdoc.render(out_dir, doc, ffmpeg,
+                   progress=(lambda f, t: report(0.95 + 0.05 * f, t)) if progress else None,
+                   cancel=cancel)
     log.info("  Saved %d screenshots to %s (%.1fs)", len(steps), out_dir,
              time.monotonic() - started)
     report(1.0, "Done")
@@ -472,13 +433,24 @@ def add_file_log(output):
         return None
 
 
+_cli_handlers = []
+
+
 def setup_logging(output, verbose):
+    # Remove handlers from an earlier main() call in the same process (tests)
+    for h in _cli_handlers:
+        log.removeHandler(h)
+        h.close()
+    _cli_handlers.clear()
     log.setLevel(logging.DEBUG)
     console = logging.StreamHandler(sys.stdout)
     console.setLevel(logging.DEBUG if verbose else logging.INFO)
     console.setFormatter(logging.Formatter("%(message)s"))
     log.addHandler(console)
-    add_file_log(output)
+    _cli_handlers.append(console)
+    fh = add_file_log(output)
+    if fh is not None:
+        _cli_handlers.append(fh)
 
 
 def main(argv=None):
