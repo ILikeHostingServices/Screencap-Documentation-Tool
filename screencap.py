@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.5.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -29,11 +29,12 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 import imaging  # noqa: E402
+import redact  # noqa: E402
 import stepdoc  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
-                     fmt_ts)
+                     UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -183,6 +184,8 @@ def detect_changes(ffmpeg, video, duration, args, progress=None, cancel=None):
                 last_report = now
     proc.wait()
     reader.join()
+    proc.stdout.close()
+    proc.stderr.close()
     if cancel is not None and cancel.is_set():
         raise Cancelled()
 
@@ -280,7 +283,7 @@ def settings_snapshot(args):
     return {k: getattr(args, k) for k in
             ("threshold", "debounce", "capture_point", "settle", "lead",
              "max_wait", "min_gap", "analyze_fps", "analyze_width", "format",
-             "no_dedup", "dedup_threshold", "no_highlight", "crop")}
+             "no_dedup", "dedup_threshold", "no_highlight", "crop", "no_redact")}
 
 
 def clear_previous_output(out_dir):
@@ -289,7 +292,8 @@ def clear_previous_output(out_dir):
     instead of deleting them. Only files this tool creates are touched."""
     targets = [f for f in out_dir.glob("step_*")
                if f.is_file() and f.suffix.lower() in (".png", ".jpg")]
-    targets += [out_dir / n for n in (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR)
+    targets += [out_dir / n for n in (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR,
+                                      UNREDACTED_DIR, UNREDACTED_INDEX)
                 if (out_dir / n).exists()]
     targets += [f for f in out_dir.glob("steps.*.md") if f.is_file()]
     if not targets:
@@ -341,6 +345,8 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     doc["highlight"] = not args.no_highlight
     if args.crop:
         doc["crop"] = stepdoc.clamp_rect(args.crop, width, height)
+    doc["redact"] = not args.no_redact
+    doc["redact_patterns"] = list(args.redact_pattern or [])
     kept_thumbs = []
 
     def dedup_check(new, image):
@@ -376,9 +382,10 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     # Always analyze, so highlighting can be switched on later in the editor
     stepdoc.ensure_change_boxes(out_dir, doc, ffmpeg)
 
+    tesseract = None if args.no_redact else redact.find_tesseract(args.tesseract)
     stepdoc.render(out_dir, doc, ffmpeg,
                    progress=(lambda f, t: report(0.95 + 0.05 * f, t)) if progress else None,
-                   cancel=cancel)
+                   cancel=cancel, tesseract=tesseract)
     log.info("  Saved %d screenshots to %s (%.1fs)", len(doc["steps"]), out_dir,
              time.monotonic() - started)
     report(1.0, "Done")
@@ -445,6 +452,14 @@ def parse_args(argv):
                    help="Crop every screenshot to this rectangle, in pixels of the "
                         "recording (for example 0:0:1920:1080 for the left monitor of "
                         "a dual-screen recording). Originals stay uncropped")
+    p.add_argument("--no-redact", action="store_true",
+                   help="Do not blur sensitive information (passwords, keys, IP "
+                        "addresses...). By default it is blurred and an unblurred copy "
+                        "is kept in unredacted/")
+    p.add_argument("--redact-pattern", action="append", metavar="REGEX",
+                   help="Extra text to blur, as a regular expression (case-insensitive). "
+                        "Repeat for several, e.g. --redact-pattern \"corp\\.example\\.com\"")
+    p.add_argument("--tesseract", help="Path to the tesseract executable (OCR)")
     p.add_argument("--no-highlight", action="store_true",
                    help="Do not draw a red box around what changed in each step")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",
@@ -461,6 +476,11 @@ def parse_args(argv):
 
     if not 0 < args.threshold < 1:
         p.error("--threshold must be between 0 and 1")
+    for rx in args.redact_pattern or []:
+        try:
+            re.compile(rx)
+        except re.error as exc:
+            p.error(f"--redact-pattern {rx!r} is not a valid regular expression: {exc}")
     for name in ("debounce", "settle", "lead", "max_wait", "min_gap",
                  "analyze_fps", "dedup_threshold"):
         if getattr(args, name) < 0:
@@ -517,6 +537,8 @@ def main(argv=None):
         log.error(FFMPEG_MISSING_HELP)
         return EXIT_SETUP_ERROR
     log.debug("ffmpeg: %s | ffprobe: %s", ffmpeg, ffprobe)
+    if not args.no_redact and not args.dry_run and not redact.find_tesseract(args.tesseract):
+        log.warning(redact.TESSERACT_MISSING_HELP)
 
     if not source.is_dir():
         source.mkdir(parents=True, exist_ok=True)

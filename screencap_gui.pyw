@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.5.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -30,11 +31,12 @@ from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.5.0"
+GUI_VERSION = "1.6.0"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -99,6 +101,7 @@ class App:
         self.temp_dir = Path(tempfile.mkdtemp(prefix="screencap_preview_"))
         self.ffmpeg = sc.find_tool("ffmpeg")
         self.ffprobe = sc.find_tool("ffprobe")
+        self.tesseract = redact.find_tesseract()
         self.defaults = sc.parse_args([])
 
         root.title(f"{APP_NAME} v{GUI_VERSION}")
@@ -139,6 +142,8 @@ class App:
         self.v_dedup = tk.BooleanVar(value=not d.no_dedup)
         self.v_dedup_thr = tk.StringVar(value=str(d.dedup_threshold))
         self.v_highlight = tk.BooleanVar(value=not d.no_highlight)
+        self.v_redact = tk.BooleanVar(value=not d.no_redact)
+        self.v_patterns = tk.StringVar(value="")
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
@@ -275,8 +280,15 @@ class App:
                         variable=self.v_highlight).grid(row=7, column=0, columnspan=4,
                                                         sticky="w", **pad)
 
+        ttk.Checkbutton(box, text="Blur passwords, keys, IP and email addresses "
+                        "(unblurred copy kept)", variable=self.v_redact).grid(
+            row=8, column=0, columnspan=4, sticky="w", **pad)
+        label("Also blur (regex, ; separates):", 9, 0)
+        ttk.Entry(box, textvariable=self.v_patterns, width=30).grid(
+            row=9, column=1, columnspan=3, sticky="ew", **pad)
+
         opts = ttk.Frame(box)
-        opts.grid(row=8, column=0, columnspan=4, sticky="ew", pady=(4, 0))
+        opts.grid(row=10, column=0, columnspan=4, sticky="ew", pady=(4, 0))
         ttk.Checkbutton(opts, text="Reprocess videos that are already done",
                         variable=self.v_force).grid(row=0, column=0, sticky="w", padx=4)
         ttk.Checkbutton(opts, text="Dry run (count steps only, save nothing)",
@@ -325,6 +337,7 @@ class App:
             var.set(str(value))
         self.v_dedup.set(not d.no_dedup)
         self.v_highlight.set(not d.no_highlight)
+        self.v_redact.set(not d.no_redact)
         self.v_capture.set(list(CAPTURE_POINTS)[0])
         self.v_preset.set(self.preset_for_threshold())
 
@@ -336,7 +349,8 @@ class App:
                 "lead": self.v_lead, "settle": self.v_settle, "fps": self.v_fps,
                 "width": self.v_width, "format": self.v_format,
                 "dedup": self.v_dedup, "dedup_threshold": self.v_dedup_thr,
-                "highlight": self.v_highlight}
+                "highlight": self.v_highlight, "redact": self.v_redact,
+                "redact_patterns": self.v_patterns}
 
     def load_settings(self):
         try:
@@ -393,6 +407,15 @@ class App:
             cli.append("--no-dedup")
         if not self.v_highlight.get():
             cli.append("--no-highlight")
+        if not self.v_redact.get():
+            cli.append("--no-redact")
+        for rx in (p.strip() for p in self.v_patterns.get().split(";")):
+            if rx:
+                try:
+                    re.compile(rx)
+                except re.error as exc:
+                    raise ValueError(f"'{rx}' in Also blur is not a valid pattern: {exc}")
+                cli += ["--redact-pattern", rx]
         if self.v_force.get():
             cli.append("--force")
         if self.v_dry.get():
@@ -469,6 +492,10 @@ class App:
     def check_ffmpeg(self):
         if self.ffmpeg and self.ffprobe:
             sc.log.info("Using FFmpeg: %s", self.ffmpeg)
+            if self.tesseract:
+                sc.log.info("Using Tesseract OCR: %s", self.tesseract)
+            else:
+                sc.log.warning(redact.TESSERACT_MISSING_HELP)
             return True
         sc.log.error(sc.FFMPEG_MISSING_HELP)
         messagebox.showwarning(APP_NAME, sc.FFMPEG_MISSING_HELP, parent=self.root)

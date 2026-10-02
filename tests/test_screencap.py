@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import imaging  # noqa: E402
+import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import stepdoc  # noqa: E402
 
@@ -249,6 +250,96 @@ class DuplicateTests(unittest.TestCase):
         sc.run([FFMPEG, "-loglevel", "error", "-y", "-ss", str(t), "-i",
                 str(self.source / "Revisit.mp4"), "-frames:v", "1", str(dest)])
         return dest
+
+
+TESSERACT = redact.find_tesseract()
+
+
+def font_file():
+    for path in ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                 "C:/Windows/Fonts/arial.ttf", "/Library/Fonts/Arial.ttf",
+                 "/System/Library/Fonts/Supplemental/Arial.ttf"):
+        if Path(path).is_file():
+            return path
+    return None
+
+
+FONT = font_file()
+
+
+def text_filter(lines, start=0):
+    font = FONT.replace(":", "\\:")
+    parts = []
+    for i, text in enumerate(lines):
+        parts.append(f"drawtext=fontfile='{font}':text='{text}':x=100:y={160 + 60 * i}:"
+                     f"fontsize=24:fontcolor=black:enable='gte(t,{start})'")
+    return ",".join(parts)
+
+
+@unittest.skipUnless(FFMPEG and FFPROBE and TESSERACT and FONT,
+                     "needs FFmpeg, Tesseract OCR, and a TrueType font")
+class RedactionTests(unittest.TestCase):
+    SECRET_LINES = ["Server IP\\: 192.168.10.25", "Password\\: Hunter2Secret!",
+                    "Product key\\: ABCDE-12345-FGHIJ-67890-KLMNO",
+                    "Contact admin@example.com", "Click Next to continue"]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="screencap_redact_"))
+        cls.source = cls.tmp / "source"
+        cls.source.mkdir()
+        make_video(cls.source / "Login.mp4", text_filter(cls.SECRET_LINES, start=4), duration=10)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_detects_secrets_but_not_ordinary_text(self):
+        image = self.tmp / "frame.png"
+        sc.run([FFMPEG, "-loglevel", "error", "-y", "-ss", "8", "-i",
+                str(self.source / "Login.mp4"), "-frames:v", "1", str(image)])
+        found = redact.scan_image(TESSERACT, image, 1280, 720)
+        reasons = " ".join(r["reason"] for r in found)
+        for expected in ("IP address", "Password", "license key", "email address"):
+            self.assertIn(expected, reasons)
+        # "Click Next to continue" (y = 400) must not be blurred
+        self.assertFalse([r for r in found if r["box"][1] > 390])
+
+    def test_custom_pattern(self):
+        lines = [[("Join", [0, 0, 40, 20]), ("CORP-DOMAIN", [50, 0, 120, 20])]]
+        self.assertFalse(redact.find_sensitive(lines, 1280, 720))
+        self.assertTrue(redact.find_sensitive(lines, 1280, 720, ["corp-domain"]))
+
+    def test_two_copies_and_switches(self):
+        out = self.tmp / "out"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out)]), 0)
+        folder = out / "Login"
+        doc = stepdoc.load(folder)
+        step = doc["steps"][-1]
+        self.assertTrue(stepdoc.redaction_boxes(step, doc))
+        blurred = folder / step["file"]
+        plain = folder / stepdoc.UNREDACTED_DIR / step["file"]
+        self.assertTrue(plain.is_file())
+        self.assertNotEqual(blurred.read_bytes(), plain.read_bytes())
+        self.assertIn("UNREDACTED COPY",
+                      (folder / stepdoc.UNREDACTED_INDEX).read_text(encoding="utf-8"))
+
+        for r in step["auto_redactions"]:      # un-blur everything detected
+            r["ignored"] = True
+        step["manual_redactions"] = [[100, 100, 200, 40]]
+        stepdoc.render(folder, doc, FFMPEG, tesseract=TESSERACT)
+        self.assertEqual(stepdoc.redaction_boxes(step, doc), [[100, 100, 200, 40]])
+
+        doc["redact"] = False                  # redaction off: no second copy
+        stepdoc.render(folder, doc, FFMPEG, tesseract=TESSERACT)
+        self.assertFalse((folder / stepdoc.UNREDACTED_INDEX).exists())
+        self.assertFalse(list((folder / stepdoc.UNREDACTED_DIR).glob("step_*"))
+                         if (folder / stepdoc.UNREDACTED_DIR).exists() else [])
+
+    def test_no_redact_option(self):
+        out = self.tmp / "noredact"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--no-redact"]), 0)
+        self.assertFalse((out / "Login" / stepdoc.UNREDACTED_DIR).exists())
 
 
 if __name__ == "__main__":
