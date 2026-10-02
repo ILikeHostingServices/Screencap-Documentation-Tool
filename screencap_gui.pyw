@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-02
-# Version: v1.4.0
+# Version: v1.5.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -34,7 +34,7 @@ import screencap as sc  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = "Screencap Documentation Tool"
-GUI_VERSION = "1.4.0"
+GUI_VERSION = "1.5.0"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon

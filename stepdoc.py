@@ -2,7 +2,7 @@
 #
 # stepdoc.py
 # 2026-10-02
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -67,6 +67,7 @@ def new_document(video_name, duration, width, height, ext, settings, tool_versio
         "steps": [],
         "deleted_steps": [],
         "highlight": True,
+        "crop": None,
         "generated_md_sha256": None,
     }
 
@@ -171,6 +172,31 @@ def effective(step, doc, key, default=True):
     return doc.get(key, default) if value is None else value
 
 
+NO_CROP = "none"   # step["crop"] value meaning "do not crop this step"
+
+
+def effective_crop(step, doc):
+    """[x, y, w, h] crop for a step: its own crop, the recording-wide crop,
+    or None. All values are original-frame pixels."""
+    crop = step.get("crop")
+    if crop == NO_CROP:
+        return None
+    return crop or doc.get("crop")
+
+
+def clamp_rect(rect, width, height, minimum=16):
+    """Keep a rectangle inside the frame, at least `minimum` pixels, with
+    even width and height (some image encoders require it)."""
+    x, y, w, h = (int(round(v)) for v in rect)
+    if w < 0:
+        x, w = x + w, -w
+    if h < 0:
+        y, h = y + h, -h
+    x, y = max(0, min(x, width - minimum)), max(0, min(y, height - minimum))
+    w, h = max(minimum, min(w, width - x)), max(minimum, min(h, height - y))
+    return [x, y, w - w % 2, h - h % 2]
+
+
 def build_filter(step, doc):
     """FFmpeg filter chain that turns an original frame into the finished
     screenshot, or None when the original is used as-is. The GUI preview uses
@@ -182,6 +208,10 @@ def build_filter(step, doc):
         x, y, w, h = box
         thick = max(3, round((doc.get("width") or 1280) / 320))
         parts.append(f"drawbox=x={x}:y={y}:w={w}:h={h}:color={HIGHLIGHT_COLOR}@1:t={thick}")
+    crop = effective_crop(step, doc)
+    if crop:   # always last, so everything above uses original coordinates
+        x, y, w, h = crop
+        parts.append(f"crop={w}:{h}:{x}:{y}")
     return ",".join(parts) or None
 
 

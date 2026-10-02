@@ -2,14 +2,15 @@
 #
 # gui_editor.py
 # 2026-10-02
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
 # recording. Reorder, delete (and restore) steps, write a caption for each
 # one, then Save to re-render the screenshots and regenerate steps.md from
 # the untouched originals. The red "what changed" box can be switched on or
-# off for the whole recording or for a single step.
+# off for the whole recording or for a single step, and screenshots can be
+# cropped by dragging a rectangle on the original frame.
 
 import threading
 
@@ -38,6 +39,8 @@ class StepEditor(ttk.Frame):
         self.v_hl_doc = tk.BooleanVar(value=True)
         self.v_hl_step = tk.BooleanVar(value=True)
         self._loading_caption = False
+        self.view_map = None        # (scale, x offset, y offset) of the original-frame view
+        self.draw = None            # active rectangle tool: dict(kind, scope, start, item)
         self.build()
 
     # ------------------------------------------------------------------ UI
@@ -83,6 +86,19 @@ class StepEditor(ttk.Frame):
                                            variable=self.v_hl_step,
                                            command=self.toggle_step_highlight)
         self.chk_hl_step.pack(anchor="w")
+        ttk.Label(self.tools_frame, text="Crop (drag on the picture):").pack(anchor="w", pady=(8, 0))
+        crop_row = ttk.Frame(self.tools_frame)
+        crop_row.pack(fill="x")
+        ttk.Button(crop_row, text="All Steps", command=lambda: self.begin_draw("crop", "all")
+                   ).pack(side="left", fill="x", expand=True)
+        ttk.Button(crop_row, text="This Step", command=lambda: self.begin_draw("crop", "step")
+                   ).pack(side="left", fill="x", expand=True, padx=(4, 0))
+        crop_row2 = ttk.Frame(self.tools_frame)
+        crop_row2.pack(fill="x", pady=(4, 0))
+        ttk.Button(crop_row2, text="No Crop Here", command=self.no_crop_step
+                   ).pack(side="left", fill="x", expand=True)
+        ttk.Button(crop_row2, text="Clear All Crops", command=self.clear_crops
+                   ).pack(side="left", fill="x", expand=True, padx=(4, 0))
 
         right = ttk.Frame(self)
         right.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
@@ -99,6 +115,10 @@ class StepEditor(ttk.Frame):
         self.canvas = tk.Canvas(right, background="#202020", highlightthickness=0)
         self.canvas.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
         self.canvas.bind("<Configure>", lambda e: self.schedule_preview())
+        self.canvas.bind("<ButtonPress-1>", self.on_press)
+        self.canvas.bind("<B1-Motion>", self.on_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_release)
+        self.winfo_toplevel().bind("<Escape>", lambda e: self.cancel_draw(), add="+")
 
         ttk.Label(right, textvariable=self.v_info, anchor="w").grid(row=2, column=0, sticky="ew",
                                                                     pady=(4, 0))
@@ -146,6 +166,10 @@ class StepEditor(ttk.Frame):
             return
         self.v_title.set(self.doc.get("document", {}).get("title", ""))
         self.v_hl_doc.set(self.doc.get("highlight", True))
+        try:
+            stepdoc.ensure_frame_size(self.out_dir, self.doc, self.app.ffmpeg)
+        except Exception as exc:
+            self.app.log_error(f"Could not read the frame size: {exc}")
         self.refresh_list(0)
 
     def show_message(self, text):
@@ -202,6 +226,10 @@ class StepEditor(ttk.Frame):
                      f"{stepdoc.fmt_ts(step['still_to'])}")
         if "change_box" in step and not step["change_box"]:
             info += " | no highlight (first step, nothing changed, or whole screen changed)"
+        crop = stepdoc.effective_crop(step, self.doc)
+        if crop:
+            own = " (this step only)" if isinstance(step.get("crop"), list) else ""
+            info += f" | cropped to {crop[2]}x{crop[3]}{own}"
         self.v_info.set(info)
         self.v_hl_step.set(bool(stepdoc.effective(step, self.doc, "highlight")))
         self._set_caption(step.get("caption", ""))
@@ -293,6 +321,85 @@ class StepEditor(ttk.Frame):
         self.set_dirty()
         self.schedule_preview()
 
+    # -------------------------------------------------------- rectangles
+
+    def begin_draw(self, kind, scope):
+        """Start a rectangle tool. Rectangles are drawn on the original frame
+        so they are stored in original-frame pixels."""
+        if self.current_step() is None or not self.doc.get("width"):
+            return
+        self.draw = {"kind": kind, "scope": scope, "start": None, "item": None}
+        self.v_view.set("original")
+        self.canvas.configure(cursor="crosshair")
+        self.render_preview()
+        what = {"crop": "the area to keep"}.get(kind, "the area")
+        self.app.set_status(f"Drag a rectangle around {what}. Press Esc to cancel.")
+
+    def cancel_draw(self):
+        if self.draw:
+            self.draw = None
+            self.canvas.configure(cursor="")
+            self.app.set_status("Cancelled.")
+            self.schedule_preview()
+
+    def on_press(self, event):
+        if self.draw and self.view_map:
+            self.draw["start"] = (event.x, event.y)
+
+    def on_drag(self, event):
+        if not self.draw or not self.draw["start"]:
+            return
+        if self.draw["item"]:
+            self.canvas.delete(self.draw["item"])
+        x0, y0 = self.draw["start"]
+        self.draw["item"] = self.canvas.create_rectangle(x0, y0, event.x, event.y,
+                                                         outline="#4FC3F7", width=2, dash=(6, 3))
+
+    def on_release(self, event):
+        if not self.draw or not self.draw["start"]:
+            return
+        draw, self.draw = self.draw, None
+        self.canvas.configure(cursor="")
+        scale, ox, oy = self.view_map
+        x0, y0 = draw["start"]
+        rect = [(min(x0, event.x) - ox) / scale, (min(y0, event.y) - oy) / scale,
+                abs(event.x - x0) / scale, abs(event.y - y0) / scale]
+        if rect[2] < 8 or rect[3] < 8:
+            self.app.set_status("Rectangle too small; nothing changed.")
+            self.schedule_preview()
+            return
+        rect = stepdoc.clamp_rect(rect, self.doc["width"], self.doc["height"])
+        self.apply_rect(draw["kind"], draw["scope"], rect)
+
+    def apply_rect(self, kind, scope, rect):
+        step = self.current_step()
+        if kind == "crop":
+            if scope == "all":
+                self.doc["crop"] = rect
+            else:
+                step["crop"] = rect
+            self.app.set_status(f"Crop set to {rect[2]}x{rect[3]} at {rect[0]},{rect[1]}"
+                                f"{' for all steps' if scope == 'all' else ' for this step'}.")
+        self.set_dirty()
+        self.v_view.set("final")
+        self.on_select()
+
+    def no_crop_step(self):
+        step = self.current_step()
+        if step is not None:
+            step["crop"] = stepdoc.NO_CROP
+            self.set_dirty()
+            self.on_select()
+
+    def clear_crops(self):
+        if not self.doc:
+            return
+        self.doc["crop"] = None
+        for step in self.doc["steps"]:
+            step.pop("crop", None)
+        self.set_dirty()
+        self.on_select()
+
     # ------------------------------------------------------------- preview
 
     def schedule_preview(self):
@@ -332,13 +439,33 @@ class StepEditor(ttk.Frame):
                 raise RuntimeError(res.stderr.strip()[-200:])
             self.preview_image = tk.PhotoImage(file=str(thumb))
             self.canvas.create_image(w // 2, h // 2, image=self.preview_image)
-            self.after_preview_drawn(step, w, h)
+            self.view_map = None
+            if self.v_view.get() == "original" and self.doc.get("width"):
+                scale = self.preview_image.width() / self.doc["width"]
+                self.view_map = (scale, (w - self.preview_image.width()) / 2,
+                                 (h - self.preview_image.height()) / 2)
+                self.draw_overlays(step)
         except Exception as exc:
             self.canvas.create_text(w // 2, h // 2, fill="white", width=w - 20,
                                     text=f"Preview unavailable: {exc}")
 
-    def after_preview_drawn(self, step, w, h):
-        """Hook for later features that draw overlays on the original frame."""
+    def overlay(self, rect, color, label=None):
+        scale, ox, oy = self.view_map
+        x, y, w, h = rect
+        x0, y0 = ox + x * scale, oy + y * scale
+        self.canvas.create_rectangle(x0, y0, x0 + w * scale, y0 + h * scale,
+                                     outline=color, width=2, dash=(6, 3))
+        if label:
+            self.canvas.create_text(x0 + 4, y0 + 4, anchor="nw", text=label, fill=color)
+
+    def draw_overlays(self, step):
+        """On the original frame, outline what will be applied: the crop
+        (blue) and the "what changed" box (red)."""
+        crop = stepdoc.effective_crop(step, self.doc)
+        if crop:
+            self.overlay(crop, "#4FC3F7", "crop")
+        if step.get("change_box") and stepdoc.effective(step, self.doc, "highlight"):
+            self.overlay(step["change_box"], "#E53935")
 
     # ------------------------------------------------------------- saving
 

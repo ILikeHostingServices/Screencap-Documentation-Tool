@@ -1,4 +1,4 @@
-README.md v1.9.0 (Last Rev: 2026-10-02)
+README.md v1.10.0 (Last Rev: 2026-10-02)
 
 # Screencap Documentation Tool
 
@@ -12,6 +12,7 @@ For each recording you get:
 - A `steps.md` file listing every step with its timestamp, its screenshot, and its caption, ready to turn into documentation.
 - A red box around what changed since the previous step, so readers see where to click or what appeared.
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
+- Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. The only requirements are Python 3.8+ and [FFmpeg](https://ffmpeg.org/), both free and open source.
@@ -175,9 +176,14 @@ Select a processed recording in the **Videos** list and the **Steps** tab shows 
 | **Caption** | The text shown under the step in `steps.md`, replacing the `_Notes:_` placeholder. |
 | **Highlight changes** (top right) | Turn the red "what changed" box on or off for the whole recording. |
 | **Highlight this step** | Turn the box on or off for the selected step only. This overrides the recording-wide setting. |
+| **Crop: All Steps / This Step** | Drag a rectangle on the picture around the area to keep. **All Steps** sets the crop for the whole recording; **This Step** gives the selected step its own crop. Press Esc to cancel. |
+| **No Crop Here** | Leave the selected step uncropped even when the recording has a crop. |
+| **Clear All Crops** | Remove the recording-wide crop and every per-step crop. |
 | **Show: Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
 | **Save Changes** | Re-render the screenshots from the originals and regenerate `steps.md` and `steps.json`. |
 | **Discard Changes** | Go back to the last saved version. |
+
+On **Original frame**, a dashed blue outline shows the crop and a dashed red outline shows the "what changed" box, so you can see what will be applied. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
 
 Nothing is written until you click **Save Changes**. If you switch recordings, start processing, or close the window with unsaved changes, the GUI asks whether to save them first.
 
@@ -202,7 +208,7 @@ After changing settings, reprocess with **Reprocess videos that are already done
 ### Recording Tips For Best Results
 
 - Pause for about a second after each meaningful step. The tool looks for moments when the screen is still.
-- Record a single window or monitor rather than a multi-monitor desktop.
+- Record a single window or monitor rather than a multi-monitor desktop. If you do record several monitors, crop to the one that matters with **Crop: All Steps** in the Steps tab, or `--crop` on the command line.
 - Turn on Do Not Disturb so notification popups do not show up as extra steps.
 - [OBS Studio](https://obsproject.com/) (free, open source) and the built-in Windows Snipping Tool recorder both work well. In OBS, record to `.mkv`, which survives a crash mid-recording, and remux to `.mp4` if needed.
 
@@ -294,6 +300,7 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--analyze-width` | `640` | Width used for analysis only. `0` uses full size. Screenshots are always full resolution. |
 | `--no-dedup` | off | Keep screenshots that look identical to an earlier one. |
 | `--dedup-threshold` | `0.01` | Two screenshots are duplicates when at most this percent of the picture differs. The default only matches virtually identical screens, so small changes such as a ticked checkbox are kept. Removed duplicates are kept as deleted steps and can be restored in the Steps tab. |
+| `--crop` | none | Crop every screenshot to `X:Y:W:H` (pixels of the recording), for example `0:0:1920:1080` for the left monitor of a dual-screen recording. Width and height are rounded down to even numbers. Originals stay uncropped, and the crop can be changed in the Steps tab. |
 | `--no-highlight` | off | Do not draw the red "what changed" box. It can still be switched on later in the Steps tab, because the changed area is always worked out and saved. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
 | `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |

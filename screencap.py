@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.4.0
+# Version: v1.5.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -33,7 +33,7 @@ import stepdoc  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      fmt_ts)
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -280,7 +280,7 @@ def settings_snapshot(args):
     return {k: getattr(args, k) for k in
             ("threshold", "debounce", "capture_point", "settle", "lead",
              "max_wait", "min_gap", "analyze_fps", "analyze_width", "format",
-             "no_dedup", "dedup_threshold", "no_highlight")}
+             "no_dedup", "dedup_threshold", "no_highlight", "crop")}
 
 
 def clear_previous_output(out_dir):
@@ -339,6 +339,8 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     doc = stepdoc.new_document(video.name, duration, width, height, args.format,
                                settings_snapshot(args), VERSION)
     doc["highlight"] = not args.no_highlight
+    if args.crop:
+        doc["crop"] = stepdoc.clamp_rect(args.crop, width, height)
     kept_thumbs = []
 
     def dedup_check(new, image):
@@ -387,6 +389,16 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
 # Main
 # ---------------------------------------------------------------------------
 
+def parse_crop(text):
+    try:
+        values = [int(v) for v in text.split(":")]
+        if len(values) != 4 or values[2] <= 0 or values[3] <= 0 or min(values[:2]) < 0:
+            raise ValueError
+        return values
+    except ValueError:
+        raise argparse.ArgumentTypeError("use X:Y:W:H with whole pixel numbers, e.g. 0:0:1920:1080")
+
+
 def parse_args(argv):
     p = argparse.ArgumentParser(
         description="Automatically capture a screenshot of every step in screen "
@@ -429,6 +441,10 @@ def parse_args(argv):
     p.add_argument("--dedup-threshold", type=float, default=0.01,
                    help="Two screenshots count as duplicates when at most this "
                         "percent of the picture differs (default: 0.01)")
+    p.add_argument("--crop", type=parse_crop, metavar="X:Y:W:H",
+                   help="Crop every screenshot to this rectangle, in pixels of the "
+                        "recording (for example 0:0:1920:1080 for the left monitor of "
+                        "a dual-screen recording). Originals stay uncropped")
     p.add_argument("--no-highlight", action="store_true",
                    help="Do not draw a red box around what changed in each step")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",

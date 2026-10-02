@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-02
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -118,6 +118,26 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(len(backups), 1)
         old = json.loads((backups[0] / "steps.json").read_text(encoding="utf-8"))
         self.assertEqual(old["steps"][0]["caption"], "keep me")
+
+    def test_crop_applies_to_screenshots_not_originals(self):
+        out = self.process("crop", "--crop", "250:150:701:401")
+        doc = stepdoc.load(out)
+        self.assertEqual(doc["crop"], [250, 150, 700, 400])   # even-sized
+        step = doc["steps"][1]
+        self.assertEqual(imaging.image_size(FFMPEG, out / step["file"]), (700, 400))
+        self.assertEqual(imaging.image_size(FFMPEG, out / step["original"]), (1280, 720))
+
+        step["crop"] = stepdoc.NO_CROP                 # this step uncropped
+        doc["steps"][0]["crop"] = [0, 0, 320, 180]     # this step its own crop
+        stepdoc.render(out, doc, FFMPEG)
+        self.assertEqual(imaging.image_size(FFMPEG, out / step["file"]), (1280, 720))
+        self.assertEqual(imaging.image_size(FFMPEG, out / doc["steps"][0]["file"]), (320, 180))
+
+    def test_clamp_rect(self):
+        self.assertEqual(stepdoc.clamp_rect([1200, 700, 500, 500], 1280, 720),
+                         [1200, 700, 80, 20])
+        self.assertEqual(stepdoc.clamp_rect([100, 100, -50, -40], 1280, 720),
+                         [50, 60, 50, 40])
 
     def test_migrates_v1_output(self):
         out = self.tmp / "v1" / "Demo"
