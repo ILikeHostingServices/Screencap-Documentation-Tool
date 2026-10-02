@@ -1,4 +1,4 @@
-ROADMAP.md v1.1.0 (Last Rev: 2026-10-02)
+ROADMAP.md v1.2.0 (Last Rev: 2026-10-02)
 
 # Roadmap
 
@@ -8,9 +8,19 @@ Ideas that were approved in principle but are on hold until they have been discu
 
 | # | Idea | Why it is on hold | Questions to settle |
 | --- | --- | --- | --- |
-| 5 | **Narration to captions.** Transcribe spoken narration offline with Whisper (whisper.cpp) and attach the words to each step by timestamp as a first-draft caption. | Too ambitious for now. Adds a large download (speech model) and noticeable processing time. | Which model size (accuracy vs speed)? Run automatically or only on request? Should captions be overwritten or only filled when empty? |
-| 7 | **Watch folder.** Automatically process new recordings as soon as the recorder finishes writing them. | Needs a design discussion. | Background service, scheduled task, or only while the GUI is open? How to detect that a recording is finished (OBS still writing)? Notifications when done? Which machines run it? |
-| 12 | **Single-file Windows app.** Package the tool as one `.exe` with PyInstaller so Python does not need to be installed. | Needs a discussion. Unsigned executables often trigger antivirus or SmartScreen warnings. | Code signing certificate? Keep the Python install as the main path, or switch? How are updates delivered? |
+| 12 | **Single-file Windows app.** Package the tool as one `.exe` with PyInstaller so Python does not need to be installed. | Researching code signing options (cost, identity checks, SmartScreen). | Which signing route, if any? Keep the Python install as the main path, or switch? How are updates delivered? |
+
+## Parked
+
+| # | Idea | Decision |
+| --- | --- | --- |
+| 5 | **Narration to captions.** Transcribe spoken narration offline with Whisper and use it as first-draft captions. | Optional, not planned: recordings are not narrated. Revisit only if that changes. |
+
+## Dropped
+
+| # | Idea | Decision |
+| --- | --- | --- |
+| 7 | **Watch folder.** Automatically process new recordings as soon as they finish. | Not worth the added complexity; processing stays a manual click. |
 
 ## Done
 
