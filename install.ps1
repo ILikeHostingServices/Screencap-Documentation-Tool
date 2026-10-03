@@ -19,7 +19,7 @@
     install folder).
 
 .NOTES
-    Version: v1.3.0
+    Version: v1.3.1
     Last Edit Date: 2026-10-03
 
 .EXAMPLE
@@ -57,7 +57,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is far faster without the progress bar in PowerShell 5.1
 $Repo = 'ILikeHostingServices/Screencap-Documentation-Tool'
 $AppName = 'Screencap Documentation Tool'
-$AppUserModelId = 'MVTS.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
+$AppUserModelId = 'ILikeHostingServices.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
 
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
 
@@ -295,6 +295,23 @@ namespace ScreencapInstall {
             }
         } catch {
             Write-Host "    Could not create $lnkPath : $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    # A shortcut pinned to the taskbar is a separate copy. Give copies that
+    # start this tool the current taskbar identity too, so an update does not
+    # leave a second taskbar button. Other pinned shortcuts are not touched.
+    $pinned = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'
+    if ($appIdSupported -and (Test-Path $pinned)) {
+        foreach ($pin in Get-ChildItem -Path $pinned -Filter '*.lnk' -ErrorAction SilentlyContinue) {
+            try {
+                $link = $shell.CreateShortcut($pin.FullName)
+                if ("$($link.TargetPath) $($link.Arguments)" -like "*$([WildcardPattern]::Escape($gui))*") {
+                    [ScreencapInstall.ShortcutAppId]::Set($pin.FullName, $AppUserModelId)
+                }
+            } catch {
+                Write-Host "    Could not update the pinned taskbar shortcut $($pin.Name): $($_.Exception.Message)" -ForegroundColor Yellow
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-02
-# Version: v1.9.0
+# 2026-10-03
+# Version: v1.9.1
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -400,10 +400,10 @@ class RedactionTests(unittest.TestCase):
     def test_exports(self):
         out = self.tmp / "export"
         self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--export", "html",
-                                  "--doc-author", "MVTS IT", "--doc-version", "v2.0.0"]), 0)
+                                  "--doc-author", "Example IT", "--doc-version", "v2.0.0"]), 0)
         folder = out / "Login"
         page = (folder / "export" / "Login.html").read_text(encoding="utf-8")
-        self.assertIn("MVTS IT", page)
+        self.assertIn("Example IT", page)
         self.assertIn("v2.0.0", page)
         doc = stepdoc.load(folder)
         self.assertEqual(page.count("data:image/png;base64,"), len(doc["steps"]))

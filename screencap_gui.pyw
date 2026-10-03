@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-03
-# Version: v1.11.0
+# Version: v1.11.1
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -41,11 +41,11 @@ import transcribe  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.11.0"   # this file; the release version is in version.py
+GUI_VERSION = "1.11.1"   # this file; the release version is in version.py
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
-APP_USER_MODEL_ID = "MVTS.ScreencapDocumentationTool.GUI"
+APP_USER_MODEL_ID = "ILikeHostingServices.ScreencapDocumentationTool.GUI"
 
 SENSITIVITY_PRESETS = {
     "High (more shots)": 0.002,
