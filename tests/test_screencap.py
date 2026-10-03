@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-02
-# Version: v1.9.0
+# 2026-10-03
+# Version: v1.9.1
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
