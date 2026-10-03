@@ -1,8 +1,19 @@
-CHANGELOG.md v1.15.0 (Last Rev: 2026-10-03)
+CHANGELOG.md v1.16.0 (Last Rev: 2026-10-03)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.14.0 - Captions From Narration (2026-10-03)
+
+**New**
+- If you talk while you record, the tool can turn what you said into the first-draft caption of each step. Each sentence goes to the step whose screen was showing while it was said.
+- Speech recognition runs offline on your PC with faster-whisper (an open source version of OpenAI's Whisper). The audio never leaves the machine, and no graphics card is needed.
+- It is optional and off by default. Install it by adding `-WithWhisper` to the Windows Quick Start command, or `SCREENCAP_WITH_WHISPER=1` on Linux and macOS (about 450 MB, kept in a separate `whisper-env` folder so it never changes your system Python). The speech model downloads on first use.
+- GUI: tick **Captions from narration** in Detection Settings and pick a **Model**, or click **Captions From Narration** in the Steps tab for a recording that is already processed.
+- Command line: `--transcribe`, `--whisper-model`, and `--whisper-python`.
+- Only empty captions are filled, so captions you typed are never replaced. The full transcript with timestamps is saved as `transcript.txt`.
+- Tested on Windows and Linux with a real speech sample, including both installers.
 
 ## v1.13.1 - Open source under the MIT License (2026-10-03)
 
