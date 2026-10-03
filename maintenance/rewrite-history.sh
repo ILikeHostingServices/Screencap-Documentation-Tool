@@ -35,6 +35,8 @@ EMAIL="HostingServices-Owner@users.noreply.github.com"
 OLD="$(printf '%s%s' MV TS)"
 OLD_NAME="$OLD-Owner"
 OLD_EMAIL="$OLD_NAME@users.noreply.github.com"
+# The taskbar ID briefly used the full organization name before ILHS
+OLD_ID="$(printf '%s%s' ILikeHosting Services).ScreencapDocumentationTool.GUI"
 STALE_BRANCHES="claude/gifted-ride-nqrkb1"
 
 step() { printf '\033[36m==> %s\033[0m\n' "$*"; }
@@ -56,7 +58,7 @@ git clone --quiet --single-branch --branch main "$REPO_URL" "$WORK/repo"
 cd "$WORK/repo"
 git fetch --quiet --tags origin
 tags_before="$(git tag | wc -l)"
-tree_before="$(git rev-parse 'HEAD^{tree}')"
+files_before="$(git ls-tree -r HEAD)"
 
 # What to change. Names and emails in commits and tags come from the mailmap;
 # text inside files and commit messages comes from the replacements list.
@@ -67,7 +69,7 @@ cat > "$WORK/replacements" <<EOF
 $OLD_EMAIL==>$EMAIL
 $OLD_NAME==>$NAME
 $OLD.ScreencapDocumentationTool.GUI==>ILHS.ScreencapDocumentationTool.GUI
-ILikeHostingServices.ScreencapDocumentationTool.GUI==>ILHS.ScreencapDocumentationTool.GUI
+$OLD_ID==>ILHS.ScreencapDocumentationTool.GUI
 $OLD IT==>Example IT
 EOF
 
@@ -117,9 +119,12 @@ mapfile -t all_commits < <(git rev-list --all)
 if git grep -qi "$OLD" "${all_commits[@]}" -- 2>/dev/null; then
     echo "    FAIL: a file version still mentions the old name"; fail=1; fi
 [ "$(git tag | wc -l)" = "$tags_before" ] || { echo "    FAIL: tag count changed"; fail=1; }
-# The newest content must match the original except for the expected edits
-changed_files="$(git diff --name-only "$tree_before" 'HEAD^{tree}' | tr '\n' ' ')"
-echo "    Files that differ from the original main: ${changed_files:-none}"
+# The newest files must be exactly as before (only the manifest commit is new)
+if [ "$(git ls-tree -r HEAD^)" != "$files_before" ]; then
+    echo "    FAIL: the newest files changed:"
+    diff <(echo "$files_before") <(git ls-tree -r HEAD^) | sed 's/^/        /'
+    fail=1
+fi
 while read -r tag; do
     v="${tag#v}"
     # version.py exists from v1.12.1 on; older tags are checked by the tag count
