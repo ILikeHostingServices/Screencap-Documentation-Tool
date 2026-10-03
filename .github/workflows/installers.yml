@@ -1,6 +1,6 @@
 # installers.yml
-# 2026-10-02
-# Version: v1.1.0
+# 2026-10-03
+# Version: v1.1.1
 #
 # PURPOSE:
 # Runs the real one-step installers on clean Windows, Linux, and macOS
@@ -93,7 +93,7 @@ jobs:
           $item = (New-Object -ComObject Shell.Application).Namespace($folder).ParseName($name)
           $appId = $item.ExtendedProperty('System.AppUserModel.ID')
           Write-Host "AppUserModelID: $appId"
-          if ($appId -ne 'MVTS.ScreencapDocumentationTool.GUI') { throw "Taskbar identity not set on the shortcut (got '$appId')" }
+          if ($appId -ne 'ILHS.ScreencapDocumentationTool.GUI') { throw "Taskbar identity not set on the shortcut (got '$appId')" }
 
       - name: Check folder permissions (system-wide only)
         if: matrix.scope == 'machine'
