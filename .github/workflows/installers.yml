@@ -93,7 +93,7 @@ jobs:
           $item = (New-Object -ComObject Shell.Application).Namespace($folder).ParseName($name)
           $appId = $item.ExtendedProperty('System.AppUserModel.ID')
           Write-Host "AppUserModelID: $appId"
-          if ($appId -ne 'ILikeHostingServices.ScreencapDocumentationTool.GUI') { throw "Taskbar identity not set on the shortcut (got '$appId')" }
+          if ($appId -ne 'ILHS.ScreencapDocumentationTool.GUI') { throw "Taskbar identity not set on the shortcut (got '$appId')" }
 
       - name: Check folder permissions (system-wide only)
         if: matrix.scope == 'machine'

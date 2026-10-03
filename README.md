@@ -1,4 +1,4 @@
-README.md v1.18.0 (Last Rev: 2026-10-03)
+README.md v1.19.0 (Last Rev: 2026-10-03)
 
 # Screencap Documentation Tool
 
@@ -60,6 +60,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `CHANGELOG.md` | What changed in every release. |
 | `LICENSE` | The MIT License: free to use, change, and share, with no warranty. See [License And Support](#license-and-support). |
 | `SECURITY.md` | How to report a security problem privately. |
+| `HANDOFF.md` | Open tasks that need the repository owner or a machine with full access (history cleanup, releases, code signing setup). |
+| `maintenance/rewrite-history.sh` | One-time script that rewrites the history to the current author name and taskbar ID. See `HANDOFF.md`. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one. |

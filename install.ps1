@@ -57,7 +57,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is far faster without the progress bar in PowerShell 5.1
 $Repo = 'ILikeHostingServices/Screencap-Documentation-Tool'
 $AppName = 'Screencap Documentation Tool'
-$AppUserModelId = 'ILikeHostingServices.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
+$AppUserModelId = 'ILHS.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
 
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
 
