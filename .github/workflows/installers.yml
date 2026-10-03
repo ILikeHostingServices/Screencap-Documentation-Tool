@@ -1,13 +1,15 @@
 # installers.yml
 # 2026-10-02
-# Version: v1.0.1
+# Version: v1.1.0
 #
 # PURPOSE:
 # Runs the real one-step installers on clean Windows, Linux, and macOS
 # machines, then checks the installed tool: files, version, shortcuts and
 # taskbar identity (Windows), folder permissions (system-wide install),
-# processing and exporting a recording, and that re-running the installer
-# (an update) keeps the user's files.
+# processing and exporting a recording, the optional speech recognition
+# (Windows just-you and Linux install it and turn real speech into a
+# caption), and that re-running the installer (an update) keeps the user's
+# files.
 #
 # Runs when an installer changes, once a week (the installers depend on
 # winget, apt, and Homebrew, which change on their own), and on demand
@@ -56,7 +58,7 @@ jobs:
           # Quick Start command downloads the latest one
           $hasWinget = [bool](Get-Command winget -ErrorAction SilentlyContinue)
           "HAS_WINGET=$hasWinget" | Out-File -FilePath $env:GITHUB_ENV -Append
-          $scopeSwitch = if ('${{ matrix.scope }}' -eq 'user') { @{ UserOnly = $true } } else { @{ SystemWide = $true } }
+          $scopeSwitch = if ('${{ matrix.scope }}' -eq 'user') { @{ UserOnly = $true; WithWhisper = $true } } else { @{ SystemWide = $true } }
           if (-not $hasWinget) {
             Write-Host "::warning::winget is not available on this runner image, so the prerequisite installs (winget) were not tested. Installing FFmpeg with Chocolatey instead."
             choco install ffmpeg -y --no-progress
@@ -117,12 +119,33 @@ jobs:
             if (-not (Test-Path (Join-Path $out $f))) { throw "Missing output: $f" }
           }
 
+      - name: Turn real speech into a caption (just-you install has speech recognition)
+        if: matrix.scope == 'user'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User') + ';' + $env:Path
+          $envPy = Join-Path $env:INSTALL_DIR 'whisper-env\Scripts\python.exe'
+          if (-not (Test-Path $envPy)) { throw 'whisper-env was not created by -WithWhisper' }
+          $src = Join-Path $env:INSTALL_DIR 'source'
+          $wav = Join-Path $env:RUNNER_TEMP 'jfk.wav'
+          Invoke-WebRequest -UseBasicParsing -OutFile $wav -Uri https://raw.githubusercontent.com/ggml-org/whisper.cpp/master/samples/jfk.wav
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=1280x720:r=30:d=14 -i $wav `
+            -vf "drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)'" `
+            -af "adelay=1000:all=1,apad" -t 14 -c:v libx264 -pix_fmt yuv420p -c:a aac (Join-Path $src 'CI Speech.mp4')
+          & py -3 (Join-Path $env:INSTALL_DIR 'screencap.py') --transcribe --whisper-model tiny.en
+          if ($LASTEXITCODE -ne 0) { throw "screencap.py --transcribe failed ($LASTEXITCODE)" }
+          $transcript = Get-Content -Raw (Join-Path $env:INSTALL_DIR 'output\CI Speech\transcript.txt')
+          Write-Host $transcript
+          if ($transcript -notmatch 'country') { throw 'The transcript does not contain the spoken words' }
+
       - name: Re-run the installer (update) and check files are kept
         run: |
           $ErrorActionPreference = 'Stop'
           $scopeSwitch = if ('${{ matrix.scope }}' -eq 'user') { @{ UserOnly = $true } } else { @{ SystemWide = $true } }
           & .\install.ps1 -InstallDir $env:INSTALL_DIR -Ref '${{ github.sha }}' -SkipPrerequisites @scopeSwitch
-          foreach ($f in 'source\CI Demo.mp4', 'output\CI Demo\steps.md') {
+          $keep = @('source\CI Demo.mp4', 'output\CI Demo\steps.md')
+          if ('${{ matrix.scope }}' -eq 'user') { $keep += 'whisper-env\Scripts\python.exe' }
+          foreach ($f in $keep) {
             if (-not (Test-Path (Join-Path $env:INSTALL_DIR $f))) { throw "Update removed $f" }
           }
 
@@ -134,7 +157,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Run the installer
-        run: sudo SCREENCAP_REF="${{ github.sha }}" bash install.sh
+        run: sudo SCREENCAP_REF="${{ github.sha }}" SCREENCAP_WITH_WHISPER=1 bash install.sh
 
       - name: Check the installed tool
         run: |
@@ -142,6 +165,7 @@ jobs:
           expected="$(sed -n 's/^RELEASE = "\(.*\)"/\1/p' version.py)"
           screencap --version | tee /dev/stderr | grep -q "v$expected"
           test -x /usr/local/bin/screencap-gui
+          /opt/Screencap-Documentation-Tool/whisper-env/bin/python -c "import faster_whisper"
           grep -q "assets/icon.png" /usr/share/applications/screencap-documentation-tool.desktop
           # source/ and output/ must belong to the installing user, not root
           test "$(stat -c %U /opt/Screencap-Documentation-Tool/source)" = "$(id -un)"
@@ -157,10 +181,25 @@ jobs:
           test -f "/opt/Screencap-Documentation-Tool/output/CI Demo/steps.md"
           test -f "/opt/Screencap-Documentation-Tool/output/CI Demo/export/CI Demo.html"
 
+      - name: Turn real speech into a caption
+        run: |
+          set -euo pipefail
+          src=/opt/Screencap-Documentation-Tool/source
+          curl -fsSL -o "$RUNNER_TEMP/jfk.wav" \
+            https://raw.githubusercontent.com/ggml-org/whisper.cpp/master/samples/jfk.wav
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=1280x720:r=30:d=14 \
+            -i "$RUNNER_TEMP/jfk.wav" \
+            -vf "drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)'" \
+            -af "adelay=1000:all=1,apad" -t 14 -c:v libx264 -pix_fmt yuv420p -c:a aac "$src/CI Speech.mp4"
+          screencap --transcribe --whisper-model tiny.en
+          cat "/opt/Screencap-Documentation-Tool/output/CI Speech/transcript.txt"
+          grep -qi country "/opt/Screencap-Documentation-Tool/output/CI Speech/transcript.txt"
+
       - name: Re-run the installer (update) and check files are kept
         run: |
           sudo SCREENCAP_REF="${{ github.sha }}" bash install.sh
           test -f "/opt/Screencap-Documentation-Tool/source/CI Demo.mp4"
+          test -x /opt/Screencap-Documentation-Tool/whisper-env/bin/python
           test -f "/opt/Screencap-Documentation-Tool/output/CI Demo/steps.md"
 
   macos:

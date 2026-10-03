@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-10-02
-# Version: v1.0.2
+# 2026-10-03
+# Version: v1.1.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
 # Videos list, then checks the Steps tab (arrow-key navigation, reordering,
-# captions, saving) and the version in the footer. Skipped when Tkinter or a
+# captions, saving, captions from narration) and the version in the footer. Skipped when Tkinter or a
 # display is not available (on Linux CI it runs under xvfb-run).
 
 import os
@@ -18,7 +18,7 @@ import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
-from helpers import FFMPEG, FFPROBE, ROOT, make_video
+from helpers import FFMPEG, FFPROBE, ROOT, fake_whisper, make_video
 
 try:
     import tkinter as tk
@@ -37,7 +37,7 @@ class GuiTests(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp(prefix="screencap_gui_"))
         cls.source = cls.tmp / "source"
         cls.source.mkdir()
-        make_video(cls.source / "Demo.mp4")
+        make_video(cls.source / "Demo.mp4", audio="tone")
         # The folder is typed through a link, as on Windows where temp paths
         # are short (8.3) names: the GUI must still match up its videos
         cls.typed_source = cls.source
@@ -73,6 +73,7 @@ class GuiTests(unittest.TestCase):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def setUp(self):
+        self.dialogs.clear()
         self.root = tk.Tk()
         # Bring the window to the front so it gets keyboard events (a CI
         # runner's window can otherwise stay in the background on Windows)
@@ -164,6 +165,28 @@ class GuiTests(unittest.TestCase):
         self.pump()
         md = (self.tmp / "caption" / "Demo" / "steps.md").read_text(encoding="utf-8")
         self.assertIn("Open the installer.", md)
+        self.assertEqual(self.errors, [])
+
+    def test_captions_from_narration(self):
+        ed = self.process("narration")
+        ed.caption.insert("1.0", "Typed by hand.")
+        ed.caption.event_generate("<<Modified>>")
+        self.pump()
+        second = ed.doc["steps"][1]
+        start = second["still_from"] if second["still_from"] is not None else second["time"]
+        segments = [{"start": 0.2, "end": 0.6, "text": "Spoken on the first screen."},
+                    {"start": start + 0.2, "end": start + 0.6, "text": "Spoken on the second."}]
+        with fake_whisper(self.tmp, segments):
+            ed.captions_from_narration()
+            end = time.monotonic() + 120
+            while str(ed.btn_narration["state"]) == "disabled" and time.monotonic() < end:
+                self.pump(0.2)
+        self.pump()
+        self.assertEqual(self.dialogs, [], "no error dialog expected")
+        self.assertEqual(ed.doc["steps"][0]["caption"], "Typed by hand.")   # kept
+        self.assertEqual(ed.doc["steps"][1]["caption"], "Spoken on the second.")
+        self.assertTrue(ed.dirty)
+        self.assertTrue((self.tmp / "narration" / "Demo" / "transcript.txt").is_file())
         self.assertEqual(self.errors, [])
 
 

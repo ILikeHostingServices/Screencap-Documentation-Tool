@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-10-02
-# Version: v1.10.2
+# 2026-10-03
+# Version: v1.11.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -37,10 +37,11 @@ import presets  # noqa: E402
 import version  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
+import transcribe  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.10.2"   # this file; the release version is in version.py
+GUI_VERSION = "1.11.0"   # this file; the release version is in version.py
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon
@@ -104,6 +105,7 @@ class App:
         self.pandoc = export.find_pandoc()
         self.browser = export.find_browser()
         self.vlc = player.find_vlc()
+        self.whisper_python = transcribe.find_python()
         self.defaults = sc.parse_args([])
 
         root.title(f"{APP_NAME} v{version.RELEASE}")
@@ -146,6 +148,8 @@ class App:
         self.v_highlight = tk.BooleanVar(value=not d.no_highlight)
         self.v_redact = tk.BooleanVar(value=not d.no_redact)
         self.v_patterns = tk.StringVar(value="")
+        self.v_transcribe = tk.BooleanVar(value=False)
+        self.v_whisper_model = tk.StringVar(value=transcribe.DEFAULT_MODEL)
         self.v_profile = tk.StringVar(value="Installer wizard")
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
@@ -302,8 +306,15 @@ class App:
         ttk.Entry(box, textvariable=self.v_patterns, width=30).grid(
             row=9, column=1, columnspan=3, sticky="ew", **pad)
 
+        ttk.Checkbutton(box, text="Captions from narration (speech recognition)",
+                        variable=self.v_transcribe).grid(row=10, column=0, columnspan=2,
+                                                         sticky="w", **pad)
+        label("Model:" if self.whisper_python else "Model (not installed):", 10, 2)
+        ttk.Combobox(box, textvariable=self.v_whisper_model, state="readonly",
+                     values=transcribe.MODELS, width=9).grid(row=10, column=3, sticky="w", **pad)
+
         opts = ttk.Frame(box)
-        opts.grid(row=10, column=0, columnspan=4, sticky="ew", pady=(4, 0))
+        opts.grid(row=11, column=0, columnspan=4, sticky="ew", pady=(4, 0))
         ttk.Checkbutton(opts, text="Reprocess videos that are already done",
                         variable=self.v_force).grid(row=0, column=0, sticky="w", padx=4)
         ttk.Checkbutton(opts, text="Dry run (count steps only, save nothing)",
@@ -356,6 +367,8 @@ class App:
         self.v_capture.set(list(CAPTURE_POINTS)[0])
         self.v_preset.set(self.preset_for_threshold())
         self.v_patterns.set("")
+        self.v_transcribe.set(False)
+        self.v_whisper_model.set(transcribe.DEFAULT_MODEL)
         self.v_profile.set("Installer wizard")
 
     # ------------------------------------------------------------ presets
@@ -434,7 +447,8 @@ class App:
                 "width": self.v_width, "format": self.v_format,
                 "dedup": self.v_dedup, "dedup_threshold": self.v_dedup_thr,
                 "highlight": self.v_highlight, "redact": self.v_redact,
-                "redact_patterns": self.v_patterns, "preset": self.v_profile}
+                "redact_patterns": self.v_patterns, "preset": self.v_profile,
+                "transcribe": self.v_transcribe, "whisper_model": self.v_whisper_model}
 
     def load_settings(self):
         try:
@@ -502,6 +516,11 @@ class App:
                 except re.error as exc:
                     raise ValueError(f"'{rx}' in Also blur is not a valid pattern: {exc}")
                 cli += ["--redact-pattern", rx]
+        if self.v_transcribe.get() and not self.v_dry.get():
+            if not transcribe.find_python():
+                raise ValueError(transcribe.WHISPER_MISSING_HELP + "\n\nOr untick Captions "
+                                 "from narration.")
+            cli += ["--transcribe", "--whisper-model", self.whisper_model()]
         if self.v_force.get():
             cli.append("--force")
         if self.v_dry.get():
@@ -592,10 +611,19 @@ class App:
                 sc.log.info("Edge/Chrome/Chromium not found: PDF export unavailable.")
             if not self.vlc:
                 sc.log.info("VLC not found: Play in VLC unavailable.")
+            if self.whisper_python:
+                sc.log.info("Using speech recognition (faster-whisper): %s", self.whisper_python)
+            else:
+                sc.log.info("Speech recognition not installed: Captions from narration "
+                            "unavailable (optional, see README).")
             return True
         sc.log.error(sc.FFMPEG_MISSING_HELP)
         messagebox.showwarning(APP_NAME, sc.FFMPEG_MISSING_HELP, parent=self.root)
         return False
+
+    def whisper_model(self):
+        model = self.v_whisper_model.get().strip()
+        return model if model in transcribe.MODELS else transcribe.DEFAULT_MODEL
 
     def process_all(self):
         self.start(list(self.videos))
@@ -676,6 +704,12 @@ class App:
                     results[status] += 1
                     label = {"skipped": "Done (skipped)"}.get(
                         status, "Dry run" if args.dry_run else "Done")
+                    if args.transcribe and not args.dry_run:
+                        self.q.put(("row", iid, "Transcribing", None))
+                        if sc.transcribe_video(video, out_dir, args, self.ffmpeg,
+                                               cancel=self.cancel):
+                            results["failed"] += 1
+                            label = "Done (captions failed)"
                     self.q.put(("row", iid, label, count))
                 except sc.Cancelled:
                     results["cancelled"] += 1

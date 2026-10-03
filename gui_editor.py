@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_editor.py
-# 2026-10-02
-# Version: v1.7.1
+# 2026-10-03
+# Version: v1.8.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -13,8 +13,10 @@
 # cropped by dragging a rectangle on the original frame, and sensitive areas
 # can be blurred (detected automatically, or drawn by hand) with an
 # unblurred copy kept alongside. Finished steps export to HTML, Word, or PDF,
-# and Play in VLC opens the recording just before the selected step.
+# Play in VLC opens the recording just before the selected step, and
+# Captions From Narration fills empty captions from what was said.
 
+import copy
 import threading
 from pathlib import Path
 
@@ -25,6 +27,7 @@ import export
 import player
 import redact
 import stepdoc
+import transcribe
 
 
 class StepEditor(ttk.Frame):
@@ -195,6 +198,9 @@ class StepEditor(ttk.Frame):
         self.action_bar = ttk.Frame(bar)
         self.action_bar.pack(side="left", padx=4)
         ttk.Button(self.action_bar, text="Play in VLC", command=self.play).pack(side="left")
+        self.btn_narration = ttk.Button(self.action_bar, text="Captions From Narration",
+                                        command=self.captions_from_narration)
+        self.btn_narration.pack(side="left", padx=(4, 0))
         self.btn_save = ttk.Button(bar, text="Save Changes", command=self.save)
         self.btn_save.pack(side="right")
         ttk.Button(bar, text="Discard Changes", command=self.discard).pack(side="right", padx=4)
@@ -846,6 +852,68 @@ class StepEditor(ttk.Frame):
             self.app.set_status(f"Opened {video.name} in VLC at {stepdoc.fmt_ts(start)}")
         except OSError as exc:
             self.app.log_error(f"Could not start VLC: {exc}")
+
+    def captions_from_narration(self):
+        """Transcribe the recording and fill the captions that are still empty.
+        The work runs on a copy; the result is applied here, on the Tk thread,
+        and stays unsaved until Save Changes."""
+        if not self.doc:
+            return
+        parent = self.winfo_toplevel()
+        python = transcribe.find_python()
+        if not python:
+            messagebox.showinfo(self.app.name, transcribe.WHISPER_MISSING_HELP, parent=parent)
+            return
+        video = self.source_video()
+        if video is None:
+            messagebox.showinfo(self.app.name, "The original recording was not found. It may "
+                                "have been moved or deleted from the source folder.",
+                                parent=parent)
+            return
+        model = self.app.whisper_model()
+        work_doc, out_dir, ffmpeg = copy.deepcopy(self.doc), self.out_dir, self.app.ffmpeg
+        result = {}
+
+        def work():
+            try:
+                result["summary"] = transcribe.transcribe(video, out_dir, work_doc, ffmpeg,
+                                                          model, python)
+            except Exception as exc:
+                result["error"] = exc
+
+        self.btn_narration.configure(state="disabled")
+        self.app.set_status(f"Transcribing narration with the {model} model. The first "
+                            "time, the model is downloaded, which can take a few minutes...")
+        thread = threading.Thread(target=work, daemon=True)
+        thread.start()
+
+        def check():
+            if thread.is_alive():
+                self.after(250, check)
+                return
+            self.btn_narration.configure(state="normal")
+            if "error" in result:
+                self.app.log_error(f"Captions from narration failed: {result['error']}")
+                messagebox.showerror(self.app.name, str(result["error"]), parent=parent)
+                return
+            if self.doc is None or self.out_dir != out_dir:
+                return                      # another recording was opened meanwhile
+            summary = result["summary"]
+            filled = transcribe.apply(self.doc, summary["result"])
+            self.doc["narration"] = work_doc.get("narration")
+            if not summary["audio"]:
+                text = "This recording has no audio, so there is no narration to use."
+            elif not summary["segments"]:
+                text = "No speech was found in this recording."
+            else:
+                text = (f"Filled {filled} empty caption(s) from {summary['segments']} spoken "
+                        f"passage(s). Captions you typed were kept. Review them, then "
+                        f"Save Changes. Full text: {transcribe.TRANSCRIPT_NAME}")
+                self.set_dirty()
+                self.refresh_list(self.current_index() or 0)
+            self.app.set_status(text)
+
+        check()
 
     def open_folder(self):
         if self.out_dir and self.out_dir.is_dir():

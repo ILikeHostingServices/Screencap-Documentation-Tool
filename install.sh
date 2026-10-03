@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # install.sh
-# 2026-10-02
-# Version: v1.3.0
+# 2026-10-03
+# Version: v1.4.0
 #
 # PURPOSE:
 # One-step Linux and macOS installer for the Screencap Documentation Tool.
@@ -21,11 +21,15 @@
 # Optional environment variables:
 #   SCREENCAP_DIR  install folder (overrides the defaults above)
 #   SCREENCAP_REF  branch, tag, or commit to install (default: HEAD = default branch)
+#   SCREENCAP_WITH_WHISPER=1  also install the optional speech recognition for
+#                  Captions From Narration (about 450 MB, in whisper-env/), e.g.
+#                  sudo SCREENCAP_WITH_WHISPER=1 bash -c "$(curl -fsSL .../install.sh)"
 
 set -euo pipefail
 
 REPO="ILikeHostingServices/Screencap-Documentation-Tool"
 REF="${SCREENCAP_REF:-HEAD}"
+WITH_WHISPER="${SCREENCAP_WITH_WHISPER:-0}"
 APP_NAME="Screencap Documentation Tool"
 
 step() { printf '\033[36m==> %s\033[0m\n' "$*"; }
@@ -70,6 +74,8 @@ linux_install_packages() {
 
     if have apt-get; then
         local pkgs=(python3-tk)
+        # Debian and Ubuntu split venv (needed for speech recognition) out of Python
+        [ "$WITH_WHISPER" = 1 ] && pkgs+=(python3-venv)
         [ "$need_ffmpeg" = 1 ] && pkgs+=(ffmpeg)
         [ "$need_python" = 1 ] && pkgs+=(python3)
         step "Installing packages with apt: ${pkgs[*]}"
@@ -187,6 +193,28 @@ download_and_copy() {
     mkdir -p "$INSTALL_DIR/source" "$INSTALL_DIR/output"
 }
 
+install_whisper() {
+    # Optional speech recognition in its own Python environment, so its
+    # packages never touch the system Python. An update without
+    # SCREENCAP_WITH_WHISPER=1 leaves an existing whisper-env in place.
+    [ "$WITH_WHISPER" = 1 ] || return 0
+    local envdir="$INSTALL_DIR/whisper-env"
+    step "Installing speech recognition (faster-whisper, about 450 MB; this takes a few minutes)"
+    if [ ! -x "$envdir/bin/python" ]; then
+        if ! "$PYTHON" -m venv "$envdir"; then
+            warn "Could not create $envdir. Captions From Narration is unavailable; everything else works."
+            return 0
+        fi
+    fi
+    if PIP_ROOT_USER_ACTION=ignore "$envdir/bin/python" -m pip install --disable-pip-version-check \
+            --quiet --upgrade faster-whisper && "$envdir/bin/python" -c 'import faster_whisper'; then
+        chmod -R go+rX "$envdir"
+        echo "Speech recognition installed. The speech model is downloaded the first time it is used."
+    else
+        warn "Speech recognition was not installed (check the internet connection or proxy). Everything else works; re-run with SCREENCAP_WITH_WHISPER=1 to retry."
+    fi
+}
+
 write_launcher() {
     # $1 = launcher path, $2 = script inside INSTALL_DIR
     cat > "$1" <<EOF
@@ -210,6 +238,7 @@ install_linux() {
     # belong to the user who ran sudo so they can be written without root.
     chown -R root:root "$INSTALL_DIR"
     chown -R "$owner": "$INSTALL_DIR/source" "$INSTALL_DIR/output"
+    install_whisper
 
     step "Adding commands: screencap, screencap-gui"
     write_launcher /usr/local/bin/screencap screencap.py
@@ -238,6 +267,7 @@ install_macos() {
     macos_install_packages
     verify_prerequisites
     download_and_copy
+    install_whisper
 
     # Commands on the PATH (Homebrew's bin folder is already on it and user-writable)
     local bindir
