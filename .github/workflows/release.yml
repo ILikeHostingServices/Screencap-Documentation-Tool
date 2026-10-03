@@ -1,6 +1,6 @@
 # release.yml
 # 2026-10-01
-# Version: v1.3.1
+# Version: v1.3.2
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
