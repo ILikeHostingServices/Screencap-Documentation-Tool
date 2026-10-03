@@ -1,4 +1,4 @@
-README.md v1.17.0 (Last Rev: 2026-10-03)
+README.md v1.18.0 (Last Rev: 2026-10-03)
 
 # Screencap Documentation Tool
 
@@ -17,6 +17,7 @@ For each recording you get:
 - A step editor in the GUI to remove, reorder, and caption steps.
 - Saved presets: built-in settings for installer wizards, web consoles, terminals, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
+- Optional **Captions From Narration**: if you talk while you record, what you said becomes the first-draft caption of each step. Speech recognition runs offline on your PC.
 - One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring and [Pandoc](https://pandoc.org/) for Word export. PDF export uses Microsoft Edge (included with Windows 11) or Google Chrome/Chromium. All are free and open source, and the installers set them up for you.
@@ -49,6 +50,9 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `player.py` | Opens the recording in VLC media player at a given moment. |
 | `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
 | `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
+| `transcribe.py` | Captions From Narration: pulls the audio out with FFmpeg, runs the speech recognition, and matches each sentence to the step that was on screen. |
+| `whisper_worker.py` | Runs the speech recognition (faster-whisper) in the optional `whisper-env` Python environment. |
+| `whisper-env/` | Optional. Created by the installer's speech recognition option (`-WithWhisper` or `SCREENCAP_WITH_WHISPER=1`). Not in git. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
 | `tests/` | Automated tests, including a GUI test that drives the real window. See [Automated Testing](#automated-testing). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
@@ -73,6 +77,7 @@ Each run creates these files in the output folder:
 | `output/<video>/unredacted/` | The same screenshots without blurring, for your own reference. Only created while blurring is on. |
 | `output/<video>/export/` | Exported documents (`<title>.html`, `.docx`, `.pdf`). Exports of the unblurred screenshots have `-UNREDACTED` in the name. |
 | `output/<video>/steps-unredacted.md` | `steps.md` using the unblurred screenshots, marked "do not publish". |
+| `output/<video>/transcript.txt` | The full transcript with timestamps, written by Captions From Narration. |
 | `output/<video>/steps.json` | The step document: order, captions, deleted steps, and the settings used. This is the source of truth. |
 | `output/<video>/steps.hand-edited-*.md` | Backup of `steps.md`, made automatically if you edited it by hand and then saved from the editor. |
 | `output/<video>/previous-*/` | The previous results, moved here (not deleted) when a recording is reprocessed with `--force`. |
@@ -117,6 +122,8 @@ Either way the tool goes in `C:\DATA\Tools\Screencap-Documentation-Tool`. To ins
 
 To pin the app to the taskbar, right-click its Start Menu entry and choose **Pin to taskbar** (or right-click the running app's taskbar button).
 
+To add the optional speech recognition for [Captions From Narration](#captions-from-narration) (about 450 MB), add `-WithWhisper` to the end of any of these commands. It can be added later the same way.
+
 If the installer reports that a prerequisite was not detected yet, close PowerShell, open a new window, and paste the command again. Windows only picks up newly installed programs in new windows.
 
 ### Linux
@@ -140,6 +147,16 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Scr
 This installs [Homebrew](https://brew.sh) if you do not have it (it will ask for your password), installs FFmpeg, Python, Tkinter, Tesseract OCR, and Pandoc with Homebrew, installs the tool in `~/Applications/Screencap-Documentation-Tool`, and adds the `screencap-gui` and `screencap` commands. In Finder you can also double-click `Screencap GUI.command` in that folder.
 
 `~/Applications` is the standard macOS location for apps installed for just your user account, so no admin rights are needed after Homebrew is set up. To use a different folder on Linux or macOS, put `SCREENCAP_DIR=/your/path` in front of `bash`, for example `sudo SCREENCAP_DIR=/srv/screencap bash -c "..."`.
+
+To add the optional speech recognition for [Captions From Narration](#captions-from-narration) (about 450 MB), put `SCREENCAP_WITH_WHISPER=1` in front of `bash` the same way:
+
+```bash
+# Linux
+sudo SCREENCAP_WITH_WHISPER=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
+
+# macOS
+SCREENCAP_WITH_WHISPER=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"
+```
 
 ### First Run
 
@@ -272,6 +289,35 @@ Blurred areas are pixelated and then blurred, so the text cannot be read back. B
 
 Automatic detection is a safety net, not a guarantee: OCR can misread text, and it cannot know that an ordinary-looking word is a secret. Always look through the screenshots before publishing, and use **Add Blur Box** for anything it missed. Without Tesseract installed, nothing is detected automatically, but hand-drawn blur boxes still work.
 
+### Captions From Narration
+
+If you talk while you record ("now I accept the license and click Next"), the tool can turn what you said into the first draft of each step's caption. It is optional and off by default.
+
+**Install it once** by adding `-WithWhisper` (Windows) or `SCREENCAP_WITH_WHISPER=1` (Linux, macOS) to the Quick Start command. This puts [faster-whisper](https://github.com/SYSTRAN/faster-whisper), an offline version of OpenAI's Whisper speech recognition, in a separate `whisper-env` folder inside the install folder, so it never changes your system Python. The speech model is downloaded the first time it is used (about 150 MB for the default `base` model) into your user profile (`.cache\huggingface`). After that it works without an internet connection, and the audio never leaves your PC.
+
+**Use it** in either of two ways:
+
+- Tick **Captions from narration** in Detection Settings before processing. The Videos list shows **Transcribing** after the screenshots are saved.
+- For a recording that is already processed, open it in the Steps tab and click **Captions From Narration**. Review the captions, then click **Save Changes**.
+
+How it works:
+
+- Each sentence goes to the step whose screen was showing while it was said. Talking about a screen before you click away from it gives the best results.
+- Only empty captions are filled. Captions you typed are never replaced, so it is safe to run again.
+- Each step's full narration is kept in `steps.json`, and the whole transcript, with timestamps, is saved as `transcript.txt`.
+- Recordings without audio or without speech are fine; nothing is changed.
+
+Pick the **Model** in Detection Settings (command line: `--whisper-model`). Bigger models are more accurate but slower and larger to download:
+
+| Model | Download | Notes |
+| --- | --- | --- |
+| `tiny` | about 75 MB | Fastest, least accurate. |
+| `base` | about 150 MB | Default. Good for clear narration. |
+| `small` | about 500 MB | More accurate, roughly 3 times slower than `base`. |
+| `medium` | about 1.5 GB | Most accurate here, slow without a graphics card. |
+
+Add `.en` (for example `base.en`) for English-only models, which are a little more accurate for English. Everything runs on the CPU; no graphics card is needed.
+
 ### Keeping Sensitive Data Out Of Git
 
 Setup recordings often capture passwords, license keys, API tokens, internal hostnames, and IP addresses. This repository is public, so `.gitignore` excludes everything in `source/` and `output/`, all video and image files, logs, and the `tools/` folder. Before you commit anything, run:
@@ -382,6 +428,9 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--no-redact` | off | Do not blur sensitive information, and do not create the `unredacted/` copy. |
 | `--redact-pattern` | none | Extra text to blur, as a case-insensitive regular expression. Repeat for several. |
 | `--tesseract` | auto | Explicit path to the `tesseract` executable. |
+| `--transcribe` | off | Turn spoken narration into captions for steps that have none, and save `transcript.txt`. Needs the optional speech recognition (see [Captions From Narration](#captions-from-narration)). Recordings that were already processed are transcribed too, once. |
+| `--whisper-model` | `base` | Speech recognition model: `tiny`, `base`, `small`, `medium`, or the English-only `tiny.en`, `base.en`, `small.en`, `medium.en`. |
+| `--whisper-python` | auto | Explicit path to a Python that has faster-whisper installed. The default is the installer's `whisper-env` folder. |
 | `--crop` | none | Crop every screenshot to `X:Y:W:H` (pixels of the recording), for example `0:0:1920:1080` for the left monitor of a dual-screen recording. Width and height are rounded down to even numbers. Originals stay uncropped, and the crop can be changed in the Steps tab. |
 | `--no-highlight` | off | Do not draw the red "what changed" box. It can still be switched on later in the Steps tab, because the changed area is always worked out and saved. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
@@ -392,7 +441,7 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--list-presets` | | List the built-in and saved presets with their settings, then exit. |
 | `-v`, `--verbose` | off | Shows debug output on screen, including the exact FFmpeg commands. |
 
-Exit codes: `0` success, `1` one or more recordings failed, `2` setup problem (FFmpeg not found), `130` cancelled with Ctrl+C.
+Exit codes: `0` success, `1` one or more recordings failed, `2` setup problem (FFmpeg not found, or `--transcribe` without the speech recognition installed), `130` cancelled with Ctrl+C.
 
 ## Troubleshooting
 
@@ -412,6 +461,9 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | `Python was not found; run without arguments to install from the Microsoft Store` | This is the Windows "App execution alias" placeholder, not real Python. Paste the Quick Start command again to install real Python, or turn the alias off in Settings > Apps > Advanced app settings > App execution aliases. |
 | `running scripts is disabled on this system` | PowerShell execution policy is blocking the script. The Quick Start command is not affected. For a local script, use the `powershell -ExecutionPolicy Bypass -File .\install.ps1` form shown in [Reviewing The Installer First](#reviewing-the-installer-first). |
 | `Tesseract OCR was not found` | Sensitive text is not detected automatically (hand-drawn blur boxes still work). Paste the Quick Start command again to install it, or install it yourself (Windows: `winget install --id UB-Mannheim.TesseractOCR -e`). Then click **Re-scan All Steps for Sensitive Text** in the Steps tab. On Windows its installer asks for administrator permission. |
+| `Speech recognition (faster-whisper) is not installed` | Captions From Narration needs the optional download. Paste the Quick Start command again with `-WithWhisper` (Windows) or `SCREENCAP_WITH_WHISPER=1` (Linux, macOS). |
+| `Speech recognition failed: ... huggingface.co ...` or a connection error on first use | The speech model is downloaded from huggingface.co the first time. Allow that site through the proxy or firewall, or copy the `.cache\huggingface` folder from a PC where it worked into your user profile. |
+| `pip could not install faster-whisper` | The installer could not reach pypi.org. Check the internet connection or proxy, then run the command again with `-WithWhisper`. |
 | `VLC media player was not found` | Install VLC from [videolan.org](https://www.videolan.org/) (Windows: `winget install --id VideoLAN.VLC -e`). The GUI looks in the standard install folders and on the PATH. |
 | `The original recording was not found` (Play in VLC) | The recording was moved or deleted after processing. Put it back in the source folder, or select it again in the Videos list. |
 | `Pandoc was not found, so Word export is unavailable` | Paste the Quick Start command again to install it, or install it yourself (Windows: `winget install --id JohnMacFarlane.Pandoc -e`). HTML and PDF export do not need it. |
