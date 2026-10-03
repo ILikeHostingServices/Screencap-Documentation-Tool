@@ -2,7 +2,7 @@
 #
 # transcribe.py
 # 2026-10-03
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Turns spoken narration in a recording into first-draft captions. FFmpeg
@@ -81,7 +81,7 @@ def run_worker(python, wav, model, out_json, language=None, progress=None, cance
     if language:
         cmd += ["--language", language]
     env = dict(os.environ, PYTHONIOENCODING="utf-8", HF_HUB_DISABLE_SYMLINKS_WARNING="1",
-               HF_HUB_DISABLE_PROGRESS_BARS="1")
+               HF_HUB_DISABLE_PROGRESS_BARS="1", HF_HUB_VERBOSITY="error")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             stdin=subprocess.DEVNULL, creationflags=stepdoc.NO_WINDOW,
                             text=True, encoding="utf-8", errors="replace", env=env)
@@ -109,8 +109,8 @@ def run_worker(python, wav, model, out_json, language=None, progress=None, cance
                         progress(float(line.split()[1]))
                     except ValueError:
                         pass
-            elif line:
-                messages.append(line)
+            elif line and "unauthenticated requests to the HF Hub" not in line:
+                messages.append(line)          # that notice is normal, not an error
         code = proc.wait()
     finally:
         if proc.poll() is None:
