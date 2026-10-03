@@ -2,7 +2,7 @@
 #
 # whisper_worker.py
 # 2026-10-03
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Transcribes one audio file with faster-whisper (an offline version of
@@ -21,9 +21,27 @@
 import argparse
 import json
 import sys
+import wave
 
 EXIT_NOT_INSTALLED = 3
 EXIT_FAILED = 4
+
+
+def load_samples(path):
+    """Read the 16 kHz mono 16-bit WAV that transcribe.py made with FFmpeg
+    and return it as the float samples faster-whisper expects. This skips
+    faster-whisper's own decoder (PyAV), whose newer releases have broken
+    it, since FFmpeg has already done the decoding. Returns the path itself
+    when numpy is unavailable."""
+    try:
+        import numpy as np
+    except ImportError:
+        return path
+    with wave.open(path, "rb") as wav:
+        if (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) != (1, 2, 16000):
+            return path
+        frames = wav.readframes(wav.getnframes())
+    return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
 
 
 def main(argv=None):
@@ -44,7 +62,7 @@ def main(argv=None):
     try:
         # int8 on the CPU: works on any PC, no graphics card needed
         model = WhisperModel(args.model, device="cpu", compute_type="int8")
-        segments, info = model.transcribe(args.audio, language=args.language,
+        segments, info = model.transcribe(load_samples(args.audio), language=args.language,
                                           vad_filter=True)
         duration = float(getattr(info, "duration", 0) or 0)
         result = []
