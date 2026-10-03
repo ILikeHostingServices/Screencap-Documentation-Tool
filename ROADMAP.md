@@ -1,4 +1,4 @@
-ROADMAP.md v1.2.0 (Last Rev: 2026-10-02)
+ROADMAP.md v1.3.0 (Last Rev: 2026-10-03)
 
 # Roadmap
 
@@ -8,7 +8,7 @@ Ideas that were approved in principle but are on hold until they have been discu
 
 | # | Idea | Why it is on hold | Questions to settle |
 | --- | --- | --- | --- |
-| 12 | **Single-file Windows app.** Package the tool as one `.exe` with PyInstaller so Python does not need to be installed. | Researching code signing options (cost, identity checks, SmartScreen). | Which signing route, if any? Keep the Python install as the main path, or switch? How are updates delivered? |
+| 12 | **Single-file Windows app.** Package the tool as one `.exe` with PyInstaller so Python does not need to be installed. | Signing route chosen: SignPath Foundation (free for open source projects). The MIT License was added in v1.13.1 to qualify. Next: build the `.exe` in GitHub Actions and apply to SignPath. | Keep the Python install as the main path, with the `.exe` as an extra download? How are updates delivered? FFmpeg, Pandoc, and VLC stay separate installs (their licenses). |
 
 ## Parked
 

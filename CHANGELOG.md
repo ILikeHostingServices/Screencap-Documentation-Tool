@@ -1,8 +1,16 @@
-CHANGELOG.md v1.14.0 (Last Rev: 2026-10-02)
+CHANGELOG.md v1.15.0 (Last Rev: 2026-10-03)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.13.1 - Open source under the MIT License (2026-10-03)
+
+**Changed**
+- The project is now open source under the MIT License (`LICENSE`): free to use, change, and share, including at work, as long as the copyright notice stays with it. It comes with no warranty.
+- New `SECURITY.md` explains how to report a security problem privately.
+- README has a new **License And Support** section: support is best effort, and bug reports should include the version and log lines, never real recordings.
+- Commits and release tags are now made as HostingServices-Owner.
 
 ## v1.13.0 - Automated testing on real Windows, Linux, and macOS (2026-10-02)
 

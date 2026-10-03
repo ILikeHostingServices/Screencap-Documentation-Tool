@@ -1,4 +1,4 @@
-README.md v1.16.0 (Last Rev: 2026-10-02)
+README.md v1.17.0 (Last Rev: 2026-10-03)
 
 # Screencap Documentation Tool
 
@@ -54,6 +54,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
 | `CHANGELOG.md` | What changed in every release. |
+| `LICENSE` | The MIT License: free to use, change, and share, with no warranty. See [License And Support](#license-and-support). |
+| `SECURITY.md` | How to report a security problem privately. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one. |
@@ -433,3 +435,11 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | `ffprobe failed: ... moov atom not found` | The `.mp4` or `.mov` was never finalized, because the recording crashed or is still being written. Recording to `.mkv` in OBS avoids this. |
 | `no video stream found` | The file is audio-only or damaged. |
 | Very slow on long 4K recordings | Decoding the video is the bottleneck. Keep `--analyze-fps` at 5, or lower it to 2. |
+
+## License And Support
+
+The Screencap Documentation Tool is free and open source under the [MIT License](LICENSE). You may use, copy, change, and share it, including at work and in commercial settings, as long as the copyright notice and license text stay with it. It comes as is, with no warranty.
+
+FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them.
+
+Support is best effort, with no guaranteed response time. For bugs and ideas, open an issue on GitHub and include the version from the GUI footer or `screencap.py --version`, plus the relevant lines from `output/screencap.log`. Never attach real recordings or screenshots; a synthetic example is enough. Report security problems privately as described in [SECURITY.md](SECURITY.md).

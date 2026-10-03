@@ -13,6 +13,6 @@
 # Bump RELEASE and RELEASE_DATE in the same commit that a release tag will
 # point at (see "Releases And Versions" in README.md).
 
-RELEASE = "1.13.0"
-RELEASE_DATE = "2026-10-02"
+RELEASE = "1.13.1"
+RELEASE_DATE = "2026-10-03"
 APP_NAME = "Screencap Documentation Tool"
