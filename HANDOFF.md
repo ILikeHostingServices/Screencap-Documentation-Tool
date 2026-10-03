@@ -30,6 +30,7 @@ Tasks that the cloud coding session cannot finish alone, because they need the r
   1. Rehearse (pushes nothing): `bash maintenance/rewrite-history.sh`. It makes a full backup (`rewrite-work/backup.bundle`), rewrites a fresh clone, and verifies that no old name remains, all tags still exist, and each tag still points at its release.
   2. Look over `rewrite-work/repo` (`git log --all --format='%h %an %s'`, `git tag -n1`).
   3. Run for real: `PUSH=1 WORK=./rewrite-work-2 bash maintenance/rewrite-history.sh`. This force-pushes `main` and all tags and deletes the stale branch `claude/gifted-ride-nqrkb1`.
+- **Rehearsed:** 2026-10-03 by the cloud session on a full copy of the repository with this pull request merged: 45 commits and 19 tags rewritten, all verification checks passed, and the push step was exercised against the copy. It has not been run against GitHub.
 - **Afterward:** every existing clone is out of date. Re-clone, or run `git fetch origin && git reset --hard origin/main`. Start a new cloud session for further work rather than continuing an old one.
 - **If something goes wrong:** restore from the backup: `git clone backup.bundle restored && cd restored && git push --force --mirror <repo URL>`.
 - **Optional:** old commits stay viewable on GitHub by their old ID until GitHub cleans up. To remove them sooner, ask GitHub Support to run garbage collection on the repository.

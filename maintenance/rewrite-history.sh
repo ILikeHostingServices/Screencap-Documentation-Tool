@@ -100,15 +100,19 @@ for line in open(manifest, encoding="utf-8").read().splitlines():
 open(manifest, "w", encoding="utf-8").write("\n".join(lines) + "\n")
 print(f"    {changed} release(s) updated")
 PY
-git -c user.name="$NAME" -c user.email="$EMAIL" commit --quiet -am \
+git add -- "$manifest"
+# Commit only the manifest (a line-ending difference elsewhere must not ride along)
+git -c user.name="$NAME" -c user.email="$EMAIL" commit --quiet --only -m \
     "Point the release manifest at the rewritten history
 
 Every commit ID changed when the author name was updated across the
 history. The tags were rewritten too; this keeps the manifest matching
-them so the release workflow does not try to recreate anything."
+them so the release workflow does not try to recreate anything." -- "$manifest"
 
 step "Verifying"
 fail=0
+if [ "$(git show --name-only --format= HEAD)" != "$manifest" ]; then
+    echo "    FAIL: the manifest commit changed more than the manifest"; fail=1; fi
 if git log --all --format='%an %ae %cn %ce' | grep -qi "$OLD"; then
     echo "    FAIL: an author or committer still uses the old name"; fail=1; fi
 if git for-each-ref refs/tags --format='%(taggername) %(taggeremail)' | grep -qi "$OLD"; then
