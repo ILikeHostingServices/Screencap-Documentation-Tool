@@ -44,7 +44,8 @@ APP_NAME = version.APP_NAME
 GUI_VERSION = "1.11.1"   # this file; the release version is in version.py
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
-# the window under the generic Python (pythonw.exe) icon
+# the window under the generic Python (pythonw.exe) icon. Convention for every
+# app in this organization: ILHS.<AppName>.<Component>
 APP_USER_MODEL_ID = "ILHS.ScreencapDocumentationTool.GUI"
 
 SENSITIVITY_PRESETS = {
