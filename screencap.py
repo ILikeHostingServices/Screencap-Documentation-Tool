@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-02
-# Version: v1.9.1
+# Version: v1.10.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -33,11 +33,12 @@ import imaging  # noqa: E402
 import presets  # noqa: E402
 import redact  # noqa: E402
 import stepdoc  # noqa: E402
+import transcribe  # noqa: E402
 import version  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.9.1"
+VERSION = "1.10.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -296,7 +297,8 @@ def clear_previous_output(out_dir):
     targets = [f for f in out_dir.glob("step_*")
                if f.is_file() and f.suffix.lower() in (".png", ".jpg")]
     targets += [out_dir / n for n in (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR,
-                                      UNREDACTED_DIR, UNREDACTED_INDEX, export.EXPORT_DIR)
+                                      UNREDACTED_DIR, UNREDACTED_INDEX, export.EXPORT_DIR,
+                                      transcribe.TRANSCRIPT_NAME)
                 if (out_dir / n).exists()]
     targets += [f for f in out_dir.glob("steps.*.md") if f.is_file()]
     if not targets:
@@ -432,6 +434,37 @@ def export_video(out_dir, args):
     return failed
 
 
+def transcribe_video(video, out_dir, args, ffmpeg, progress=None, cancel=None):
+    """Turn the recording's narration into captions for steps that have none.
+    Returns 1 if it failed, else 0. Recordings already transcribed are
+    skipped (use --force to start over)."""
+    doc = stepdoc.load(out_dir)
+    if doc is None:
+        return 0
+    if doc.get("narration"):
+        log.info("  Narration already transcribed (%s)", transcribe.TRANSCRIPT_NAME)
+        return 0
+    log.info("  Transcribing narration (model %s)...", args.whisper_model)
+    started = time.monotonic()
+    try:
+        summary = transcribe.transcribe(doc.get("source_path") or video, out_dir, doc, ffmpeg,
+                                        args.whisper_model, args.whisper_python,
+                                        progress=progress, cancel=cancel)
+    except transcribe.TranscribeError as exc:
+        log.error("  %s", exc)
+        return 1
+    stepdoc.save(out_dir, doc)
+    if not summary["audio"]:
+        log.info("  No audio track, nothing to transcribe")
+    elif not summary["segments"]:
+        log.info("  No speech found in the recording")
+    else:
+        log.info("  %d spoken passage(s), %d caption(s) filled, saved %s (%.1fs)",
+                 summary["segments"], summary["filled"], transcribe.TRANSCRIPT_NAME,
+                 time.monotonic() - started)
+    return 0
+
+
 def parse_crop(text):
     try:
         values = [int(v) for v in text.split(":")]
@@ -500,6 +533,18 @@ def parse_args(argv):
                    help="After processing, export each recording as a document: any "
                         "of html, docx, pdf, comma separated (e.g. html,pdf). Already "
                         "processed recordings are exported too")
+    p.add_argument("--transcribe", action="store_true",
+                   help="Turn spoken narration into captions for steps that have none, "
+                        "and save transcript.txt. Needs the optional speech recognition "
+                        "download (see README). Already processed recordings are "
+                        "transcribed too")
+    p.add_argument("--whisper-model", default=transcribe.DEFAULT_MODEL, metavar="NAME",
+                   help="Speech recognition model: tiny, base, small, or medium, or the "
+                        "English-only tiny.en, base.en, small.en, medium.en. Bigger is "
+                        "more accurate but slower (default: %(default)s)")
+    p.add_argument("--whisper-python", metavar="PATH",
+                   help="Python that has faster-whisper installed (default: the "
+                        "whisper-env folder made by the installer)")
     p.add_argument("--doc-author", help="Author shown in exported documents")
     p.add_argument("--doc-version", help="Version shown in exported documents "
                                           "(default: v1.0.0)")
@@ -606,6 +651,10 @@ def main(argv=None):
     if not args.no_redact and not args.dry_run and not redact.find_tesseract(args.tesseract):
         log.warning(redact.TESSERACT_MISSING_HELP)
 
+    if args.transcribe and not args.dry_run and not transcribe.find_python(args.whisper_python):
+        log.error(transcribe.WHISPER_MISSING_HELP)
+        return EXIT_SETUP_ERROR
+
     if not source.is_dir():
         source.mkdir(parents=True, exist_ok=True)
         log.info("Created source folder %s - put your .mp4/.mov/.mkv files there.", source)
@@ -623,6 +672,9 @@ def main(argv=None):
         try:
             status, _ = process_video(ffmpeg, ffprobe, video, out_dir, args)
             results[status] += 1
+            if (args.transcribe and not args.dry_run
+                    and transcribe_video(video, out_dir, args, ffmpeg)):
+                results["failed"] += 1
             if args.export and not args.dry_run and export_video(out_dir, args):
                 results["failed"] += 1
         except Exception as exc:  # keep going with the remaining videos

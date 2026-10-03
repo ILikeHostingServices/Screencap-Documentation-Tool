@@ -1,11 +1,12 @@
 # ci.yml
 # 2026-10-02
-# Version: v1.0.2
+# Version: v1.1.0
 #
 # PURPOSE:
 # Runs the automated tests on real Windows and Linux machines for every push
 # and pull request: code checks, the full test suite (engine, blurring,
-# export, presets, VLC), and the GUI test that drives the real window.
+# export, presets, VLC, captions from narration with a real speech model),
+# and the GUI test that drives the real window.
 # Every optional tool is installed, and the run fails if any test was
 # skipped, so a missing tool can never let a test pass silently.
 #
@@ -63,6 +64,34 @@ jobs:
           # Ubuntu blocks Chrome's sandbox for unprivileged users on CI
           echo "SCREENCAP_NO_SANDBOX=1" >> "$GITHUB_ENV"
 
+      - name: Install speech recognition and a speech sample
+        run: |
+          # Same layout as the installers: faster-whisper in its own venv
+          T="$RUNNER_TEMP"
+          [ "$RUNNER_OS" = "Windows" ] && T="$(cygpath -u "$RUNNER_TEMP")"
+          python -m venv "$T/whisper-env"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            WPY="$T/whisper-env/Scripts/python.exe"
+          else
+            WPY="$T/whisper-env/bin/python"
+          fi
+          "$WPY" -m pip install --disable-pip-version-check --quiet faster-whisper
+          "$WPY" -c "import faster_whisper; print('faster-whisper', faster_whisper.__version__)"
+          # A short public speech sample (JFK, "ask not what your country...")
+          # from the MIT-licensed whisper.cpp repository
+          curl -fsSL -o "$T/jfk.wav" \
+            https://raw.githubusercontent.com/ggml-org/whisper.cpp/master/samples/jfk.wav
+          SPEECH="$T/jfk.wav"
+          if [ "$RUNNER_OS" = "Windows" ]; then   # Python needs Windows paths
+            WPY="$(cygpath -w "$WPY")"
+            SPEECH="$(cygpath -w "$SPEECH")"
+          fi
+          {
+            echo "SCREENCAP_WHISPER_PYTHON=$WPY"
+            echo "SCREENCAP_TEST_WHISPER=1"
+            echo "SCREENCAP_TEST_SPEECH=$SPEECH"
+          } >> "$GITHUB_ENV"
+
       - name: Check code
         run: |
           python -m pip install --quiet pyflakes
@@ -90,6 +119,7 @@ jobs:
         run: |
           python --version
           python -c "import screencap, redact, export, player; print('ffmpeg:', screencap.find_tool('ffmpeg')); print('tesseract:', redact.find_tesseract()); print('pandoc:', export.find_pandoc()); print('browser:', export.find_browser()); print('vlc:', player.find_vlc())"
+          python -c "import transcribe; print('speech recognition:', transcribe.find_python())"
 
       - name: Run tests
         run: |

@@ -36,3 +36,6 @@ desktop.ini
 .env
 *.key
 *.pem
+
+# Optional speech recognition environment made by the installers
+whisper-env/

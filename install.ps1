@@ -14,9 +14,13 @@
       - Administrator PowerShell window -> all users (system-wide)
     Override with -UserOnly or -SystemWide.
 
+    Add -WithWhisper to also install the optional speech recognition used by
+    Captions From Narration (about 450 MB, in a whisper-env folder inside the
+    install folder).
+
 .NOTES
-    Version: v1.2.0
-    Last Edit Date: 2026-10-01
+    Version: v1.3.0
+    Last Edit Date: 2026-10-03
 
 .EXAMPLE
     & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1)))
@@ -26,6 +30,9 @@
 
 .EXAMPLE
     .\install.ps1 -SystemWide    # from an Administrator PowerShell window
+
+.EXAMPLE
+    & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1))) -WithWhisper
 #>
 
 [CmdletBinding()]
@@ -41,7 +48,9 @@ param(
     # Install Python, FFmpeg, and shortcuts for all users (needs Administrator)
     [switch]$SystemWide,
     # Install for the current user only, even from an Administrator window
-    [switch]$UserOnly
+    [switch]$UserOnly,
+    # Also install speech recognition (faster-whisper) for Captions From Narration
+    [switch]$WithWhisper
 )
 
 $ErrorActionPreference = 'Stop'
@@ -127,6 +136,38 @@ if ($scope -eq 'machine') {
         New-Item -ItemType Directory -Path $path -Force | Out-Null
         & icacls.exe $path /grant '*S-1-5-32-545:(OI)(CI)M' /Q | Out-Null
         if ($LASTEXITCODE -ne 0) { Write-Host "    Could not grant Users write access to $path" -ForegroundColor Yellow }
+    }
+}
+
+# 3c. Optional speech recognition. It goes into its own Python environment
+#     (whisper-env) so its packages never touch the system Python, and an
+#     update without -WithWhisper leaves an existing one in place.
+$whisperOk = $true
+if ($WithWhisper) {
+    Write-Step 'Installing speech recognition (faster-whisper, about 450 MB; this takes a few minutes)'
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + $env:Path
+    $envDir = Join-Path $InstallDir 'whisper-env'
+    $envPy = Join-Path $envDir 'Scripts\python.exe'
+    try {
+        if (-not (Test-Path $envPy)) {
+            # Prefer Python 3.12 (what the prerequisites install), then any Python 3
+            $py = Get-Command py.exe -ErrorAction SilentlyContinue
+            if ($py) {
+                & $py.Source -3.12 -m venv $envDir
+                if ($LASTEXITCODE -ne 0) { & $py.Source -3 -m venv $envDir }
+            } else {
+                & python.exe -m venv $envDir
+            }
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $envPy)) { throw 'Could not create the whisper-env Python environment.' }
+        }
+        & $envPy -m pip install --disable-pip-version-check --quiet --upgrade faster-whisper
+        if ($LASTEXITCODE -ne 0) { throw 'pip could not install faster-whisper (check the internet connection or proxy).' }
+        & $envPy -c 'import faster_whisper'
+        if ($LASTEXITCODE -ne 0) { throw 'faster-whisper was installed but does not load.' }
+        Write-Host '[OK]      Speech recognition installed. The speech model is downloaded the first time it is used.' -ForegroundColor Green
+    } catch {
+        $whisperOk = $false
+        Write-Host "[WARN]    Speech recognition was not installed: $($_.Exception.Message) Everything else works; run the command again with -WithWhisper to retry." -ForegroundColor Yellow
     }
 }
 
@@ -265,6 +306,7 @@ if ($prereqOk) {
     if (-not $NoShortcuts) { Write-Host "Start it from the '$AppName' Start Menu or Desktop shortcut." }
     Write-Host "Or run: $InstallDir\Run-Screencap-GUI.bat"
     Write-Host "Put recordings in $InstallDir\source (or choose any folder in the GUI)."
+    if ($WithWhisper -and -not $whisperOk) { Write-Host 'Speech recognition (Captions From Narration) is not installed; see the warning above.' -ForegroundColor Yellow }
 } else {
     Write-Host "$AppName was downloaded to $InstallDir, but a prerequisite still needs attention (see the messages above)." -ForegroundColor Yellow
     Write-Host 'Close this window, open a new PowerShell window, and paste the install command again.'
