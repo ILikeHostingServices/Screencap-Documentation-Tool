@@ -2,7 +2,7 @@
 #
 # rewrite-history.sh
 # 2026-10-03
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # One-time cleanup: rewrites the repository history so every commit, tag,
@@ -60,11 +60,10 @@ git fetch --quiet --tags origin
 tags_before="$(git tag | wc -l)"
 files_before="$(git ls-tree -r HEAD)"
 
-# What to change. Names and emails in commits and tags come from the mailmap;
-# text inside files and commit messages comes from the replacements list.
-cat > "$WORK/mailmap" <<EOF
-$NAME <$EMAIL> $OLD_NAME <$OLD_EMAIL>
-EOF
+# What to change. Authors, committers, and taggers are matched by name, so
+# commits made with any email address under the old name are covered (a
+# merge made on github.com uses the account's own email). Text inside files
+# and commit messages comes from the replacements list.
 cat > "$WORK/replacements" <<EOF
 $OLD_EMAIL==>$EMAIL
 $OLD_NAME==>$NAME
@@ -74,8 +73,19 @@ $OLD IT==>Example IT
 EOF
 
 step "Rewriting history"
-git filter-repo --force --mailmap "$WORK/mailmap" \
-    --replace-text "$WORK/replacements" --replace-message "$WORK/replacements"
+git filter-repo --force \
+    --replace-text "$WORK/replacements" --replace-message "$WORK/replacements" \
+    --commit-callback "
+for who in ('author', 'committer'):
+    if getattr(commit, who + '_name').lower() == b'$OLD_NAME'.lower():
+        setattr(commit, who + '_name', b'$NAME')
+        setattr(commit, who + '_email', b'$EMAIL')
+" \
+    --tag-callback "
+if tag.tagger_name and tag.tagger_name.lower() == b'$OLD_NAME'.lower():
+    tag.tagger_name = b'$NAME'
+    tag.tagger_email = b'$EMAIL'
+"
 
 step "Pointing the release manifest at the rewritten commits"
 manifest=.github/releases/manifest.txt

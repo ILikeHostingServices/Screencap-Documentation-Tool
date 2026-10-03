@@ -1,4 +1,4 @@
-HANDOFF.md v1.0.0 (Last Rev: 2026-10-03)
+HANDOFF.md v1.1.0 (Last Rev: 2026-10-03)
 
 # Handoff
 
@@ -14,27 +14,30 @@ Tasks that the cloud coding session cannot finish alone, because they need the r
 
 ## Open Items
 
-### 1. Merge The Pending Pull Request
+### 1. Make Merges On github.com Use The Current Name
 
-- **Who:** repository owner.
-- **What:** merge the open pull request from `claude/gifted-ride-nqrkb1` into `main` (v1.14.1: ILHS taskbar ID, this file, and the history rewrite script).
-- **How:** on the pull request page choose **Create a merge commit**. Do not use squash or rebase: the release manifest names the exact commit to tag, and squash or rebase would give it a new ID.
-- **Done when:** `main` contains `HANDOFF.md` and the checks on the merge commit are green.
+- **Who:** the owner of the GitHub account that merges pull requests.
+- **Why:** a merge, squash, or edit made on github.com is recorded under the GitHub account that clicks the button, with that account's display name and primary email. Pull request #1's merge commit was recorded under the previous owner account name with a work email address. Every future merge on github.com does the same until this is changed, and each would need another rewrite.
+- **How (do both):**
+  1. **Hide the email:** GitHub **Settings > Emails**, tick **Keep my email addresses private** and **Block command line pushes that expose my email**. Web merges then use a `users.noreply.github.com` address.
+  2. **Fix the name**, one of: rename the GitHub account to `HostingServices-Owner` (**Settings > Account > Change username**; GitHub redirects the old profile and repository links), or merge pull requests from a local machine with `git -c user.name=HostingServices-Owner -c user.email=HostingServices-Owner@users.noreply.github.com merge --no-ff <branch>` and push, instead of using the Merge button.
+- **When:** before item 2, so the rewrite is the last one needed. If a merge happens on github.com in between, run the rewrite again afterward.
+- **Done when:** a test commit or merge made on github.com shows `HostingServices-Owner` and a noreply email.
 
 ### 2. Rewrite The History To The Current Names
 
 - **Who:** anyone with push rights to `main` and to tags (force-push allowed), on a local machine with git, Python 3, and `git-filter-repo` (`python3 -m pip install --user git-filter-repo`).
-- **Why:** 31 commits and 17 release tags from before 2026-10-03 are recorded under the previous owner account name, one commit message mentions that name, and older versions of a few files contain the old taskbar ID and test text. This is for consistency, not privacy.
-- **What changes:** author, committer, and tagger names and emails become `HostingServices-Owner`; the old name, the old taskbar IDs, and the old test text are replaced in every file version and commit message. Dates and all other content stay the same. Every commit ID changes, so the script also updates `.github/releases/manifest.txt` to the new IDs. GitHub Releases are attached to tag names and stay in place.
+- **Why:** 31 commits and 17 release tags from before 2026-10-03 are recorded under the previous owner account name, and so is the merge commit of pull request #1 (made on github.com, with the account's own email address). One commit message mentions that name, and older versions of a few files contain the old taskbar ID and test text. This is for consistency, not privacy.
+- **What changes:** author, committer, and tagger names and emails become `HostingServices-Owner` (matched by name, so any email address used under the old name is replaced too); the old name, the old taskbar IDs, and the old test text are replaced in every file version and commit message. Dates and all other content stay the same. Every commit ID changes, so the script also updates `.github/releases/manifest.txt` to the new IDs. GitHub Releases are attached to tag names and stay in place.
 - **How:**
   1. Rehearse (pushes nothing): `bash maintenance/rewrite-history.sh`. It makes a full backup (`rewrite-work/backup.bundle`), rewrites a fresh clone, and verifies that no old name remains, all tags still exist, and each tag still points at its release.
   2. Look over `rewrite-work/repo` (`git log --all --format='%h %an %s'`, `git tag -n1`).
   3. Run for real: `PUSH=1 WORK=./rewrite-work-2 bash maintenance/rewrite-history.sh`. This force-pushes `main` and all tags and deletes the stale branch `claude/gifted-ride-nqrkb1`.
-- **Rehearsed:** 2026-10-03 by the cloud session on a full copy of the repository with this pull request merged: 45 commits and 19 tags rewritten, all verification checks passed, and the push step was exercised against the copy. It has not been run against GitHub.
+- **Rehearsed:** 2026-10-03 by the cloud session on a copy of the real repository after pull request #1 was merged: all commits on `main` and all 19 tags rewritten, all verification checks passed, and the push step was exercised against the copy. It has not been run against GitHub.
 - **Afterward:** every existing clone is out of date. Re-clone, or run `git fetch origin && git reset --hard origin/main`. Start a new cloud session for further work rather than continuing an old one.
 - **If something goes wrong:** restore from the backup: `git clone backup.bundle restored && cd restored && git push --force --mirror <repo URL>`.
-- **Optional:** old commits stay viewable on GitHub by their old ID until GitHub cleans up. To remove them sooner, ask GitHub Support to run garbage collection on the repository.
-- **Done when:** the Contributors list on the repository page shows only HostingServices-Owner and Claude (GitHub can take a while to refresh it).
+- **Known limit:** GitHub keeps a read-only copy of every pull request's commits (`refs/pull/1/head`), which nobody but GitHub can delete. After the rewrite, pull request #1 still lists the original 31 commits under the old name, and old commits stay viewable by their old ID. To remove them, open a request at https://support.github.com asking them to remove the cached pull request ref for pull request #1 and run garbage collection on `ILikeHostingServices/Screencap-Documentation-Tool`, because the history was rewritten to change the author name. This is optional.
+- **Done when:** the commit list on `main` and the tags show only HostingServices-Owner. The Contributors list can take a while to refresh, and keeps showing the old account until item 1 is done and GitHub Support has removed the pull request ref.
 
 ### 3. Publish v1.14.1
 
@@ -70,3 +73,4 @@ Goal: a signed single-file `.exe` for Windows, signed for free by SignPath Found
 | --- | --- |
 | 2026-10-03 | Default branch renamed to `main` (owner). |
 | 2026-10-03 | Private vulnerability reporting enabled (owner). |
+| 2026-10-03 | Pull request #1 (ILHS taskbar ID, this file, the rewrite script) merged with a merge commit (owner). |
