@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # redact.py
-# 2026-10-02
-# Version: v1.0.0
+# 2026-10-04
+# Version: v1.0.1
 #
 # PURPOSE:
 # Finds sensitive information in screenshots so it can be blurred: reads the
@@ -22,7 +22,9 @@ import tempfile
 from pathlib import Path
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-SCRIPT_DIR = Path(__file__).resolve().parent
+import apppaths  # noqa: E402
+
+SCRIPT_DIR = apppaths.APP_DIR
 
 TESSERACT_MISSING_HELP = (
     "Tesseract OCR was not found, so sensitive text cannot be detected "

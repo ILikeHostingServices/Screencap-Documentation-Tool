@@ -1,0 +1,168 @@
+# build-windows.yml
+# 2026-10-04
+# Version: v1.0.0
+#
+# PURPOSE:
+# Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
+# on a real Windows machine, tests the built programs, and packs them as a
+# portable zip with a SHA256SUMS.txt checksum file.
+#   - Pull requests, pushes to main, and manual runs: build and test; the
+#     files are kept as a workflow artifact for 30 days.
+#   - Called by the release workflow with a release tag (or run by hand with
+#     one): builds that tag and attaches the files to its GitHub release.
+# The programs are not code signed yet (see HANDOFF.md).
+
+name: Windows build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to build and attach files to (empty = just build)"
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      release_tag:
+        type: string
+        required: true
+
+concurrency:
+  group: windows-build-${{ inputs.release_tag || github.ref }}
+  cancel-in-progress: ${{ !inputs.release_tag }}
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Read the version
+        id: version
+        run: |
+          $v = (Select-String -Path version.py -Pattern '^RELEASE = "(.+)"').Matches[0].Groups[1].Value
+          if ('${{ inputs.release_tag }}' -and "v$v" -ne '${{ inputs.release_tag }}') {
+            throw "version.py says $v but the release tag is ${{ inputs.release_tag }}"
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Building v$v"
+
+      - name: Install PyInstaller and FFmpeg (FFmpeg only for the tests)
+        run: |
+          python -m pip install --disable-pip-version-check --quiet "pyinstaller>=6.10,<7"
+          python -m PyInstaller --version
+          choco install ffmpeg -y --no-progress
+
+      - name: Build
+        run: |
+          python packaging/make_version_info.py build/version_info.txt
+          python -m PyInstaller packaging/screencap.spec --noconfirm --clean --log-level WARN
+          $app = 'dist\Screencap-Documentation-Tool'
+          foreach ($f in 'Screencap Documentation Tool.exe', 'screencap.exe', '_internal\assets\icon.ico', '_internal\whisper_worker.py', '_internal\LICENSE') {
+            if (-not (Test-Path (Join-Path $app $f))) { throw "Missing from the build: $f" }
+          }
+          Get-ChildItem $app | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      - name: Test the command line program
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + $env:Path
+          $v = '${{ steps.version.outputs.version }}'
+          $cli = Resolve-Path 'dist\Screencap-Documentation-Tool\screencap.exe'
+          $out = & $cli --version
+          Write-Host $out
+          if ($out -notmatch [regex]::Escape("v$v")) { throw "Expected v$v, got: $out" }
+          $info = (Get-Item $cli).VersionInfo
+          Write-Host "File version: $($info.ProductVersion) | $($info.CompanyName) | $($info.FileDescription)"
+          if ($info.ProductVersion -ne $v) { throw "Windows version resource says $($info.ProductVersion), expected $v" }
+
+          # With no folders given, the packaged app uses Documents
+          & $cli
+          $docs = [Environment]::GetFolderPath('MyDocuments')
+          if (-not (Test-Path (Join-Path $docs 'Screencap Documentation Tool\source'))) { throw 'Default source folder was not created in Documents' }
+
+          # Process and export a synthetic recording
+          $src = Join-Path $env:RUNNER_TEMP 'src'; $dst = Join-Path $env:RUNNER_TEMP 'out'
+          New-Item -ItemType Directory -Force $src | Out-Null
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=1280x720:r=30:d=12 `
+            -vf "drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)'" `
+            -c:v libx264 -pix_fmt yuv420p (Join-Path $src 'CI Demo.mp4')
+          & $cli -s $src -o $dst --export html,pdf
+          if ($LASTEXITCODE -ne 0) { throw "screencap.exe failed ($LASTEXITCODE)" }
+          foreach ($f in 'steps.md', 'export\CI Demo.html', 'export\CI Demo.pdf') {
+            if (-not (Test-Path (Join-Path $dst "CI Demo\$f"))) { throw "Missing output: $f" }
+          }
+
+      - name: Test the GUI program starts
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          $gui = Resolve-Path 'dist\Screencap-Documentation-Tool\Screencap Documentation Tool.exe'
+          $p = Start-Process -FilePath $gui -PassThru
+          $title = ''
+          for ($i = 0; $i -lt 30 -and -not $title; $i++) {
+            Start-Sleep -Seconds 1
+            $p.Refresh()
+            if ($p.HasExited) { throw "The GUI exited early (exit code $($p.ExitCode))" }
+            $title = $p.MainWindowTitle
+          }
+          Write-Host "Window title: $title"
+          Stop-Process -Id $p.Id -Force
+          if ($title -ne "Screencap Documentation Tool v$v") { throw "Unexpected or missing window title: '$title'" }
+
+      - name: Pack the portable zip and checksums
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          New-Item -ItemType Directory -Force release | Out-Null
+          $zip = "release\Screencap-Documentation-Tool-v$v-windows-x64-portable.zip"
+          Compress-Archive -Path 'dist\Screencap-Documentation-Tool' -DestinationPath $zip
+          Get-ChildItem release -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Set-Content -Path release\SHA256SUMS.txt -Encoding ascii
+          Get-Content release\SHA256SUMS.txt
+          Get-ChildItem release | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-build-v${{ steps.version.outputs.version }}
+          path: release/
+          retention-days: 30
+
+  attach:
+    name: Attach to the release
+    needs: build
+    if: inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: windows-build-v${{ needs.build.outputs.version }}
+          path: release
+      - name: Upload the files to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ls -l release
+          gh release upload "${{ inputs.release_tag }}" release/* --clobber
+          gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[].name'

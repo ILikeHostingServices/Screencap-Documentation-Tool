@@ -39,3 +39,7 @@ desktop.ini
 
 # Optional speech recognition environment made by the installers
 whisper-env/
+
+# Packaged Windows app builds (PyInstaller)
+build/
+dist/
