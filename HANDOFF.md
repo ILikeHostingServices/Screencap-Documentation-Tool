@@ -1,4 +1,4 @@
-HANDOFF.md v1.4.0 (Last Rev: 2026-10-04)
+HANDOFF.md v1.5.0 (Last Rev: 2026-10-04)
 
 # Handoff
 
@@ -8,9 +8,10 @@ Tasks that the cloud coding session cannot finish alone, because they need the r
 
 ### The Project
 
-- **Repository:** `ILikeHostingServices/Screencap-Documentation-Tool` (public), MIT License, default branch `main`. GitHub Actions: `Tests` (every push and pull request, Windows and Linux), `Installers` (installer changes, weekly, on demand), `Publish releases` (manual).
+- **Repository:** `ILikeHostingServices/Screencap-Documentation-Tool` (public), MIT License, default branch `main`. GitHub Actions: `Tests` (every push and pull request, Windows and Linux), `Installers` (installer changes, weekly, on demand), `Windows build` (builds and tests the packaged Windows app and its installer on every pull request, and attaches them to releases), `Publish releases` (manual).
 - **What it is:** a Python tool (GUI and command line) that takes a screenshot of every step in a screen recording, using FFmpeg scene detection. Windows 11 is the main target; Linux and macOS work too. See `README.md`.
-- **Current release:** v1.14.1 (ILHS taskbar ID, `ILHS-Owner` identity) is published as Latest.
+- **Current release:** v1.16.0 (Windows installer) is published as Latest, with the unsigned installer (`...-windows-x64-setup.exe`), the portable zip (`...-windows-x64-portable.zip`), and `SHA256SUMS.txt` attached.
+- **Packaged app layout:** PyInstaller one-folder build (`packaging/screencap.spec`): `Screencap Documentation Tool.exe` (GUI), `screencap.exe` (command line), and a shared `_internal` folder. The installer is built with Inno Setup (`packaging/installer.iss`). Never change the installer's `AppId` GUID: Windows uses it to recognize upgrades.
 
 ### Accounts And Identity
 
@@ -37,6 +38,7 @@ It can push only to its own working branch (`claude/...`), open and (see above) 
 ### 1. Optional: Ask GitHub To Drop The Old Pull Request Commits
 
 - **Who:** owner, signed in as `ILHS-Owner`.
+- **Will it go away by itself?** No. GitHub keeps pull request refs permanently; only GitHub Support can remove them.
 - **Why:** after the history rewrite, GitHub still keeps read-only copies of the original commits of pull requests #1, #2, and #3 (`refs/pull/N/head`), which only GitHub can delete. Those pull requests keep listing commits under the earlier names, and old commits stay viewable by their old ID. Nothing else refers to them.
 - **How:** open a ticket at https://support.github.com:
 
@@ -44,26 +46,26 @@ It can push only to its own working branch (`claude/...`), open and (see above) 
 
 - **Afterward:** the backup bundle of the old history on the owner's machine can be deleted once the owner is happy with the result.
 
-### 2. Allow The Cloud Session To Reach Hugging Face And SignPath
+### 2. Allow The Cloud Session To Reach SignPath
 
 - **Who:** owner (Claude Code cloud environment settings: environment menu in the session title bar > Edit > Network access).
-- **What:** add `huggingface.co`, `*.huggingface.co`, `*.hf.co` (speech model downloads), and `signpath.org`, `*.signpath.io` (code signing documentation and API) to Allowed domains. Changes apply to new sessions.
-- **Why:** lets the cloud session test speech recognition with a real model and read SignPath's documentation directly. GitHub's own test machines already have access, so this is a convenience, not a blocker.
+- **What:** add `signpath.org`, `*.signpath.io` (code signing documentation and API) to Allowed domains. Changes apply to new sessions. (Hugging Face is already allowed, see **Done**.)
+- **Why:** lets the cloud session read SignPath's documentation directly. GitHub's own test machines already have access, so this is a convenience, not a blocker.
 
 ### 3. Code Signing Through SignPath Foundation (Roadmap #12)
 
-Goal: a signed single-file `.exe` for Windows, signed for free by SignPath Foundation (publisher shown: SignPath Foundation). Steps marked **Cloud session** can be done by Claude in a normal session; the rest need the owner, as `ILHS-Owner`. The owner wants some back and forth on the `.exe` before involving SignPath.
+Goal: a signed Windows app and installer, signed for free by SignPath Foundation (publisher shown: SignPath Foundation). Steps marked **Cloud session** can be done by Claude in a normal session; the rest need the owner, as `ILHS-Owner`. Steps 3.1, 3.2, and 3.4 are done (see **Done**); next is 3.3, then the owner tries the unsigned installer before applying in 3.5. Signing must cover all three programs: both `.exe` files inside the app (before they are packed) and the setup `.exe`.
 
 | Step | Who | What |
 | --- | --- | --- |
-| 3.1 | Owner | Require two-factor authentication for the organization: **Organization settings > Authentication security > Require two-factor authentication**. Both owner accounts already use it; this enforces it for anyone added later. SignPath requires it for everyone with write access. |
-| 3.2 | Cloud session | Add a GitHub Actions workflow that builds an unsigned single-file `.exe` with PyInstaller (Python and Tkinter bundled; FFmpeg, Tesseract, Pandoc, and VLC stay separate installs because of their licenses) and attaches it to each release. Test it on Windows in CI. |
+| 3.1 | Owner | **Done.** Require two-factor authentication for the organization: **Organization settings > Authentication security > Require two-factor authentication**. Both owner accounts already use it; this enforces it for anyone added later. SignPath requires it for everyone with write access. |
+| 3.2 | Cloud session | **Done** (v1.15.0 portable zip, v1.16.0 installer, `.github/workflows/build-windows.yml`). Add a GitHub Actions workflow that builds an unsigned single-file `.exe` with PyInstaller (Python and Tkinter bundled; FFmpeg, Tesseract, Pandoc, and VLC stay separate installs because of their licenses) and attaches it to each release. Test it on Windows in CI. |
 | 3.3 | Cloud session | Add `CODE_SIGNING_POLICY.md` and link it from `README.md`: "Free code signing provided by SignPath.io, certificate by SignPath Foundation"; Committers and reviewers: repository members; Approvers: `ILHS-Owner`; Privacy: "This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it." |
-| 3.4 | Owner | Publish a release that includes the unsigned `.exe` (SignPath requires the project to already be released in the form it will sign). |
+| 3.4 | Owner | **Done** (v1.16.0). Publish a release that includes the unsigned `.exe` (SignPath requires the project to already be released in the form it will sign). |
 | 3.5 | Owner | Apply at https://signpath.org/open-source with the repository URL, the MIT License, a short description, the Releases page as the download page, and the link to `CODE_SIGNING_POLICY.md`. Expect a review that can take weeks. Confirm the exact form fields there; the cloud session could not open signpath.org. |
 | 3.6 | Owner | After approval, in the SignPath dashboard: set GitHub as the trusted build system for this repository, limited to the build workflow file and to `main` and `v*` tags; create an artifact configuration that signs `.exe` files; use a release signing policy that `ILHS-Owner` approves manually. |
 | 3.7 | Owner | Add repository secrets **Settings > Secrets and variables > Actions**: `SIGNPATH_API_TOKEN` and `SIGNPATH_ORG_ID`. Only the owner handles the token. |
-| 3.8 | Cloud session | Add `signpath/github-action-submit-signing-request` to the build workflow so each release's `.exe` is submitted for signing, approved by the owner, and the signed file is attached to the release. |
+| 3.8 | Cloud session | Add `signpath/github-action-submit-signing-request` to `.github/workflows/build-windows.yml` so each release's programs are submitted for signing, approved by the owner, and the signed file is attached to the release. |
 
 ## Done
 
@@ -79,3 +81,7 @@ Goal: a signed single-file `.exe` for Windows, signed for free by SignPath Found
 | 2026-10-04 | History rewritten and force-pushed as `ILHS-Owner` from the owner's machine (local agent): 53 commits on `main` and all 19 tags now use `ILHS-Owner <337515992+ILHS-Owner@users.noreply.github.com>` (the 3 github.com merges have `GitHub` as committer, as expected); the stale branch was deleted; no earlier name remains in any commit, message, tag, or file version (checked by the cloud session). |
 | 2026-10-04 | v1.14.1 published (cloud session): tag by `ILHS-Owner`, Latest. |
 | 2026-10-04 | Local agent review addressed (cloud session): `Run-Screencap.bat` renormalized (GitHub's download zip still delivers it with CRLF line endings), the GUI focus test hardened for the Windows foreground lock, and `version.py`'s header now always equals the release version (checked by a test). |
+| 2026-10-04 | Two-factor authentication required for the whole organization (owner; SignPath step 3.1). |
+| 2026-10-04 | Hugging Face allowed in the cloud environment's network access (owner); takes effect in new sessions. |
+| 2026-10-04 | v1.15.0 published (cloud session): unsigned packaged Windows app (portable zip) built and tested in GitHub Actions and attached with `SHA256SUMS.txt` (SignPath step 3.2). |
+| 2026-10-04 | v1.16.0 published (cloud session): unsigned Windows installer (Inno Setup; one user or all users; silent install) built, install and uninstall tested for both scopes in GitHub Actions, and attached with the portable zip and `SHA256SUMS.txt` (SignPath step 3.4). Pull requests #4, #5, and #6 merged by the cloud session under the standing permission. |
