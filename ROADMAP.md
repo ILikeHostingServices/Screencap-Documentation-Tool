@@ -1,4 +1,4 @@
-ROADMAP.md v1.5.0 (Last Rev: 2026-10-04)
+ROADMAP.md v1.6.0 (Last Rev: 2026-10-04)
 
 # Roadmap
 
@@ -8,7 +8,7 @@ Ideas that were approved in principle but are on hold until they have been discu
 
 | # | Idea | Why it is on hold | Questions to settle |
 | --- | --- | --- | --- |
-| 12 | **Single-file Windows app.** Package the tool as one `.exe` with PyInstaller so Python does not need to be installed. | In progress. v1.15.0: unsigned packaged app (portable zip) built and tested in GitHub Actions and attached to each release. Next: a Windows installer, then code signing through SignPath Foundation (free for open source projects; the MIT License was added in v1.13.1 to qualify; steps in `HANDOFF.md`). | The Python install stays the main path; the packaged app is an extra download. Updates: download the new release. FFmpeg, Tesseract, Pandoc, and VLC stay separate installs (their licenses). |
+| 12 | **Single-file Windows app.** Package the tool as one `.exe` with PyInstaller so Python does not need to be installed. | In progress. v1.15.0: unsigned packaged app (portable zip) built and tested in GitHub Actions and attached to each release. v1.16.0: Windows installer (per-user or all users, silent install supported), also built and tested in GitHub Actions. Next: code signing through SignPath Foundation (free for open source projects; the MIT License was added in v1.13.1 to qualify; steps in `HANDOFF.md`). | The Python install stays the main path; the packaged app is an extra download. Updates: download the new release. FFmpeg, Tesseract, Pandoc, and VLC stay separate installs (their licenses). |
 
 ## Dropped
 
