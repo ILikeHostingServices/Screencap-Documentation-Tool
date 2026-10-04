@@ -1,8 +1,23 @@
-CHANGELOG.md v1.18.0 (Last Rev: 2026-10-04)
+CHANGELOG.md v1.19.0 (Last Rev: 2026-10-04)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.16.0 - Windows installer (2026-10-04)
+
+**New**
+- A Windows installer is attached to this release: `Screencap-Documentation-Tool-v1.16.0-windows-x64-setup.exe`. It installs the packaged app (Python built in), adds a Start Menu shortcut, an optional desktop shortcut, and an entry in **Settings > Apps** to uninstall it.
+- By default it installs for your account only, with no admin rights needed (in `%LOCALAPPDATA%\Programs`). Choose **Install for all users** at the start to install in `Program Files` instead (needs admin rights).
+- If FFmpeg is not found, the installer offers to install it with winget. Tesseract OCR (automatic blurring) and Pandoc (Word export) can be installed the same way by ticking one box.
+- Installing a newer version over an older one upgrades it in place. Uninstalling never touches your recordings, output, or settings.
+- Silent installs for deployment: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` (add `/ALLUSERS` for all users, `/TASKS=desktopicon` for a desktop shortcut).
+- The portable zip is still attached for PCs where you prefer not to install anything. `SHA256SUMS.txt` now lists both files.
+- Every pull request now also builds the installer and tests installing, starting, and uninstalling it, both for one user and for all users.
+
+**Known limitations**
+- The installer and app are not code signed yet, so Windows SmartScreen may show **Windows protected your PC**. After checking the checksum, choose **More info > Run anyway**. Code signing through SignPath Foundation is planned.
+- Captions From Narration still needs the Python install.
 
 ## v1.15.0 - Windows app without Python (portable zip) (2026-10-04)
 

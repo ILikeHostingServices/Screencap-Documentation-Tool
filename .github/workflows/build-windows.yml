@@ -1,11 +1,13 @@
 # build-windows.yml
 # 2026-10-04
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
-# on a real Windows machine, tests the built programs, and packs them as a
-# portable zip with a SHA256SUMS.txt checksum file.
+# on a real Windows machine, tests the built programs, packs them as a
+# portable zip and as an installer (Inno Setup, see packaging/installer.iss),
+# tests installing and uninstalling for one user and for all users, and
+# writes a SHA256SUMS.txt checksum file.
 #   - Pull requests, pushes to main, and manual runs: build and test; the
 #     files are kept as a workflow artifact for 30 days.
 #   - Called by the release workflow with a release tag (or run by hand with
@@ -127,13 +129,87 @@ jobs:
           Stop-Process -Id $p.Id -Force
           if ($title -ne "Screencap Documentation Tool v$v") { throw "Unexpected or missing window title: '$title'" }
 
-      - name: Pack the portable zip and checksums
+      - name: Pack the portable zip
         run: |
           $v = '${{ steps.version.outputs.version }}'
           New-Item -ItemType Directory -Force release | Out-Null
-          $zip = "release\Screencap-Documentation-Tool-v$v-windows-x64-portable.zip"
-          Compress-Archive -Path 'dist\Screencap-Documentation-Tool' -DestinationPath $zip
-          Get-ChildItem release -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Object {
+          Compress-Archive -Path 'dist\Screencap-Documentation-Tool' `
+            -DestinationPath "release\Screencap-Documentation-Tool-v$v-windows-x64-portable.zip"
+
+      - name: Build the installer
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
+                    Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          Write-Host "Inno Setup: $iscc"
+          & $iscc "/DAppVersion=$v" /Qp packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)" }
+          $setup = "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          if (-not (Test-Path $setup)) { throw "Installer not created: $setup" }
+          $info = (Get-Item $setup).VersionInfo
+          Write-Host "Installer version: $($info.ProductVersion) | $($info.CompanyName)"
+
+      - name: Test installing and uninstalling
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = '${{ steps.version.outputs.version }}'
+          $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          $name = 'Screencap Documentation Tool'
+          $appId = 'ILHS.ScreencapDocumentationTool.GUI'
+
+          function Test-Shortcut($folder) {
+            $lnk = Join-Path $folder "$name.lnk"
+            if (-not (Test-Path $lnk)) { throw "Shortcut missing: $lnk" }
+            $item = (New-Object -ComObject Shell.Application).Namespace($folder).ParseName("$name.lnk")
+            $id = $item.ExtendedProperty('System.AppUserModel.ID')
+            if ($id -ne $appId) { throw "Shortcut taskbar ID is '$id', expected $appId" }
+          }
+          function Wait-Gone($path) {
+            # The uninstaller hands over to a copy of itself, so wait for the files
+            for ($i = 0; $i -lt 60 -and (Test-Path $path); $i++) { Start-Sleep -Seconds 1 }
+            if (Test-Path $path) { throw "Still present after uninstalling: $path" }
+          }
+
+          foreach ($scope in 'CURRENTUSER', 'ALLUSERS') {
+            Write-Host "=== Install for $scope ==="
+            $log = Join-Path $env:RUNNER_TEMP "setup-$scope.log"
+            $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$scope", '/TASKS=desktopicon', "/LOG=`"$log`"" -Wait -PassThru
+            if ($p.ExitCode -ne 0) { Get-Content $log -Tail 30; throw "Setup failed for $scope ($($p.ExitCode))" }
+            if ($scope -eq 'CURRENTUSER') {
+              $dir = Join-Path $env:LOCALAPPDATA "Programs\$name"
+              $menu = [Environment]::GetFolderPath('Programs'); $desk = [Environment]::GetFolderPath('Desktop')
+            } else {
+              $dir = Join-Path $env:ProgramFiles $name
+              $menu = [Environment]::GetFolderPath('CommonPrograms'); $desk = [Environment]::GetFolderPath('CommonDesktopDirectory')
+            }
+            $out = & (Join-Path $dir 'screencap.exe') --version
+            Write-Host $out
+            if ($out -notmatch [regex]::Escape("v$v")) { throw "Installed version is wrong: $out" }
+            Test-Shortcut $menu
+            Test-Shortcut $desk
+            $reg = if ($scope -eq 'CURRENTUSER') { 'HKCU:' } else { 'HKLM:' }
+            $entry = Get-ChildItem "$reg\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
+                     Get-ItemProperty | Where-Object DisplayName -eq $name
+            if (-not $entry) { throw "No Apps & Features entry for $scope" }
+            Write-Host "Apps & Features: $($entry.DisplayName) $($entry.DisplayVersion) by $($entry.Publisher)"
+
+            Write-Host "=== Uninstall for $scope ==="
+            Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+            Wait-Gone (Join-Path $dir "$name.exe")
+            Wait-Gone (Join-Path $menu "$name.lnk")
+            Wait-Gone (Join-Path $desk "$name.lnk")
+          }
+
+      - name: Write checksums
+        run: |
+          Get-ChildItem release -File | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object Name | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
           } | Set-Content -Path release\SHA256SUMS.txt -Encoding ascii
           Get-Content release\SHA256SUMS.txt
