@@ -1,4 +1,4 @@
-README.md v1.21.0 (Last Rev: 2026-10-04)
+README.md v1.22.0 (Last Rev: 2026-10-04)
 
 # Screencap Documentation Tool
 
@@ -62,6 +62,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `CHANGELOG.md` | What changed in every release. |
 | `LICENSE` | The MIT License: free to use, change, and share, with no warranty. See [License And Support](#license-and-support). |
 | `SECURITY.md` | How to report a security problem privately. |
+| `CODE_SIGNING_POLICY.md` | Code signing policy for the Windows programs: what is signed, who approves it, and the privacy statement. |
 | `HANDOFF.md` | Open tasks that need the repository owner or a machine with full access (history cleanup, releases, code signing setup). |
 | `maintenance/rewrite-history.sh` | One-time script that rewrites the history to the current author name and taskbar ID. See `HANDOFF.md`. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
@@ -134,6 +135,8 @@ If the installer reports that a prerequisite was not detected yet, close PowerSh
 ### Windows App (No Python Needed)
 
 Each release also has a packaged Windows app on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest), with `Screencap Documentation Tool.exe` (the GUI) and `screencap.exe` (the command line) and Python built in. It is an alternative to the Quick Start command for PCs where you do not want Python installed. There are two forms: an installer (from v1.16.0) and a portable zip (from v1.15.0).
+
+Code signing: free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org). This is being set up; releases up to v1.16.0 are not signed yet. See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
 
 **Installer (recommended):**
 
@@ -532,3 +535,5 @@ The Screencap Documentation Tool is free and open source under the [MIT License]
 FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them.
 
 Support is best effort, with no guaranteed response time. For bugs and ideas, open an issue on GitHub and include the version from the GUI footer or `screencap.py --version`, plus the relevant lines from `output/screencap.log`. Never attach real recordings or screenshots; a synthetic example is enough. Report security problems privately as described in [SECURITY.md](SECURITY.md).
+
+The Windows programs are signed under the [Code Signing Policy](CODE_SIGNING_POLICY.md) (free code signing provided by SignPath.io, certificate by SignPath Foundation), which also holds the privacy statement: the program does not send any information anywhere unless the person using it asks for something that needs it.

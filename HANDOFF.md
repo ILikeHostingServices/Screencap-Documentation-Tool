@@ -1,4 +1,4 @@
-HANDOFF.md v1.5.0 (Last Rev: 2026-10-04)
+HANDOFF.md v1.6.0 (Last Rev: 2026-10-04)
 
 # Handoff
 
@@ -54,13 +54,13 @@ It can push only to its own working branch (`claude/...`), open and (see above) 
 
 ### 3. Code Signing Through SignPath Foundation (Roadmap #12)
 
-Goal: a signed Windows app and installer, signed for free by SignPath Foundation (publisher shown: SignPath Foundation). Steps marked **Cloud session** can be done by Claude in a normal session; the rest need the owner, as `ILHS-Owner`. Steps 3.1, 3.2, and 3.4 are done (see **Done**); next is 3.3, then the owner tries the unsigned installer before applying in 3.5. Signing must cover all three programs: both `.exe` files inside the app (before they are packed) and the setup `.exe`.
+Goal: a signed Windows app and installer, signed for free by SignPath Foundation (publisher shown: SignPath Foundation). Steps marked **Cloud session** can be done by Claude in a normal session; the rest need the owner, as `ILHS-Owner`. Steps 3.1 to 3.4 are done (see **Done**); next is 3.5, the application. Signing must cover all three programs: both `.exe` files inside the app (before they are packed) and the setup `.exe`.
 
 | Step | Who | What |
 | --- | --- | --- |
 | 3.1 | Owner | **Done.** Require two-factor authentication for the organization: **Organization settings > Authentication security > Require two-factor authentication**. Both owner accounts already use it; this enforces it for anyone added later. SignPath requires it for everyone with write access. |
 | 3.2 | Cloud session | **Done** (v1.15.0 portable zip, v1.16.0 installer, `.github/workflows/build-windows.yml`). Add a GitHub Actions workflow that builds an unsigned single-file `.exe` with PyInstaller (Python and Tkinter bundled; FFmpeg, Tesseract, Pandoc, and VLC stay separate installs because of their licenses) and attaches it to each release. Test it on Windows in CI. |
-| 3.3 | Cloud session | Add `CODE_SIGNING_POLICY.md` and link it from `README.md`: "Free code signing provided by SignPath.io, certificate by SignPath Foundation"; Committers and reviewers: repository members; Approvers: `ILHS-Owner`; Privacy: "This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it." |
+| 3.3 | Cloud session | **Done.** Add `CODE_SIGNING_POLICY.md` and link it from `README.md`: "Free code signing provided by SignPath.io, certificate by SignPath Foundation"; Committers and reviewers: repository members; Approvers: `ILHS-Owner`; Privacy: "This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it." |
 | 3.4 | Owner | **Done** (v1.16.0). Publish a release that includes the unsigned `.exe` (SignPath requires the project to already be released in the form it will sign). |
 | 3.5 | Owner | Apply at https://signpath.org/open-source with the repository URL, the MIT License, a short description, the Releases page as the download page, and the link to `CODE_SIGNING_POLICY.md`. Expect a review that can take weeks. Confirm the exact form fields there; the cloud session could not open signpath.org. |
 | 3.6 | Owner | After approval, in the SignPath dashboard: set GitHub as the trusted build system for this repository, limited to the build workflow file and to `main` and `v*` tags; create an artifact configuration that signs `.exe` files; use a release signing policy that `ILHS-Owner` approves manually. |
@@ -85,3 +85,4 @@ Goal: a signed Windows app and installer, signed for free by SignPath Foundation
 | 2026-10-04 | Hugging Face allowed in the cloud environment's network access (owner); takes effect in new sessions. |
 | 2026-10-04 | v1.15.0 published (cloud session): unsigned packaged Windows app (portable zip) built and tested in GitHub Actions and attached with `SHA256SUMS.txt` (SignPath step 3.2). |
 | 2026-10-04 | v1.16.0 published (cloud session): unsigned Windows installer (Inno Setup; one user or all users; silent install) built, install and uninstall tested for both scopes in GitHub Actions, and attached with the portable zip and `SHA256SUMS.txt` (SignPath step 3.4). Pull requests #4, #5, and #6 merged by the cloud session under the standing permission. |
+| 2026-10-04 | `CODE_SIGNING_POLICY.md` added and linked from `README.md`, including next to the Windows app downloads (SignPath requires the download page to mention it) (cloud session; SignPath step 3.3). The owner tested the v1.16.0 installer successfully. |
