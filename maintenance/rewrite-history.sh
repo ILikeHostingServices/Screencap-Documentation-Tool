@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
 # rewrite-history.sh
-# 2026-10-03
-# Version: v1.1.0
+# 2026-10-04
+# Version: v1.2.0
 #
 # PURPOSE:
 # One-time cleanup: rewrites the repository history so every commit, tag,
-# and file version uses the current names (author ILHS-Owner,
-# taskbar ID prefix ILHS). File contents and dates are otherwise unchanged.
+# and file version uses the current names (author ILHS-Owner, taskbar ID
+# prefix ILHS). File contents and dates are otherwise unchanged.
 # Rewriting changes every commit ID, so the release manifest is updated to
 # the new IDs, then main and all tags are force-pushed. Run it on a local
 # machine with push rights to main and to tags; see HANDOFF.md.
@@ -30,11 +30,13 @@ WORK="${WORK:-$PWD/rewrite-work}"
 PUSH="${PUSH:-0}"
 NAME="ILHS-Owner"
 EMAIL="337515992+ILHS-Owner@users.noreply.github.com"
-# The previous account name is assembled from parts so that this file
+# The two earlier author names are assembled from parts so that this file
 # itself contains nothing for the rewrite to change or the checks to find
 OLD="$(printf '%s%s' MV TS)"
 OLD_NAME="$OLD-Owner"
 OLD_EMAIL="$OLD_NAME@users.noreply.github.com"
+OLD2_NAME="$(printf '%s%s' Hosting Services)-Owner"
+OLD2_EMAIL="$OLD2_NAME@users.noreply.github.com"
 # The taskbar ID briefly used the full organization name before ILHS
 OLD_ID="$(printf '%s%s' ILikeHosting Services).ScreencapDocumentationTool.GUI"
 STALE_BRANCHES="claude/gifted-ride-nqrkb1"
@@ -66,7 +68,9 @@ files_before="$(git ls-tree -r HEAD)"
 # and commit messages comes from the replacements list.
 cat > "$WORK/replacements" <<EOF
 $OLD_EMAIL==>$EMAIL
+$OLD2_EMAIL==>$EMAIL
 $OLD_NAME==>$NAME
+$OLD2_NAME==>$NAME
 $OLD.ScreencapDocumentationTool.GUI==>ILHS.ScreencapDocumentationTool.GUI
 $OLD_ID==>ILHS.ScreencapDocumentationTool.GUI
 $OLD IT==>Example IT
@@ -77,12 +81,12 @@ git filter-repo --force \
     --replace-text "$WORK/replacements" --replace-message "$WORK/replacements" \
     --commit-callback "
 for who in ('author', 'committer'):
-    if getattr(commit, who + '_name').lower() == b'$OLD_NAME'.lower():
+    if getattr(commit, who + '_name').lower() in (b'$OLD_NAME'.lower(), b'$OLD2_NAME'.lower(), b'$NAME'.lower()):
         setattr(commit, who + '_name', b'$NAME')
         setattr(commit, who + '_email', b'$EMAIL')
 " \
     --tag-callback "
-if tag.tagger_name and tag.tagger_name.lower() == b'$OLD_NAME'.lower():
+if tag.tagger_name and tag.tagger_name.lower() in (b'$OLD_NAME'.lower(), b'$OLD2_NAME'.lower(), b'$NAME'.lower()):
     tag.tagger_name = b'$NAME'
     tag.tagger_email = b'$EMAIL'
 "
@@ -123,15 +127,19 @@ step "Verifying"
 fail=0
 if [ "$(git show --name-only --format= HEAD)" != "$manifest" ]; then
     echo "    FAIL: the manifest commit changed more than the manifest"; fail=1; fi
-if git log --all --format='%an %ae %cn %ce' | grep -qi "$OLD"; then
-    echo "    FAIL: an author or committer still uses the old name"; fail=1; fi
-if git for-each-ref refs/tags --format='%(taggername) %(taggeremail)' | grep -qi "$OLD"; then
-    echo "    FAIL: a tag still uses the old name"; fail=1; fi
-if git log --all --format=%B | grep -qi "$OLD"; then
-    echo "    FAIL: a commit message still mentions the old name"; fail=1; fi
 mapfile -t all_commits < <(git rev-list --all)
-if git grep -qi "$OLD" "${all_commits[@]}" -- 2>/dev/null; then
-    echo "    FAIL: a file version still mentions the old name"; fail=1; fi
+for pat in "$OLD" "$OLD2_NAME"; do
+    if git log --all --format='%an %ae %cn %ce' | grep -qi "$pat"; then
+        echo "    FAIL: an author or committer still uses an old name"; fail=1; fi
+    if git for-each-ref refs/tags --format='%(taggername) %(taggeremail)' | grep -qi "$pat"; then
+        echo "    FAIL: a tag still uses an old name"; fail=1; fi
+    if git log --all --format=%B | grep -qi "$pat"; then
+        echo "    FAIL: a commit message still mentions an old name"; fail=1; fi
+    if git grep -qi "$pat" "${all_commits[@]}" -- 2>/dev/null; then
+        echo "    FAIL: a file version still mentions an old name"; fail=1; fi
+done
+if git log --all --format='%an|%ae' | grep -v "^$NAME|$EMAIL\$" | grep -q "^$NAME|"; then
+    echo "    FAIL: a commit by $NAME has an email other than $EMAIL"; fail=1; fi
 [ "$(git tag | wc -l)" = "$tags_before" ] || { echo "    FAIL: tag count changed"; fail=1; }
 # The newest files must be exactly as before (only the manifest commit is new)
 if [ "$(git ls-tree -r HEAD^)" != "$files_before" ]; then
