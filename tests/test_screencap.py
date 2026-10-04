@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-03
-# Version: v1.9.1
+# 2026-10-04
+# Version: v1.9.2
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -42,6 +42,9 @@ class VersionTests(unittest.TestCase):
         newest = re.search(r"^## (v\d+\.\d+\.\d+) ", text, re.MULTILINE).group(1)
         self.assertEqual(newest, "v" + version.RELEASE)
         self.assertRegex(version.RELEASE_DATE, r"^\d{4}-\d{2}-\d{2}$")
+        # version.py's own header version is the release version
+        header = (ROOT / "version.py").read_text(encoding="utf-8")
+        self.assertIn(f"# Version: v{version.RELEASE}\n", header)
 
 
 class PlayerTests(unittest.TestCase):

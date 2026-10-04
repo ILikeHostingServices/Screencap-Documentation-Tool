@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-10-03
-# Version: v1.1.0
+# 2026-10-04
+# Version: v1.1.1
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -86,7 +86,31 @@ class GuiTests(unittest.TestCase):
 
     def tearDown(self):
         self.app.editor.dirty = False
-        self.app.on_close()
+        try:
+            self.app.on_close()
+        except tk.TclError:
+            # A test that failed part way can leave Tk half torn down; that
+            # must not hide the real failure behind a second error
+            try:
+                self.root.destroy()
+            except tk.TclError:
+                pass
+
+    def bring_to_front(self):
+        """Windows only lets the foreground app take the keyboard (the
+        foreground lock), so on a desktop that someone is using the test
+        window may not get focus straight away. Ask a few times."""
+        for _ in range(10):
+            self.root.lift()
+            self.root.focus_force()
+            self.pump(0.1)
+            if self.root.focus_get() is not None:
+                return
+
+    def click(self, widget):
+        widget.event_generate("<ButtonPress-1>", x=5, y=5)
+        widget.event_generate("<ButtonRelease-1>", x=5, y=5)
+        self.pump()
 
     def pump(self, seconds=0.3):
         end = time.monotonic() + seconds
@@ -132,9 +156,11 @@ class GuiTests(unittest.TestCase):
         # Down pages through the steps
         self.app.tree.focus_force()
         self.pump()
-        ed.canvas.event_generate("<ButtonPress-1>", x=5, y=5)
-        ed.canvas.event_generate("<ButtonRelease-1>", x=5, y=5)
-        self.pump()
+        self.bring_to_front()
+        self.click(ed.canvas)
+        if self.root.focus_get() is not ed.canvas:
+            self.bring_to_front()                 # lost the foreground: retry once
+            self.click(ed.canvas)
         self.assertIs(self.root.focus_get(), ed.canvas)
         ed.canvas.event_generate("<Down>")
         self.pump()
