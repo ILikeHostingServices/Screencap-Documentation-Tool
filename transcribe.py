@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # transcribe.py
-# 2026-10-03
-# Version: v1.0.1
+# 2026-10-04
+# Version: v1.1.0
 #
 # PURPOSE:
 # Turns spoken narration in a recording into first-draft captions. FFmpeg
@@ -22,11 +22,14 @@ import tempfile
 import threading
 from pathlib import Path
 
+import apppaths
 import stepdoc
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-WORKER = SCRIPT_DIR / "whisper_worker.py"
-ENV_DIR = SCRIPT_DIR / "whisper-env"
+# The worker ships with the program; whisper-env is made by the installer
+# next to the program (Python install) or, for the packaged app, may be
+# placed in the data folder (Documents) because Program Files is read-only
+WORKER = apppaths.BUNDLE_DIR / "whisper_worker.py"
+ENV_DIRS = (apppaths.APP_DIR / "whisper-env", apppaths.DATA_DIR / "whisper-env")
 TRANSCRIPT_NAME = "transcript.txt"
 DEFAULT_MODEL = "base"
 # Offered in the GUI. Bigger is more accurate but slower; ".en" models are
@@ -53,10 +56,11 @@ def find_python(explicit=None):
     for candidate in (explicit, os.environ.get("SCREENCAP_WHISPER_PYTHON")):
         if candidate:
             return str(candidate) if Path(candidate).is_file() else None
-    for exe in (ENV_DIR / "Scripts" / "python.exe", ENV_DIR / "bin" / "python"):
-        if exe.is_file():
-            return str(exe)
-    if importlib.util.find_spec("faster_whisper") is not None:
+    for env in ENV_DIRS:
+        for exe in (env / "Scripts" / "python.exe", env / "bin" / "python"):
+            if exe.is_file():
+                return str(exe)
+    if not apppaths.FROZEN and importlib.util.find_spec("faster_whisper") is not None:
         return sys.executable
     return None
 

@@ -1,6 +1,6 @@
 # release.yml
 # 2026-10-04
-# Version: v1.3.3
+# Version: v1.4.0
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -8,6 +8,9 @@
 # 2. Publishes a GitHub release for every version tag that does not have one
 #    yet, using the annotated tag's message as the release notes, and marks
 #    the highest version as "Latest".
+# 3. Builds the packaged Windows app for the newest release (when that
+#    version includes packaging/screencap.spec) and attaches the files,
+#    unless they are attached already (see build-windows.yml).
 # Versions are Major.Minor.Patch only (vX.Y.Z); anything else is rejected.
 # Runs when a tag is pushed, or by hand (Actions > Publish releases > Run
 # workflow). Safe to re-run: finished work is skipped. It only ever creates
@@ -36,6 +39,8 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    outputs:
+      build_tag: ${{ steps.releases.outputs.build_tag }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -68,6 +73,7 @@ jobs:
           done
 
       - name: Create missing releases and mark the newest as Latest
+        id: releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -90,4 +96,21 @@ jobs:
           if [ -n "$newest" ]; then
             echo "Marking $newest as Latest"
             gh release edit "$newest" --latest
+            # Packaged Windows build: only versions that have the recipe, and
+            # only when the files are not attached yet
+            if git cat-file -e "$newest:packaging/screencap.spec" 2>/dev/null \
+               && ! gh release view "$newest" --json assets --jq '.assets[].name' | grep -q 'windows-x64-portable.zip'; then
+              echo "Windows build needed for $newest"
+              echo "build_tag=$newest" >> "$GITHUB_OUTPUT"
+            fi
           fi
+
+  windows:
+    name: Windows build
+    needs: publish
+    if: needs.publish.outputs.build_tag != ''
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      release_tag: ${{ needs.publish.outputs.build_tag }}

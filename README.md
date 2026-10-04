@@ -1,4 +1,4 @@
-README.md v1.19.0 (Last Rev: 2026-10-03)
+README.md v1.20.0 (Last Rev: 2026-10-04)
 
 # Screencap Documentation Tool
 
@@ -51,6 +51,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
 | `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
 | `transcribe.py` | Captions From Narration: pulls the audio out with FFmpeg, runs the speech recognition, and matches each sentence to the step that was on screen. |
+| `apppaths.py` | Decides where the program and its default `source` and `output` folders live, for the Python install and for the packaged Windows app. |
+| `packaging/` | Recipe for the packaged Windows app: `screencap.spec` (PyInstaller) and `make_version_info.py` (the version shown in the .exe file's Properties). |
 | `whisper_worker.py` | Runs the speech recognition (faster-whisper) in the optional `whisper-env` Python environment. |
 | `whisper-env/` | Optional. Created by the installer's speech recognition option (`-WithWhisper` or `SCREENCAP_WITH_WHISPER=1`). Not in git. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
@@ -64,7 +66,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `maintenance/rewrite-history.sh` | One-time script that rewrites the history to the current author name and taskbar ID. See `HANDOFF.md`. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
-| `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one. |
+| `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |
+| `.github/workflows/build-windows.yml` | Builds and tests the packaged Windows app on a real Windows machine for every pull request, and attaches it to releases. |
 | `source/` | Default folder for your recordings. |
 | `output/` | Default folder for results, one subfolder per recording. |
 | `tools/ffmpeg/bin/` | Optional spot for a portable `ffmpeg.exe` and `ffprobe.exe` (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)). |
@@ -127,6 +130,23 @@ To pin the app to the taskbar, right-click its Start Menu entry and choose **Pin
 To add the optional speech recognition for [Captions From Narration](#captions-from-narration) (about 450 MB), add `-WithWhisper` to the end of any of these commands. It can be added later the same way.
 
 If the installer reports that a prerequisite was not detected yet, close PowerShell, open a new window, and paste the command again. Windows only picks up newly installed programs in new windows.
+
+### Windows App (No Python Needed)
+
+Each release from v1.15.0 on also has a packaged Windows app on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest): a zip with `Screencap Documentation Tool.exe` (the GUI) and `screencap.exe` (the command line), with Python built in. It is an alternative to the Quick Start command for PCs where you do not want Python installed.
+
+1. Download `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-portable.zip` and `SHA256SUMS.txt` from the latest release.
+2. Optional but recommended, check the download is intact: in PowerShell, `(Get-FileHash .\Screencap-Documentation-Tool-vX.Y.Z-windows-x64-portable.zip).Hash` must match the line for that file in `SHA256SUMS.txt` (ignoring upper and lower case).
+3. Right-click the zip, choose **Properties**, tick **Unblock** if it is shown, and click **OK**. Then extract it anywhere, for example `C:\DATA\Tools`.
+4. Install FFmpeg once if this PC does not have it: `winget install --id Gyan.FFmpeg -e`. Optional, as with the Quick Start: `winget install --id UB-Mannheim.TesseractOCR -e` (automatic blurring) and `winget install --id JohnMacFarlane.Pandoc -e` (Word export). Or put `ffmpeg.exe` and `ffprobe.exe` in `tools\ffmpeg\bin\` next to the app (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)).
+5. Start `Screencap Documentation Tool.exe`.
+
+Differences from the Python install:
+
+- The default `source` and `output` folders are in `Documents\Screencap Documentation Tool`, because the app's own folder may not be writable. Any folder can still be chosen in the GUI or with `-s` and `-o`.
+- The app is **not code signed yet** (that is planned, see `HANDOFF.md`), so Windows SmartScreen may say **Windows protected your PC** the first time. Check the checksum as above, then click **More info > Run anyway**. Some antivirus products are wary of unsigned packaged Python apps; the checksum confirms the file is the one GitHub built from this repository.
+- Captions From Narration needs the Python install (`-WithWhisper`); the packaged app does not include speech recognition.
+- To update, download the new zip and replace the folder. Your settings, presets, and recordings are kept, because they live in your profile and Documents, not in the app folder.
 
 ### Linux
 
@@ -372,9 +392,11 @@ winget uninstall --id Python.Python.3.12 --scope user
 
 Every push and pull request runs the **Tests** workflow on real Windows and Linux machines in GitHub Actions: code checks, the full test suite (detection, duplicates, highlight, crop, blurring, export to HTML/Word/PDF, presets, VLC), and a GUI test that drives the real window. FFmpeg, Tesseract, Pandoc, and VLC are installed first, and the run fails if any test was skipped, so a missing tool can never hide a problem.
 
+The **Windows build** workflow builds the packaged Windows app on a real Windows machine for every pull request and checks it: the command line program's version and Windows file details, that it processes and exports a recording, that the default folders appear in Documents, and that the GUI program opens its window. Releases get the tested files attached automatically.
+
 The **Installers** workflow runs the one-step installers on clean Windows (just-you and everyone), Linux, and macOS machines, then checks the installed tool: version, Start Menu shortcut and taskbar identity, write access for all users after a system-wide install, processing and exporting a recording, and that running the installer again (an update) keeps your files. It runs when an installer changes, every Monday (winget, apt, and Homebrew change on their own), and on demand from **Actions > Installers > Run workflow**.
 
-Both workflows can only read the code: they use a read-only token and no secrets. Results are on the repository's **Actions** tab.
+These workflows can only read the code: they use a read-only token and no secrets. (Only the step that attaches files to a release may write, and only to releases.) Results are on the repository's **Actions** tab.
 
 To run the tests on your own machine, from the repository folder:
 
@@ -388,7 +410,9 @@ Tests that need a missing tool (for example Tesseract) are skipped and say why. 
 
 Each release is an annotated git tag (`v1.12.1`, for example) with notes on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) and in `CHANGELOG.md`. The tag is the version of the project as a whole, and it is what the GUI shows in its title bar and footer and what `screencap.py --version` prints. It is set in `version.py`. Each script also carries its own version in its header, which only changes when that script changes; the Log tab lists them at startup.
 
-To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them.
+To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them. For the newest release it then builds the packaged Windows app from that tag and attaches the zip and `SHA256SUMS.txt`, unless they are attached already.
+
+To build the packaged Windows app yourself (on Windows, from the repository folder): `py -3 -m pip install pyinstaller`, then `py -3 packaging\make_version_info.py build\version_info.txt` and `py -3 -m PyInstaller packaging\screencap.spec --noconfirm --clean`. The app is in `dist\Screencap-Documentation-Tool\`.
 
 The Quick Start commands always install the latest code on the default branch. To install a specific release instead, for example to keep several PCs on the same version:
 

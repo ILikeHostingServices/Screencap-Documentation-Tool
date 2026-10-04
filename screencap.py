@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-10-02
-# Version: v1.10.0
+# 2026-10-04
+# Version: v1.11.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -28,6 +28,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
+import apppaths  # noqa: E402
 import export  # noqa: E402
 import imaging  # noqa: E402
 import presets  # noqa: E402
@@ -38,7 +39,7 @@ import version  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -77,8 +78,8 @@ def find_tool(name, explicit=None):
         log.error("%s not found at --%s path: %s", name, name, explicit)
         return None
     exe = name + (".exe" if os.name == "nt" else "")
-    for candidate in (SCRIPT_DIR / "tools" / "ffmpeg" / "bin" / exe,
-                      SCRIPT_DIR / "tools" / "ffmpeg" / exe):
+    for candidate in (apppaths.APP_DIR / "tools" / "ffmpeg" / "bin" / exe,
+                      apppaths.APP_DIR / "tools" / "ffmpeg" / exe):
         if candidate.is_file():
             return str(candidate)
     return shutil.which(name)
@@ -479,9 +480,9 @@ def parse_args(argv):
     p = argparse.ArgumentParser(
         description="Automatically capture a screenshot of every step in screen "
                     "recordings using FFmpeg scene detection.")
-    p.add_argument("-s", "--source", type=Path, default=SCRIPT_DIR / "source",
+    p.add_argument("-s", "--source", type=Path, default=apppaths.DATA_DIR / "source",
                    help="Folder containing videos (default: ./source)")
-    p.add_argument("-o", "--output", type=Path, default=SCRIPT_DIR / "output",
+    p.add_argument("-o", "--output", type=Path, default=apppaths.DATA_DIR / "output",
                    help="Folder to write screenshots to (default: ./output)")
     p.add_argument("-r", "--recursive", action="store_true",
                    help="Also scan subfolders of the source folder")

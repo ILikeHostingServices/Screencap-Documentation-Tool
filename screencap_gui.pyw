@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-10-03
-# Version: v1.11.1
+# 2026-10-04
+# Version: v1.12.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -31,6 +31,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from tkinter.scrolledtext import ScrolledText
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import apppaths  # noqa: E402
 import export  # noqa: E402
 import player  # noqa: E402
 import presets  # noqa: E402
@@ -41,8 +42,8 @@ import transcribe  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.11.1"   # this file; the release version is in version.py
-ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+GUI_VERSION = "1.12.0"   # this file; the release version is in version.py
+ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
 # app in this organization: ILHS.<AppName>.<Component>
@@ -108,6 +109,13 @@ class App:
         self.vlc = player.find_vlc()
         self.whisper_python = transcribe.find_python()
         self.defaults = sc.parse_args([])
+        if apppaths.FROZEN:
+            # Packaged app: make the default folders in Documents on first start
+            for folder in (self.defaults.source, self.defaults.output):
+                try:
+                    folder.mkdir(parents=True, exist_ok=True)
+                except OSError:
+                    pass
 
         root.title(f"{APP_NAME} v{version.RELEASE}")
         root.geometry("1440x880")
@@ -534,7 +542,7 @@ class App:
     # -------------------------------------------------------------- videos
 
     def browse(self, var):
-        start = var.get() if Path(var.get()).is_dir() else str(sc.SCRIPT_DIR)
+        start = var.get() if Path(var.get()).is_dir() else str(apppaths.DATA_DIR)
         chosen = filedialog.askdirectory(initialdir=start, parent=self.root)
         if chosen:
             var.set(str(Path(chosen)))
