@@ -1,6 +1,6 @@
 # release.yml
-# 2026-10-01
-# Version: v1.3.2
+# 2026-10-04
+# Version: v1.3.3
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -29,8 +29,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TAGGER_NAME: HostingServices-Owner
-  TAGGER_EMAIL: HostingServices-Owner@users.noreply.github.com
+  TAGGER_NAME: ILHS-Owner
+  TAGGER_EMAIL: 337515992+ILHS-Owner@users.noreply.github.com
   VERSION_RE: '^v[0-9]+\.[0-9]+\.[0-9]+$'
 
 jobs:

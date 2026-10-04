@@ -4,11 +4,12 @@ CHANGELOG.md v1.17.0 (Last Rev: 2026-10-03)
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
-## v1.14.1 - New taskbar identity (2026-10-03)
+## v1.14.1 - New taskbar identity (2026-10-04)
 
 **Changed**
 - The app's Windows taskbar identity is now `ILHS.ScreencapDocumentationTool.GUI` (ILHS, short for ILikeHostingServices, the prefix every app from this organization uses; it was named after the previous owner account). It keeps the running window, its icon, and pinned shortcuts together as one taskbar button.
 - Re-running the installer updates the Start Menu and Desktop shortcuts and any taskbar pin of this tool to the new identity. If you still see two taskbar buttons after updating, unpin the old one and pin the app again from the Start Menu.
+- Commits and release tags are now made by `ILHS-Owner`, the organization's own owner account, using its private GitHub email address.
 - The repository's default branch is now `main`. The Quick Start commands are unchanged and install from it automatically.
 
 ## v1.14.0 - Captions From Narration (2026-10-03)
@@ -28,7 +29,7 @@ Every release of the Screencap Documentation Tool, newest first. Each version is
 - The project is now open source under the MIT License (`LICENSE`): free to use, change, and share, including at work, as long as the copyright notice stays with it. It comes with no warranty.
 - New `SECURITY.md` explains how to report a security problem privately.
 - README has a new **License And Support** section: support is best effort, and bug reports should include the version and log lines, never real recordings.
-- Commits and release tags are now made as HostingServices-Owner.
+- Commits and release tags are now made under the organization's own owner account.
 
 ## v1.13.0 - Automated testing on real Windows, Linux, and macOS (2026-10-02)
 
