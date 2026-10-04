@@ -14,5 +14,5 @@
 # point at (see "Releases And Versions" in README.md).
 
 RELEASE = "1.14.1"
-RELEASE_DATE = "2026-10-03"
+RELEASE_DATE = "2026-10-04"
 APP_NAME = "Screencap Documentation Tool"
