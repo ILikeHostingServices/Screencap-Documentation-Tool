@@ -1,28 +1,25 @@
-CODE_SIGNING_POLICY.md v1.0.0 (Last Rev: 2026-10-04)
+CODE_SIGNING_POLICY.md v2.0.0 (Last Rev: 2026-10-06)
 
 # Code Signing Policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+The Windows programs attached to this repository's [GitHub releases](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) are **not code signed**. Code signing is on hold (see roadmap item #12 in [ROADMAP.md](ROADMAP.md)). Because they are not signed, Windows SmartScreen may show **Windows protected your PC** when one is started for the first time.
 
-Code signing is being set up. Releases up to and including v1.16.0 are not signed; check them against the `SHA256SUMS.txt` file attached to each release (see [README.md](README.md#windows-app-no-python-needed)).
+## How To Check A Download
 
-## What Is Signed
+Each release has a `SHA256SUMS.txt` file listing the checksum of every file attached to it. In PowerShell, in the folder you downloaded to:
 
-Only the Windows programs attached to the [GitHub releases](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) of this repository:
+```powershell
+(Get-FileHash .\Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe).Hash
+```
 
-- `Screencap Documentation Tool.exe` (the GUI) and `screencap.exe` (the command line), inside the portable zip and the installer.
-- `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` (the installer).
+The result must match the line for that file in `SHA256SUMS.txt` (ignoring upper and lower case). If it matches, choose **More info > Run anyway**. If it does not, delete the file and download it again from the Releases page only.
 
-They are built only by the `Windows build` GitHub Actions workflow (`.github/workflows/build-windows.yml`) from the source code in this repository, from a release tag on `main`. Nothing built anywhere else, and nothing from another project, is signed. FFmpeg, Tesseract OCR, Pandoc, and VLC are separate programs from their own publishers; they are not included or signed.
+## How The Programs Are Built
 
-## Team Roles
-
-| Role | Who |
-| --- | --- |
-| Committers and reviewers | Members of the [ILikeHostingServices](https://github.com/ILikeHostingServices) GitHub organization with write access to this repository |
-| Approvers | [ILHS-Owner](https://github.com/ILHS-Owner) |
-
-Every change reaches `main` through a pull request whose automated tests must pass. Every signing request is approved by hand by an approver. All accounts with write access use two-factor authentication, which the organization requires.
+- `Screencap Documentation Tool.exe` (the GUI) and `screencap.exe` (the command line), in the portable zip and the installer, and the installer `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` itself.
+- They are built only by the `Windows build` GitHub Actions workflow (`.github/workflows/build-windows.yml`) on GitHub's own Windows machines, from the source code in this repository at a release tag on `main`, and tested before they are attached. Nothing is built on a personal PC.
+- Every change reaches `main` through a pull request whose automated tests must pass. All accounts with write access use two-factor authentication, which the organization requires.
+- FFmpeg, Tesseract OCR, Pandoc, and VLC are separate programs from their own publishers; they are not included.
 
 ## Privacy
 
@@ -32,4 +29,4 @@ In practice: recordings, screenshots, captions, and settings stay on the PC. The
 
 ## Reporting Problems
 
-Report a security problem, or a signed file you believe was not built from this repository, privately as described in [SECURITY.md](SECURITY.md).
+Report a security problem, or a file on the Releases page whose checksum does not match `SHA256SUMS.txt`, privately as described in [SECURITY.md](SECURITY.md).
