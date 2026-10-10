@@ -64,11 +64,11 @@ class ScreencapDocumentationTool < Formula
       exec "#{{opt_bin}}/screencap-gui" "$@"
     EOS
     chmod 0755, app/"MacOS/Screencap Documentation Tool"
-    # The app icon, converted from the PNG; the app still works without it
-    unless quiet_system "sips", "-s", "format", "icns", "assets/icon.png",
-                        "--out", app/"Resources/AppIcon.icns"
-      opoo "Could not make the app icon; the app will use the default icon"
-    end
+    # The app icon: an .icns file is a small header around PNG images, so the
+    # 256 x 256 PNG is wrapped as-is ("ic08" entry); no Apple tools needed
+    png = File.binread("assets/icon.png")
+    entry = "ic08" + [png.bytesize + 8].pack("N") + png
+    File.binwrite(app/"Resources/AppIcon.icns", "icns" + [entry.bytesize + 8].pack("N") + entry)
     (app/"Info.plist").write <<~EOS
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

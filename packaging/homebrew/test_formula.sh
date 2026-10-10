@@ -50,7 +50,8 @@ test -d "$HOME/Documents/Screencap Documentation Tool/source"
 echo "== App bundle"
 app="$(brew --prefix "ilhs/ci/$NAME")/Screencap Documentation Tool.app"
 test -x "$app/Contents/MacOS/Screencap Documentation Tool"
-test -f "$app/Contents/Resources/AppIcon.icns" || echo "::warning::The app has no icon"
+test -s "$app/Contents/Resources/AppIcon.icns"
+[ "$(head -c 4 "$app/Contents/Resources/AppIcon.icns")" = icns ]
 plutil -lint "$app/Contents/Info.plist"
 
 echo "== GUI"
@@ -61,6 +62,7 @@ echo "Window title: $title"
 
 echo "== Uninstall"
 brew uninstall --formula "ilhs/ci/$NAME"
-if command -v screencap; then echo "screencap is still installed" >&2; exit 1; fi
+hash -r   # forget the remembered location of screencap
+if [ -e "$(brew --prefix)/bin/screencap" ]; then echo "screencap is still installed" >&2; exit 1; fi
 brew untap ilhs/ci >/dev/null
 echo "Homebrew formula v$VERSION works."
