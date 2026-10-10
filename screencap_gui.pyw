@@ -2,14 +2,14 @@
 #
 # screencap_gui.pyw
 # 2026-10-10
-# Version: v1.13.0
+# Version: v2.0.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
 # settings, process recordings with live progress, then review and edit the
 # captured steps in the Steps tab (see gui_editor.py). The Help menu has
 # built-in help, the About window, project links, and the update check
-# (see gui_help.py).
+# (see gui_help.py). Light, dark, and system themes are in theme.py.
 #
 # Requires: Python 3.8+ with Tkinter (included with the python.org / winget
 # Windows installer) and FFmpeg. The .pyw extension runs without a console
@@ -30,7 +30,6 @@ from pathlib import Path
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
-from tkinter.scrolledtext import ScrolledText
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import apppaths  # noqa: E402
@@ -43,10 +42,11 @@ import screencap as sc  # noqa: E402
 import transcribe  # noqa: E402
 import gui_help  # noqa: E402
 import updates  # noqa: E402
+import theme  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.13.0"   # this file; the release version is in version.py
+GUI_VERSION = "2.0.0"   # this file; the release version is in version.py
 ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
@@ -122,7 +122,7 @@ class App:
                     pass
 
         root.title(f"{APP_NAME} v{version.RELEASE}")
-        root.geometry("1440x880")
+        root.geometry("1400x860")
         root.minsize(1180, 720)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
         root.report_callback_exception = self.on_ui_error
@@ -141,6 +141,7 @@ class App:
         self.build_menu()
         self.build_ui()
         self.load_settings()
+        self.theme.apply()
         self.refresh_videos()
         self.check_ffmpeg()
         self.poll_job = self.root.after(100, self.poll_queue)
@@ -176,17 +177,32 @@ class App:
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
         self.v_auto_update = tk.BooleanVar(value=False)
+        self.v_preset_about = tk.StringVar(value=presets.describe("Installer wizard"))
+        self.v_theme = tk.StringVar(value="system")
 
     def build_styles(self):
-        style = ttk.Style(self.root)
-        style.configure("Title.TLabel", font=("TkHeadingFont", 14, "bold"))
-        style.configure("Muted.TLabel", foreground="gray")
-        style.configure("Link.TButton")
+        saved = self.read_settings_file()
+        self.v_theme.set(saved.get("theme") if saved.get("theme") in theme.MODES else "system")
+        self.theme = theme.Theme(self.root, self.v_theme.get())
+        self.theme.listeners.append(self.on_theme_changed)
         try:   # the app icon, small, for the About window
             self.root._about_icon = tk.PhotoImage(
                 file=str(ASSETS_DIR / "icon.png")).subsample(4)
         except tk.TclError:
             self.root._about_icon = None
+
+    def set_theme(self, mode):
+        self.v_theme.set(mode)
+        self.theme.set_mode(mode)
+        self.save_settings()
+
+    def on_theme_changed(self):
+        c = self.theme.colors
+        if hasattr(self, "log_text"):
+            self.log_text.tag_configure("error", foreground=c["error"])
+            self.log_text.tag_configure("warn", foreground=c["warn"])
+        if hasattr(self, "editor"):
+            self.editor.on_theme_changed()
 
     def build_menu(self):
         menubar = tk.Menu(self.root)
@@ -203,6 +219,22 @@ class App:
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_close)
         menubar.add_cascade(label="File", menu=file_menu)
+
+        view_menu = tk.Menu(menubar, tearoff=False)
+        for mode in theme.MODES:
+            view_menu.add_radiobutton(label=f"{theme.MODE_LABELS[mode]} Theme", value=mode,
+                                      variable=self.v_theme,
+                                      command=lambda m=mode: self.set_theme(m))
+        view_menu.add_separator()
+        view_menu.add_command(label="Advanced Settings...", command=self.open_advanced)
+        view_menu.add_command(label="Steps", accelerator="Ctrl+1",
+                              command=lambda: self.notebook.select(0))
+        view_menu.add_command(label="Log", accelerator="Ctrl+2",
+                              command=lambda: self.notebook.select(1))
+        menubar.add_cascade(label="View", menu=view_menu)
+        self.view_menu = view_menu
+        self.root.bind("<Control-Key-1>", lambda e: self.notebook.select(0))
+        self.root.bind("<Control-Key-2>", lambda e: self.notebook.select(1))
 
         help_menu = tk.Menu(menubar, tearoff=False)
         help_menu.add_command(label="Help", accelerator="F1", command=self.show_help)
@@ -254,184 +286,240 @@ class App:
         self.save_settings()
 
     def build_ui(self):
-        pad = {"padx": 6, "pady": 4}
-        main = ttk.Frame(self.root, padding=8)
+        main = ttk.Frame(self.root)
         main.pack(fill="both", expand=True)
-        # Left column takes the width its controls need; preview gets the rest
-        main.columnconfigure(0, weight=0)
-        main.columnconfigure(1, weight=1)
+        main.columnconfigure(0, weight=1)
         main.rowconfigure(1, weight=1)
 
-        # Folders
-        folders = ttk.LabelFrame(main, text="Folders", padding=6)
-        folders.grid(row=0, column=0, columnspan=2, sticky="ew")
+        # Folders: a compact bar across the top
+        folders = ttk.Frame(main, style="Bar.TFrame", padding=(14, 10, 14, 10))
+        folders.grid(row=0, column=0, sticky="ew")
         folders.columnconfigure(1, weight=1)
-        for row, (label, var) in enumerate((("Source videos:", self.v_source),
-                                            ("Screenshot output:", self.v_output))):
-            ttk.Label(folders, text=label).grid(row=row, column=0, sticky="w", **pad)
-            ttk.Entry(folders, textvariable=var).grid(row=row, column=1, sticky="ew", **pad)
-            ttk.Button(folders, text="Browse...",
-                       command=lambda v=var: self.browse(v)).grid(row=row, column=2, **pad)
-            ttk.Button(folders, text="Open",
-                       command=lambda v=var: self.open_folder(v)).grid(row=row, column=3, **pad)
+        for row, (label, var) in enumerate((("Recordings", self.v_source),
+                                            ("Output", self.v_output))):
+            ttk.Label(folders, text=label, style="Bar.TLabel").grid(
+                row=row, column=0, sticky="w", padx=(0, 10), pady=3)
+            ttk.Entry(folders, textvariable=var).grid(row=row, column=1, sticky="ew", pady=3)
+            ttk.Button(folders, text="Browse...", command=lambda v=var: self.browse(v)).grid(
+                row=row, column=2, padx=(8, 0), pady=3)
+            ttk.Button(folders, text="Open", command=lambda v=var: self.open_folder(v)).grid(
+                row=row, column=3, padx=(6, 0), pady=3)
         ttk.Checkbutton(folders, text="Include subfolders", variable=self.v_recursive,
-                        command=self.refresh_videos).grid(row=0, column=4, sticky="w", **pad)
+                        style="Bar.TCheckbutton", command=self.refresh_videos).grid(
+            row=0, column=4, sticky="w", padx=(14, 0))
+        ttk.Separator(main, orient="horizontal").grid(row=0, column=0, sticky="sew")
 
-        # Left column: videos + settings
-        left = ttk.Frame(main)
-        left.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
-        left.columnconfigure(0, weight=1)
-        left.rowconfigure(0, weight=1)
+        body = ttk.PanedWindow(main, orient="horizontal")
+        body.grid(row=1, column=0, sticky="nsew", padx=12, pady=(12, 0))
+        self.body = body
+        self.sash_job = self.root.after(50, lambda: self.place_sash(body))
 
-        vids = ttk.LabelFrame(left, text="Videos", padding=6)
+        # Left: recordings and settings
+        side = ttk.Frame(body)
+        side.columnconfigure(0, weight=1)
+        side.rowconfigure(0, weight=1)
+        body.add(side, weight=0)
+
+        vids = ttk.Frame(side, style="Card.TFrame", padding=12)
         vids.grid(row=0, column=0, sticky="nsew")
         vids.columnconfigure(0, weight=1)
-        vids.rowconfigure(0, weight=1)
-        self.tree = ttk.Treeview(vids, columns=("status", "steps"), selectmode="extended")
-        self.tree.heading("#0", text="Video")
-        self.tree.heading("status", text="Status")
+        vids.rowconfigure(1, weight=1)
+        head = ttk.Frame(vids, style="Card.TFrame")
+        head.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        ttk.Label(head, text="Recordings", style="Card.Heading.TLabel").pack(side="left")
+        self.btn_refresh = ttk.Button(head, text="Refresh", command=self.refresh_videos)
+        self.btn_refresh.pack(side="right")
+        self.tree = ttk.Treeview(vids, columns=("status", "steps"), selectmode="extended",
+                                 height=6)
+        self.tree.heading("#0", text="Recording", anchor="w")
+        self.tree.heading("status", text="Status", anchor="w")
         self.tree.heading("steps", text="Steps")
-        self.tree.column("#0", width=260, stretch=True)
-        self.tree.column("status", width=130, stretch=False)
-        self.tree.column("steps", width=50, anchor="center", stretch=False)
-        self.tree.grid(row=0, column=0, sticky="nsew")
+        self.tree.column("#0", width=220, stretch=True)
+        self.tree.column("status", width=110, stretch=False)
+        self.tree.column("steps", width=64, anchor="center", stretch=False)
+        self.tree.grid(row=1, column=0, sticky="nsew")
         sb = ttk.Scrollbar(vids, orient="vertical", command=self.tree.yview)
-        sb.grid(row=0, column=1, sticky="ns")
+        sb.grid(row=1, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.bind("<<TreeviewSelect>>", lambda e: self.show_steps())
         self.tree.bind("<Return>", lambda e: self.show_steps())
         self.tree.bind("<Double-1>", lambda e: self.open_selected_output())
-
-        btns = ttk.Frame(vids)
-        btns.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        self.btn_all = ttk.Button(btns, text="Process All", command=self.process_all)
+        btns = ttk.Frame(vids, style="Card.TFrame")
+        btns.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        self.btn_all = ttk.Button(btns, text="Process All", style="Accent.TButton",
+                                  command=self.process_all)
         self.btn_sel = ttk.Button(btns, text="Process Selected", command=self.process_selected)
         self.btn_cancel = ttk.Button(btns, text="Cancel", command=self.cancel_run,
                                      state="disabled")
-        self.btn_refresh = ttk.Button(btns, text="Refresh", command=self.refresh_videos)
-        for b in (self.btn_all, self.btn_sel, self.btn_cancel, self.btn_refresh):
+        for b in (self.btn_all, self.btn_sel, self.btn_cancel):
             b.pack(side="left", padx=(0, 6))
 
-        self.build_presets(left).grid(row=1, column=0, sticky="ew", pady=(8, 0))
-        self.build_settings(left).grid(row=2, column=0, sticky="ew", pady=(4, 0))
+        self.build_settings(side).grid(row=1, column=0, sticky="ew", pady=(12, 0))
 
-        # Right column: preview + log
-        nb = ttk.Notebook(main)
-        nb.grid(row=1, column=1, sticky="nsew", padx=(8, 0), pady=(8, 0))
+        # Right: the step editor and the log
+        nb = ttk.Notebook(body)
+        body.add(nb, weight=1)
         self.notebook = nb
         self.editor = StepEditor(nb, self)
         nb.add(self.editor, text="Steps")
         nb.add(self.build_log(nb), text="Log")
 
-        # Progress + footer
-        bottom = ttk.Frame(main)
-        bottom.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        bottom.columnconfigure(1, weight=1)
-        ttk.Label(bottom, textvariable=self.v_status, width=55,
-                  anchor="w").grid(row=0, column=0, sticky="w")
-        self.progress = ttk.Progressbar(bottom, maximum=1000)
-        self.progress.grid(row=0, column=1, sticky="ew", padx=(6, 0))
-        ttk.Label(main, text=f"{APP_NAME} - v{version.RELEASE} - Built {version.RELEASE_DATE}",
-                  foreground="gray").grid(row=3, column=0, columnspan=2, pady=(6, 0))
+        # Status bar: status, progress, version
+        bar = ttk.Frame(main, style="Bar.TFrame", padding=(14, 6))
+        bar.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        bar.columnconfigure(0, weight=1)
+        ttk.Label(bar, textvariable=self.v_status, style="Bar.TLabel", anchor="w").grid(
+            row=0, column=0, sticky="ew")
+        self.progress = ttk.Progressbar(bar, maximum=1000, length=260)
+        self.progress.grid(row=0, column=1, padx=(12, 12))
+        ttk.Label(bar, text=f"v{version.RELEASE} ({version.RELEASE_DATE})",
+                  style="Bar.Muted.TLabel").grid(row=0, column=2, sticky="e")
 
-    def build_presets(self, parent):
-        bar = ttk.Frame(parent)
-        ttk.Label(bar, text="Preset:").pack(side="left")
-        self.cmb_profile = ttk.Combobox(bar, textvariable=self.v_profile, state="readonly",
-                                        values=presets.names(), width=30)
-        self.cmb_profile.pack(side="left", padx=4)
-        self.cmb_profile.bind("<<ComboboxSelected>>", lambda e: self.apply_profile())
-        ttk.Button(bar, text="Save As...", command=self.save_profile).pack(side="left", padx=(4, 0))
-        ttk.Button(bar, text="Delete", command=self.delete_profile).pack(side="left", padx=(4, 0))
-        return bar
+    def place_sash(self, body, width=470, tries=40):
+        """Give the sidebar its starting width once the window has its size
+        (before that, the panes have no room to divide)."""
+        try:
+            if body.winfo_width() < width + 300 and tries > 0:
+                self.sash_job = self.root.after(
+                    50, lambda: self.place_sash(body, width, tries - 1))
+                return
+            self.sash_job = None
+            body.sashpos(0, width)
+        except tk.TclError:
+            pass
 
     def build_settings(self, parent):
-        box = ttk.LabelFrame(parent, text="Detection Settings", padding=6)
-        pad = {"padx": 4, "pady": 3}
+        box = ttk.Frame(parent, style="Card.TFrame", padding=12)
+        box.columnconfigure(1, weight=1)
+        pad = {"padx": (0, 8), "pady": 3}
+        ttk.Label(box, text="Settings", style="Card.Heading.TLabel").grid(
+            row=0, column=0, columnspan=3, sticky="w", pady=(0, 6))
 
-        def label(text, r, c):
-            ttk.Label(box, text=text).grid(row=r, column=c, sticky="w", **pad)
+        ttk.Label(box, text="Preset", style="Card.TLabel").grid(row=1, column=0, sticky="w", **pad)
+        self.cmb_profile = ttk.Combobox(box, textvariable=self.v_profile, state="readonly",
+                                        values=presets.names(), width=28)
+        self.cmb_profile.grid(row=1, column=1, columnspan=2, sticky="ew", pady=3)
+        self.cmb_profile.bind("<<ComboboxSelected>>", lambda e: self.apply_profile())
+        self.lbl_preset_about = ttk.Label(box, textvariable=self.v_preset_about,
+                                          style="Card.Muted.TLabel", wraplength=380,
+                                          justify="left")
+        self.lbl_preset_about.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(2, 8))
+        box.bind("<Configure>", lambda e: self.lbl_preset_about.configure(
+            wraplength=max(240, e.width - 30)))
 
-        def entry(var, r, c):
-            ttk.Entry(box, textvariable=var, width=8).grid(row=r, column=c, sticky="w", **pad)
-
-        label("Sensitivity:", 0, 0)
-        preset = ttk.Combobox(box, textvariable=self.v_preset, state="readonly",
+        ttk.Label(box, text="Sensitivity", style="Card.TLabel").grid(row=3, column=0, sticky="w", **pad)
+        sens = ttk.Frame(box, style="Card.TFrame")
+        sens.grid(row=3, column=1, columnspan=2, sticky="w")
+        preset = ttk.Combobox(sens, textvariable=self.v_preset, state="readonly",
                               values=list(SENSITIVITY_PRESETS), width=22)
-        preset.grid(row=0, column=1, columnspan=2, sticky="w", **pad)
+        preset.pack(side="left")
         preset.bind("<<ComboboxSelected>>", lambda e: self.apply_preset())
-        th = ttk.Entry(box, textvariable=self.v_threshold, width=8)
-        th.grid(row=0, column=3, sticky="w", **pad)
+        th = ttk.Entry(sens, textvariable=self.v_threshold, width=7)
+        th.pack(side="left", padx=(6, 0))
         th.bind("<KeyRelease>", lambda e: self.v_preset.set(self.preset_for_threshold()))
-
-        label("Screenshot taken:", 1, 0)
+        ttk.Label(box, text="Screenshot taken", style="Card.TLabel").grid(
+            row=4, column=0, sticky="w", **pad)
         ttk.Combobox(box, textvariable=self.v_capture, state="readonly",
                      values=list(CAPTURE_POINTS), width=34).grid(
-            row=1, column=1, columnspan=3, sticky="w", **pad)
+            row=4, column=1, columnspan=2, sticky="w", pady=3)
 
-        label("Merge changes within (s):", 2, 0)
-        entry(self.v_debounce, 2, 1)
-        label("Min gap between shots (s):", 2, 2)
-        entry(self.v_min_gap, 2, 3)
-        label("Force a shot after (s):", 3, 0)
-        entry(self.v_max_wait, 3, 1)
-        label("Image format:", 3, 2)
-        ttk.Combobox(box, textvariable=self.v_format, state="readonly",
-                     values=("png", "jpg"), width=6).grid(row=3, column=3, sticky="w", **pad)
+        checks = ttk.Frame(box, style="Card.TFrame")
+        checks.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        for text, var in (("Highlight what changed in each step (red box)", self.v_highlight),
+                          ("Blur passwords, keys, IP and email addresses", self.v_redact),
+                          ("Remove duplicate screenshots", self.v_dedup)):
+            ttk.Checkbutton(checks, text=text, variable=var, style="Card.TCheckbutton").pack(
+                anchor="w")
+        narr = ttk.Frame(checks, style="Card.TFrame")
+        narr.pack(anchor="w", fill="x")
+        ttk.Checkbutton(narr, text="Captions from narration", variable=self.v_transcribe,
+                        style="Card.TCheckbutton").pack(side="left")
+        ttk.Combobox(narr, textvariable=self.v_whisper_model, state="readonly",
+                     values=transcribe.MODELS, width=9).pack(side="right")
+        ttk.Label(narr, text="Model" if self.whisper_python else "Model (not installed)",
+                  style="Card.Muted.TLabel").pack(side="right", padx=(0, 6))
 
-        label("Shot before change (s):", 4, 0)
-        entry(self.v_lead, 4, 1)
-        label("Settle after change (s):", 4, 2)
-        entry(self.v_settle, 4, 3)
-        label("Analyze fps:", 5, 0)
-        entry(self.v_fps, 5, 1)
-        label("Analyze width (px):", 5, 2)
-        entry(self.v_width, 5, 3)
-
-        ttk.Checkbutton(box, text="Remove duplicate screenshots",
-                        variable=self.v_dedup).grid(row=6, column=0, columnspan=2, sticky="w", **pad)
-        label("Duplicate if differs by (%):", 6, 2)
-        entry(self.v_dedup_thr, 6, 3)
-
-        ttk.Checkbutton(box, text="Highlight what changed in each step (red box)",
-                        variable=self.v_highlight).grid(row=7, column=0, columnspan=4,
-                                                        sticky="w", **pad)
-
-        ttk.Checkbutton(box, text="Blur passwords, keys, IP and email addresses "
-                        "(unblurred copy kept)", variable=self.v_redact).grid(
-            row=8, column=0, columnspan=4, sticky="w", **pad)
-        label("Also blur (regex, ; separates):", 9, 0)
-        ttk.Entry(box, textvariable=self.v_patterns, width=30).grid(
-            row=9, column=1, columnspan=3, sticky="ew", **pad)
-
-        ttk.Checkbutton(box, text="Captions from narration (speech recognition)",
-                        variable=self.v_transcribe).grid(row=10, column=0, columnspan=2,
-                                                         sticky="w", **pad)
-        label("Model:" if self.whisper_python else "Model (not installed):", 10, 2)
-        ttk.Combobox(box, textvariable=self.v_whisper_model, state="readonly",
-                     values=transcribe.MODELS, width=9).grid(row=10, column=3, sticky="w", **pad)
-
-        opts = ttk.Frame(box)
-        opts.grid(row=11, column=0, columnspan=4, sticky="ew", pady=(4, 0))
-        ttk.Checkbutton(opts, text="Reprocess videos that are already done",
-                        variable=self.v_force).grid(row=0, column=0, sticky="w", padx=4)
-        ttk.Checkbutton(opts, text="Dry run (count steps only, save nothing)",
-                        variable=self.v_dry).grid(row=1, column=0, sticky="w", padx=4)
-        opts.columnconfigure(1, weight=1)
-        ttk.Button(opts, text="Reset Defaults", command=self.reset_defaults).grid(
-            row=0, column=1, rowspan=2, sticky="e", padx=4)
+        links = ttk.Frame(box, style="Card.TFrame")
+        links.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(8, 0))
+        ttk.Button(links, text="Advanced settings...", style="Card.Link.TButton",
+                   command=self.open_advanced).pack(side="left")
+        ttk.Button(links, text="Delete preset", style="Card.Link.TButton",
+                   command=self.delete_profile).pack(side="right")
+        ttk.Button(links, text="Save as preset...", style="Card.Link.TButton",
+                   command=self.save_profile).pack(side="right", padx=(0, 14))
         return box
 
+    def open_advanced(self):
+        """The timing and output settings, in their own window so the main
+        window stays uncluttered. They change the same settings as the form."""
+        win = getattr(self, "advanced_window", None)
+        if win is not None and win.winfo_exists():
+            win.deiconify()
+            win.lift()
+            win.focus_force()
+            return win
+        win = tk.Toplevel(self.root)
+        win.title("Advanced Settings")
+        win.resizable(False, False)
+        win.transient(self.root)
+        self.advanced_window = win
+        adv = ttk.Frame(win, padding=16)
+        adv.pack(fill="both", expand=True)
+        adv.columnconfigure(1, weight=1)
+        adv.columnconfigure(3, weight=1)
+        ttk.Label(adv, text="Advanced Settings", style="Heading.TLabel").grid(
+            row=0, column=0, columnspan=4, sticky="w")
+        ttk.Label(adv, text="Changes apply to the next run. Save them as a preset to keep them.",
+                  style="Muted.TLabel").grid(row=1, column=0, columnspan=4, sticky="w",
+                                             pady=(0, 10))
+        pad = {"padx": (0, 8), "pady": 3}
+        fields = (("Merge changes within (s)", self.v_debounce),
+                  ("Min gap between shots (s)", self.v_min_gap),
+                  ("Force a shot after (s)", self.v_max_wait),
+                  ("Shot before change (s)", self.v_lead),
+                  ("Settle after change (s)", self.v_settle),
+                  ("Duplicate if differs by (%)", self.v_dedup_thr),
+                  ("Analyze fps", self.v_fps),
+                  ("Analyze width (px)", self.v_width))
+        for n, (text, var) in enumerate(fields):
+            r, c = divmod(n, 2)
+            ttk.Label(adv, text=text).grid(row=r + 2, column=c * 2, sticky="w", **pad)
+            ttk.Entry(adv, textvariable=var, width=8).grid(row=r + 2, column=c * 2 + 1,
+                                                           sticky="w", padx=(0, 18), pady=3)
+        r = len(fields) // 2 + 2
+        ttk.Label(adv, text="Image format").grid(row=r, column=0, sticky="w", **pad)
+        ttk.Combobox(adv, textvariable=self.v_format, state="readonly",
+                     values=("png", "jpg"), width=6).grid(row=r, column=1, sticky="w", pady=3)
+        ttk.Label(adv, text="Also blur (regex, ; separates)").grid(row=r + 1, column=0,
+                                                                     sticky="w", **pad)
+        ttk.Entry(adv, textvariable=self.v_patterns, width=40).grid(
+            row=r + 1, column=1, columnspan=3, sticky="ew", pady=3)
+        ttk.Checkbutton(adv, text="Reprocess recordings that are already done",
+                        variable=self.v_force).grid(row=r + 2, column=0, columnspan=4,
+                                                    sticky="w", pady=(10, 0))
+        ttk.Checkbutton(adv, text="Dry run (count steps only, save nothing)",
+                        variable=self.v_dry).grid(row=r + 3, column=0, columnspan=4, sticky="w")
+        bar = ttk.Frame(adv)
+        bar.grid(row=r + 4, column=0, columnspan=4, sticky="ew", pady=(14, 0))
+        ttk.Button(bar, text="Reset Defaults", command=self.reset_defaults).pack(side="left")
+        ttk.Button(bar, text="Close", style="Accent.TButton", command=win.destroy).pack(
+            side="right")
+        win.bind("<Escape>", lambda e: win.destroy())
+        self.theme.style_widgets(win)
+        return win
+
     def build_log(self, parent):
-        frame = ttk.Frame(parent, padding=6)
+        frame = ttk.Frame(parent, padding=10)
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
-        self.log_text = ScrolledText(frame, height=10, state="disabled", wrap="word")
+        self.log_text = tk.Text(frame, height=10, state="disabled", wrap="word",
+                                padx=10, pady=8)
         self.log_text.grid(row=0, column=0, sticky="nsew")
-        self.log_text.tag_configure("error", foreground="#c00000")
-        self.log_text.tag_configure("warn", foreground="#b06000")
+        sb = ttk.Scrollbar(frame, orient="vertical", command=self.log_text.yview)
+        sb.grid(row=0, column=1, sticky="ns")
+        self.log_text.configure(yscrollcommand=sb.set)
         ttk.Button(frame, text="Clear", command=self.clear_log).grid(
-            row=1, column=0, sticky="e", pady=(6, 0))
+            row=1, column=0, columnspan=2, sticky="e", pady=(8, 0))
         return frame
 
     # ------------------------------------------------------------ settings
@@ -468,6 +556,7 @@ class App:
         self.v_transcribe.set(False)
         self.v_whisper_model.set(transcribe.DEFAULT_MODEL)
         self.v_profile.set("Installer wizard")
+        self.v_preset_about.set(presets.describe("Installer wizard"))
 
     # ------------------------------------------------------------ presets
 
@@ -500,7 +589,8 @@ class App:
         for key, (var, to_form, _) in self.profile_vars().items():
             var.set(to_form(values.get(key, getattr(d, key))))
         self.v_preset.set(self.preset_for_threshold())
-        self.set_status(f"Preset '{name}': {presets.describe(name)}")
+        self.v_preset_about.set(presets.describe(name))
+        self.set_status(f"Preset '{name}' applied.")
 
     def save_profile(self):
         try:
@@ -523,6 +613,7 @@ class App:
             return
         self.cmb_profile.configure(values=presets.names())
         self.v_profile.set(name.strip())
+        self.v_preset_about.set(presets.describe(name.strip()))
         self.set_status(f"Saved preset '{name.strip()}'.")
 
     def delete_profile(self):
@@ -534,6 +625,7 @@ class App:
             presets.delete_user(name)
             self.cmb_profile.configure(values=presets.names())
             self.v_profile.set("Installer wizard")
+            self.v_preset_about.set(presets.describe("Installer wizard"))
             self.set_status(f"Deleted preset '{name}'.")
 
     def setting_vars(self):
@@ -546,12 +638,20 @@ class App:
                 "dedup": self.v_dedup, "dedup_threshold": self.v_dedup_thr,
                 "highlight": self.v_highlight, "redact": self.v_redact,
                 "redact_patterns": self.v_patterns, "preset": self.v_profile,
-                "transcribe": self.v_transcribe, "whisper_model": self.v_whisper_model}
+                "transcribe": self.v_transcribe, "whisper_model": self.v_whisper_model,
+                "theme": self.v_theme}
 
-    def load_settings(self):
+    @staticmethod
+    def read_settings_file():
         try:
             data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
         except (OSError, ValueError):
+            return {}
+
+    def load_settings(self):
+        data = self.read_settings_file()
+        if not data:
             return
         for key, var in self.setting_vars().items():
             if key in data:
@@ -565,6 +665,9 @@ class App:
         self.settings_extra = {k: data[k] for k in ("check_updates", "last_update_check",
                                                     "skip_version") if k in data}
         self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))
+        if self.v_theme.get() not in theme.MODES:
+            self.v_theme.set("system")
+        self.v_preset_about.set(presets.describe(self.v_profile.get()))
 
     def save_settings(self):
         try:
@@ -675,7 +778,7 @@ class App:
             self.update_row_from_disk(iid)
             if video in selected:
                 self.tree.selection_add(iid)
-        self.set_status(f"{len(found)} video(s) found in {source}" if found else
+        self.set_status(f"{len(found)} recording(s) found in {source}" if found else
                         f"No .mp4, .mov, or .mkv files in {source}")
         self.show_steps()
 
@@ -951,7 +1054,7 @@ class App:
         self.log_text.configure(state="disabled")
 
     def set_status(self, text):
-        self.v_status.set(text if len(text) <= 90 else text[:87] + "...")
+        self.v_status.set(text if len(text) <= 140 else text[:137] + "...")
 
     def on_ui_error(self, exc_type, exc, tb):
         detail = "".join(traceback.format_exception(exc_type, exc, tb))
@@ -969,10 +1072,11 @@ class App:
             self.cancel.set()
             self.worker.join(timeout=10)
         self.save_settings()
+        self.theme.stop()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
         # Cancel scheduled callbacks so none fire after the window is gone
         for job in (getattr(self, "poll_job", None), getattr(self, "update_job", None),
-                    self.editor.preview_job):
+                    getattr(self, "sash_job", None), self.editor.preview_job):
             if job:
                 try:
                     self.root.after_cancel(job)

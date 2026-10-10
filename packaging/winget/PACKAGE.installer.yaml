@@ -18,17 +18,18 @@ AppsAndFeaturesEntries:
   Publisher: ILikeHostingServices
   ProductCode: '{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1'
 Installers:
-- Architecture: x64
-  Scope: user
-  InstallerUrl: {INSTALLER_URL}
-  InstallerSha256: {SHA256}
-  InstallerSwitches:
-    Custom: /CURRENTUSER /MERGETASKS=!ffmpeg
+# All users (Program Files\ILHS) first: the installer's default
 - Architecture: x64
   Scope: machine
   InstallerUrl: {INSTALLER_URL}
   InstallerSha256: {SHA256}
   InstallerSwitches:
     Custom: /ALLUSERS /MERGETASKS=!ffmpeg
+- Architecture: x64
+  Scope: user
+  InstallerUrl: {INSTALLER_URL}
+  InstallerSha256: {SHA256}
+  InstallerSwitches:
+    Custom: /CURRENTUSER /MERGETASKS=!ffmpeg
 ManifestType: installer
 ManifestVersion: 1.10.0

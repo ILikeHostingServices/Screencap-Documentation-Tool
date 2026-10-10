@@ -1,11 +1,15 @@
 ; installer.iss
-; 2026-10-04
-; Version: v1.0.0
+; 2026-10-10
+; Version: v1.1.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
-; first with packaging/screencap.spec). Installs for the current user (no
-; admin rights) or, when chosen, for all users; adds a Start Menu shortcut
+; first with packaging/screencap.spec). Installs for all users in
+; C:\Program Files\ILHS\Screencap-Documentation-Tool (the default; needs admin
+; rights) or, when chosen, for the current user only in
+; %LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool (no admin rights).
+; A copy installed earlier in another folder (versions before 1.19.0 used
+; ...\Screencap Documentation Tool) is removed first. Adds a Start Menu shortcut
 ; with the app's taskbar identity, an optional desktop shortcut, and an
 ; uninstaller; and can install FFmpeg (required) and, optionally, Tesseract
 ; OCR and Pandoc with winget. Recordings, output, and settings are never
@@ -32,12 +36,17 @@ AppPublisher=ILikeHostingServices
 AppPublisherURL=https://github.com/ILikeHostingServices/Screencap-Documentation-Tool
 AppSupportURL=https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues
 AppUpdatesURL=https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases
-DefaultDirName={autopf}\{#AppName}
+; Every app from this organization installs under an ILHS folder
+DefaultDirName={autopf}\ILHS\Screencap-Documentation-Tool
+; Upgrades move older copies to the folder above (see PrepareToInstall)
+UsePreviousAppDir=no
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-; Just me by default (no admin rights); the user can choose all users
-PrivilegesRequired=lowest
+; All users by default (Program Files); the first page offers "Install for
+; me only" (no admin rights). /ALLUSERS or /CURRENTUSER on the command line.
+PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
+UsePreviousPrivileges=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 LicenseFile=..\LICENSE
@@ -66,6 +75,10 @@ Name: "extras"; Description: "Also install Tesseract OCR (automatic blurring) an
 [Files]
 Source: "..\dist\Screencap-Documentation-Tool\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[UninstallDelete]
+; The shared ILHS folder, once no other app from this organization is in it
+Type: dirifempty; Name: "{autopf}\ILHS"
+
 [InstallDelete]
 ; An upgrade replaces the bundled runtime completely
 Type: filesandordirs; Name: "{app}\_internal"
@@ -85,6 +98,52 @@ function FfmpegFound: Boolean;
 begin
   Result := (FileSearch('ffmpeg.exe', GetEnv('PATH')) <> '') or
             FileExists(AddBackslash(WizardDirValue) + 'tools\ffmpeg\bin\ffmpeg.exe');
+end;
+
+const
+  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1';
+
+{ Silently uninstall a copy registered under RootKey when it lives in
+  another folder than the one being installed to. Returns an error message,
+  or '' when there was nothing to do or it worked. }
+function RemoveOldCopy(RootKey: Integer; const NewDir: String): String;
+var
+  OldDir, Uninstaller: String;
+  ResultCode, I: Integer;
+begin
+  Result := '';
+  if not RegQueryStringValue(RootKey, UninstallKey, 'InstallLocation', OldDir) then
+    Exit;
+  OldDir := RemoveBackslashUnlessRoot(OldDir);
+  if CompareText(OldDir, RemoveBackslashUnlessRoot(NewDir)) = 0 then
+    Exit;
+  if not RegQueryStringValue(RootKey, UninstallKey, 'UninstallString', Uninstaller) then
+    Exit;
+  Uninstaller := RemoveQuotes(Uninstaller);
+  if not FileExists(Uninstaller) then
+    Exit;
+  Log('Removing the copy installed earlier in ' + OldDir);
+  if not Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE,
+              ewWaitUntilTerminated, ResultCode) then
+  begin
+    Result := 'Could not remove the copy installed earlier in ' + OldDir +
+              '. Uninstall it from Settings > Apps, then run this setup again.';
+    Exit;
+  end;
+  { The uninstaller finishes from a copy of itself: wait for the files to go }
+  for I := 1 to 60 do
+  begin
+    if not FileExists(Uninstaller) then
+      Break;
+    Sleep(500);
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := RemoveOldCopy(HKCU, WizardDirValue);
+  if (Result = '') and IsAdminInstallMode then
+    Result := RemoveOldCopy(HKLM, WizardDirValue);
 end;
 
 function WingetScope(Param: String): String;
