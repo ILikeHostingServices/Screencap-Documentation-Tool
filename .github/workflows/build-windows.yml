@@ -176,7 +176,10 @@ jobs:
           function Wait-Gone($path) {
             # The uninstaller hands over to a copy of itself, so wait for the files
             for ($i = 0; $i -lt 60 -and (Test-Path $path); $i++) { Start-Sleep -Seconds 1 }
-            if (Test-Path $path) { throw "Still present after uninstalling: $path" }
+            if (Test-Path $path) {
+              Get-ChildItem $path -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object FullName
+              throw "Still present after uninstalling: $path"
+            }
           }
 
           foreach ($scope in 'CURRENTUSER', 'ALLUSERS') {

@@ -213,6 +213,16 @@ begin
     WizardForm.FinishedLabel.Caption := '{#AppName} has been updated to v{#AppVersion}.';
 end;
 
+{ The shared ILHS folder, once empty. [UninstallDelete] does this too, but
+  after setup ran twice over one copy it can run before the program folder
+  is gone; at this point everything else has been removed. }
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    if RemoveDir(ExpandConstant('{autopf}\ILHS')) then
+      Log('Removed the empty ILHS folder');
+end;
+
 function WingetScope(Param: String): String;
 begin
   if IsAdminInstallMode then
