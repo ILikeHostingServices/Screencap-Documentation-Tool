@@ -1,6 +1,6 @@
 # winget.yml
 # 2026-10-10
-# Version: v1.2.0
+# Version: v1.2.1
 #
 # PURPOSE:
 # Publishes a release to the Windows Package Manager (winget), so it can be
@@ -39,6 +39,11 @@ on:
       release_tag:
         type: string
         required: true
+      # Declared here too: an undeclared input reads as null, which GitHub
+      # compares as false, so the release workflow's submission was skipped
+      submit:
+        type: boolean
+        default: true
     secrets:
       WINGET_TOKEN:
         required: false
@@ -149,7 +154,7 @@ jobs:
           retention-days: 30
 
       - name: Submit to microsoft/winget-pkgs
-        if: inputs.submit != false
+        if: inputs.submit
         env:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
         run: |
