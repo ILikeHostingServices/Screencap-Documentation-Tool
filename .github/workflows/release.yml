@@ -1,6 +1,6 @@
 # release.yml
-# 2026-10-04
-# Version: v1.4.0
+# 2026-10-10
+# Version: v1.5.0
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -11,6 +11,7 @@
 # 3. Builds the packaged Windows app for the newest release (when that
 #    version includes packaging/screencap.spec) and attaches the files,
 #    unless they are attached already (see build-windows.yml).
+# 4. Then publishes that release to winget (see winget.yml).
 # Versions are Major.Minor.Patch only (vX.Y.Z); anything else is rejected.
 # Runs when a tag is pushed, or by hand (Actions > Publish releases > Run
 # workflow). Safe to re-run: finished work is skipped. It only ever creates
@@ -114,3 +115,15 @@ jobs:
     uses: ./.github/workflows/build-windows.yml
     with:
       release_tag: ${{ needs.publish.outputs.build_tag }}
+
+  winget:
+    name: Publish to winget
+    needs: [publish, windows]
+    if: needs.publish.outputs.build_tag != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/winget.yml
+    with:
+      release_tag: ${{ needs.publish.outputs.build_tag }}
+    secrets:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}

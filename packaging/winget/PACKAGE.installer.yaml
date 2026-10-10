@@ -1,0 +1,34 @@
+# Created by packaging/make_winget_manifests.py from the Screencap Documentation Tool repository
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+
+PackageIdentifier: {PACKAGE_ID}
+PackageVersion: {VERSION}
+InstallerLocale: en-US
+InstallerType: inno
+UpgradeBehavior: install
+ReleaseDate: {RELEASE_DATE}
+# The installer's own "install FFmpeg with winget" step is switched off
+# (!ffmpeg): winget installs FFmpeg itself as a dependency
+Dependencies:
+  PackageDependencies:
+  - PackageIdentifier: Gyan.FFmpeg
+ProductCode: '{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1'
+AppsAndFeaturesEntries:
+- DisplayName: Screencap Documentation Tool
+  Publisher: ILikeHostingServices
+  ProductCode: '{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1'
+Installers:
+- Architecture: x64
+  Scope: user
+  InstallerUrl: {INSTALLER_URL}
+  InstallerSha256: {SHA256}
+  InstallerSwitches:
+    Custom: /CURRENTUSER /MERGETASKS=!ffmpeg
+- Architecture: x64
+  Scope: machine
+  InstallerUrl: {INSTALLER_URL}
+  InstallerSha256: {SHA256}
+  InstallerSwitches:
+    Custom: /ALLUSERS /MERGETASKS=!ffmpeg
+ManifestType: installer
+ManifestVersion: 1.10.0

@@ -1,13 +1,14 @@
 # build-windows.yml
-# 2026-10-04
-# Version: v1.1.0
+# 2026-10-10
+# Version: v1.2.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
 # on a real Windows machine, tests the built programs, packs them as a
 # portable zip and as an installer (Inno Setup, see packaging/installer.iss),
 # tests installing and uninstalling for one user and for all users, and
-# writes a SHA256SUMS.txt checksum file.
+# writes a SHA256SUMS.txt checksum file, and checks that the winget manifest
+# for the build is valid (winget.yml publishes it for releases).
 #   - Pull requests, pushes to main, and manual runs: build and test; the
 #     files are kept as a workflow artifact for 30 days.
 #   - Called by the release workflow with a release tag (or run by hand with
@@ -214,6 +215,15 @@ jobs:
           } | Set-Content -Path release\SHA256SUMS.txt -Encoding ascii
           Get-Content release\SHA256SUMS.txt
           Get-ChildItem release | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      - name: Validate the winget manifest
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          python packaging/make_winget_manifests.py --version $v `
+            --installer "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe" --out build\winget
+          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw 'winget is not available on this runner' }
+          winget validate --manifest "build\winget\$v" --disable-interactivity
+          if ($LASTEXITCODE -ne 0) { throw "winget validate failed ($LASTEXITCODE)" }
 
       - uses: actions/upload-artifact@v7
         with:

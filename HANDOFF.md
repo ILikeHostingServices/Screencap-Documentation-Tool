@@ -1,4 +1,4 @@
-HANDOFF.md v1.7.0 (Last Rev: 2026-10-06)
+HANDOFF.md v1.8.0 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -8,7 +8,7 @@ Tasks that the cloud coding session cannot finish alone, because they need the r
 
 ### The Project
 
-- **Repository:** `ILikeHostingServices/Screencap-Documentation-Tool` (public), MIT License, default branch `main`. GitHub Actions: `Tests` (every push and pull request, Windows and Linux), `Installers` (installer changes, weekly, on demand), `Windows build` (builds and tests the packaged Windows app and its installer on every pull request, and attaches them to releases), `Publish releases` (manual).
+- **Repository:** `ILikeHostingServices/Screencap-Documentation-Tool` (public), MIT License, default branch `main`. GitHub Actions: `Tests` (every push and pull request, Windows and Linux), `Installers` (installer changes, weekly, on demand), `Windows build` (builds and tests the packaged Windows app and its installer on every pull request, and attaches them to releases), `Publish releases` (manual; also submits the newest release to winget), `Publish to winget` (`winget.yml`; manual for an existing release).
 - **What it is:** a Python tool (GUI and command line) that takes a screenshot of every step in a screen recording, using FFmpeg scene detection. Windows 11 is the main target; Linux and macOS work too. See `README.md`.
 - **Current release:** v1.16.0 (Windows installer) is published as Latest, with the unsigned installer (`...-windows-x64-setup.exe`), the portable zip (`...-windows-x64-portable.zip`), and `SHA256SUMS.txt` attached.
 - **Packaged app layout:** PyInstaller one-folder build (`packaging/screencap.spec`): `Screencap Documentation Tool.exe` (GUI), `screencap.exe` (command line), and a shared `_internal` folder. The installer is built with Inno Setup (`packaging/installer.iss`). Never change the installer's `AppId` GUID: Windows uses it to recognize upgrades.
@@ -68,6 +68,14 @@ It can push only to its own working branch (`claude/...`), open and (see above) 
 
 Signing does not remove SmartScreen warnings instantly: reputation builds per certificate as people download and run the signed files (since 2024 even EV certificates no longer skip this).
 
+### 3. winget (Windows Package Manager) Listing
+
+- **Goal:** `winget install ILikeHostingServices.ScreencapDocumentationTool` works for anyone. winget installs FFmpeg with it (a dependency in the manifest).
+- **How it works:** `.github/workflows/winget.yml` downloads the release's installer, writes the manifest from `packaging/winget/` (`packaging/make_winget_manifests.py`), validates it, tests installing and uninstalling through winget, then opens a pull request on `microsoft/winget-pkgs` with Microsoft's `wingetcreate` tool. `release.yml` runs it after each new release; it can also be run by hand for an existing release.
+- **Credential:** the `WINGET_TOKEN` repository secret, a classic personal access token of `ILHS-Owner` with only the `public_repo` scope (created 2026-10-10 with a one-year expiry). The submission uses a fork of `microsoft/winget-pkgs` under the `ILHS-Owner` account. Least-privilege alternative for later: a separate bot account outside the organization. When the token expires, create a new one the same way and replace the secret; without it, releases still publish and only the winget submission is skipped (with a warning).
+- **Owner, once:** on the first pull request on `microsoft/winget-pkgs`, the Microsoft contributor license agreement bot asks the submitting account (`ILHS-Owner`) to accept the agreement by replying in a comment. Moderators review a new package by hand, which can take days; later versions are usually merged after the automatic checks.
+- **After it is listed:** add the winget command to the README's Windows install section (cloud session).
+
 ## Done
 
 | Date | Item |
@@ -89,3 +97,4 @@ Signing does not remove SmartScreen warnings instantly: reputation builds per ce
 | 2026-10-04 | `CODE_SIGNING_POLICY.md` added and linked from `README.md`, including next to the Windows app downloads (SignPath requires the download page to mention it) (cloud session; SignPath step 3.3). The owner tested the v1.16.0 installer successfully. |
 | 2026-10-06 | Applied to the SignPath Foundation program (owner). Declined for now for lack of public visibility, with an invitation to reapply later; code signing put on hold by the owner. |
 | 2026-10-06 | `CODE_SIGNING_POLICY.md` v2.0.0 and `README.md` updated to say the programs are not signed (no SignPath wording until signing is taken up again); `ROADMAP.md` #12 and this file record the options (cloud session). The open item to allow SignPath in the cloud environment's network access was dropped as no longer needed. |
+| 2026-10-10 | `WINGET_TOKEN` repository secret added (owner): classic token of `ILHS-Owner`, `public_repo` scope only. winget publishing workflow added (cloud session). |

@@ -1,4 +1,4 @@
-README.md v1.23.0 (Last Rev: 2026-10-06)
+README.md v1.24.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -52,7 +52,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
 | `transcribe.py` | Captions From Narration: pulls the audio out with FFmpeg, runs the speech recognition, and matches each sentence to the step that was on screen. |
 | `apppaths.py` | Decides where the program and its default `source` and `output` folders live, for the Python install and for the packaged Windows app. |
-| `packaging/` | Recipe for the packaged Windows app: `screencap.spec` (PyInstaller) and `make_version_info.py` (the version shown in the .exe file's Properties), and `installer.iss` (the Windows installer, built with Inno Setup). |
+| `packaging/` | Recipe for the packaged Windows app: `screencap.spec` (PyInstaller) and `make_version_info.py` (the version shown in the .exe file's Properties), `installer.iss` (the Windows installer, built with Inno Setup), and `winget/` with `make_winget_manifests.py` (the Windows Package Manager listing). |
 | `whisper_worker.py` | Runs the speech recognition (faster-whisper) in the optional `whisper-env` Python environment. |
 | `whisper-env/` | Optional. Created by the installer's speech recognition option (`-WithWhisper` or `SCREENCAP_WITH_WHISPER=1`). Not in git. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
@@ -69,6 +69,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |
 | `.github/workflows/build-windows.yml` | Builds and tests the packaged Windows app on a real Windows machine for every pull request, and attaches it to releases. |
+| `.github/workflows/winget.yml` | Tests installing each release through winget and submits it to the Windows Package Manager catalog. |
 | `source/` | Default folder for your recordings. |
 | `output/` | Default folder for results, one subfolder per recording. |
 | `tools/ffmpeg/bin/` | Optional spot for a portable `ffmpeg.exe` and `ffprobe.exe` (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)). |
