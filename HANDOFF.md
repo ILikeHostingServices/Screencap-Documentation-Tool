@@ -1,4 +1,4 @@
-HANDOFF.md v1.8.0 (Last Rev: 2026-10-10)
+HANDOFF.md v1.9.0 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -22,6 +22,7 @@ Tasks that the cloud coding session cannot finish alone, because they need the r
 
 ### Conventions
 
+- **Windows install folder** for every app from this organization: `C:\Program Files\ILHS\<App-Name>` for all users, or `%LOCALAPPDATA%\Programs\ILHS\<App-Name>` per user (this app: `Screencap-Documentation-Tool`, from v1.19.0; the installer moves older copies).
 - **Windows taskbar ID (AppUserModelID)** for every app from this organization: `ILHS.<AppName>.<Component>`. This app uses `ILHS.ScreencapDocumentationTool.GUI` (in `screencap_gui.pyw`, `install.ps1`, and `.github/workflows/installers.yml`).
 - **Versions** are Major.Minor.Patch only (`v1.14.1`, never `v1.14` or pre-release suffixes). Every file has a header with its own version and last edit date (YYYY-MM-DD); bump it on every functional change. No em or en dashes in any file.
 - **Releases** are created by `.github/workflows/release.yml` from `.github/releases/manifest.txt` (one `vX.Y.Z <full commit ID>` line per release) and `.github/releases/vX.Y.Z.md` (the notes, also copied into `CHANGELOG.md`). `version.py` `RELEASE` must equal the newest `CHANGELOG.md` entry (a test checks it). The workflow only creates tags and releases that do not exist yet; it never deletes or changes existing ones. GitHub only lets the workflow create a tag on a commit whose `.github/workflows/` files are identical to the newest commit's.

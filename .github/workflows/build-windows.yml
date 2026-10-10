@@ -1,12 +1,13 @@
 # build-windows.yml
 # 2026-10-10
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
 # on a real Windows machine, tests the built programs, packs them as a
 # portable zip and as an installer (Inno Setup, see packaging/installer.iss),
-# tests installing and uninstalling for one user and for all users, and
+# tests installing and uninstalling for one user and for all users and
+# upgrading from v1.16.0 (which used another folder), and
 # writes a SHA256SUMS.txt checksum file, and checks that the winget manifest
 # for the build is valid (winget.yml publishes it for releases).
 #   - Pull requests, pushes to main, and manual runs: build and test; the
@@ -184,12 +185,13 @@ jobs:
             $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$scope", '/TASKS=desktopicon', "/LOG=`"$log`"" -Wait -PassThru
             if ($p.ExitCode -ne 0) { Get-Content $log -Tail 30; throw "Setup failed for $scope ($($p.ExitCode))" }
             if ($scope -eq 'CURRENTUSER') {
-              $dir = Join-Path $env:LOCALAPPDATA "Programs\$name"
+              $dir = Join-Path $env:LOCALAPPDATA 'Programs\ILHS\Screencap-Documentation-Tool'
               $menu = [Environment]::GetFolderPath('Programs'); $desk = [Environment]::GetFolderPath('Desktop')
             } else {
-              $dir = Join-Path $env:ProgramFiles $name
+              $dir = Join-Path $env:ProgramFiles 'ILHS\Screencap-Documentation-Tool'
               $menu = [Environment]::GetFolderPath('CommonPrograms'); $desk = [Environment]::GetFolderPath('CommonDesktopDirectory')
             }
+            if (-not (Test-Path (Join-Path $dir 'screencap.exe'))) { throw "Not installed in $dir" }
             $out = & (Join-Path $dir 'screencap.exe') --version
             Write-Host $out
             if ($out -notmatch [regex]::Escape("v$v")) { throw "Installed version is wrong: $out" }
@@ -206,6 +208,45 @@ jobs:
             Wait-Gone (Join-Path $dir "$name.exe")
             Wait-Gone (Join-Path $menu "$name.lnk")
             Wait-Gone (Join-Path $desk "$name.lnk")
+            Wait-Gone (Split-Path $dir)             # the empty ILHS folder goes too
+          }
+
+      - name: Test upgrading from v1.16.0 (installed in another folder)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = '${{ steps.version.outputs.version }}'
+          $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          $name = 'Screencap Documentation Tool'
+          $old = Join-Path $env:RUNNER_TEMP 'old'
+          gh release download v1.16.0 --dir $old --pattern '*-windows-x64-setup.exe'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the v1.16.0 installer' }
+          $oldSetup = Get-ChildItem $old -Filter '*-setup.exe' | Select-Object -First 1
+          foreach ($case in @(
+              @{ Scope = 'CURRENTUSER'; Old = (Join-Path $env:LOCALAPPDATA "Programs\$name");
+                 New = (Join-Path $env:LOCALAPPDATA 'Programs\ILHS\Screencap-Documentation-Tool') },
+              @{ Scope = 'ALLUSERS'; Old = (Join-Path $env:ProgramFiles $name);
+                 New = (Join-Path $env:ProgramFiles 'ILHS\Screencap-Documentation-Tool') })) {
+            Write-Host "=== $($case.Scope): v1.16.0 in $($case.Old), then v$v ==="
+            $p = Start-Process $oldSetup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$($case.Scope)" -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "v1.16.0 setup failed ($($p.ExitCode))" }
+            if (-not (Test-Path (Join-Path $case.Old 'screencap.exe'))) { throw "v1.16.0 is not in $($case.Old)" }
+            $log = Join-Path $env:RUNNER_TEMP "upgrade-$($case.Scope).log"
+            $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$($case.Scope)", "/LOG=`"$log`"" -Wait -PassThru
+            if ($p.ExitCode -ne 0) { Get-Content $log -Tail 30; throw "Upgrade failed ($($p.ExitCode))" }
+            for ($i = 0; $i -lt 60 -and (Test-Path $case.Old); $i++) { Start-Sleep -Seconds 1 }
+            if (Test-Path $case.Old) { Get-Content $log -Tail 30; throw "The old copy is still in $($case.Old)" }
+            $out = & (Join-Path $case.New 'screencap.exe') --version
+            if ($out -notmatch [regex]::Escape("v$v")) { throw "Upgraded copy reports: $out" }
+            $reg = if ($case.Scope -eq 'CURRENTUSER') { 'HKCU:' } else { 'HKLM:' }
+            $entries = @(Get-ChildItem "$reg\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
+                         Get-ItemProperty | Where-Object DisplayName -eq $name)
+            if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne $v) { throw "Expected one Apps & Features entry for v$v, found: $($entries | ForEach-Object DisplayVersion)" }
+            Write-Host "Moved to $($case.New): $out"
+            Start-Process (Join-Path $case.New 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+            for ($i = 0; $i -lt 60 -and (Test-Path $case.New); $i++) { Start-Sleep -Seconds 1 }
           }
 
       - name: Write checksums

@@ -1,8 +1,21 @@
-CHANGELOG.md v1.21.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.22.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.19.0 - New install folder for the Windows installer (2026-10-10)
+
+**Changed**
+- The Windows installer now installs in `C:\Program Files\ILHS\Screencap-Documentation-Tool` for all users by default (Windows asks for admin rights). Every app from this organization will use an `ILHS` folder like this.
+- Without admin rights, choose **Install for me only** on the first page: the app goes to `%LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool`.
+- Upgrading from v1.16.0 or earlier moves the app: the copy in the old folder (`...\Screencap Documentation Tool`) is uninstalled first, so there is only one copy and one entry in **Settings > Apps**. Settings, presets, recordings, and screenshots are kept.
+- Silent installs (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART`) now install for all users unless `/CURRENTUSER` is added. `/DIR="..."` still chooses another folder.
+- Uninstalling also removes the `ILHS` folder when no other app is left in it.
+- The winget listing offers the all-users install first, matching the installer.
+
+**Tested**
+- Every pull request installs and uninstalls the new installer for one user and for all users, and upgrades from the real v1.16.0 installer in both modes, checking that the old folder is gone and only one Apps & Features entry remains.
 
 ## v1.18.0 - Help menu, About, and update check (2026-10-10)
 
