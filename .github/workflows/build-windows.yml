@@ -1,13 +1,13 @@
 # build-windows.yml
 # 2026-10-10
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
 # on a real Windows machine, tests the built programs, packs them as a
 # portable zip and as an installer (Inno Setup, see packaging/installer.iss),
-# tests installing and uninstalling for one user and for all users and
-# upgrading from v1.16.0 (which used another folder), and
+# tests installing, updating in place, and uninstalling for one user and
+# for all users and upgrading from v1.16.0 (which used another folder), and
 # writes a SHA256SUMS.txt checksum file, and checks that the winget manifest
 # for the build is valid (winget.yml publishes it for releases).
 #   - Pull requests, pushes to main, and manual runs: build and test; the
@@ -202,6 +202,16 @@ jobs:
                      Get-ItemProperty | Where-Object DisplayName -eq $name
             if (-not $entry) { throw "No Apps & Features entry for $scope" }
             Write-Host "Apps & Features: $($entry.DisplayName) $($entry.DisplayVersion) by $($entry.Publisher)"
+            if (-not (Select-String -Path $log -Pattern 'New installation' -Quiet)) { throw 'A first install was not treated as new' }
+
+            Write-Host "=== Run setup again for $scope (update mode) ==="
+            $log2 = Join-Path $env:RUNNER_TEMP "reinstall-$scope.log"
+            $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$scope", "/LOG=`"$log2`"" -Wait -PassThru
+            if ($p.ExitCode -ne 0) { Get-Content $log2 -Tail 30; throw "Reinstall failed for $scope ($($p.ExitCode))" }
+            if (-not (Select-String -Path $log2 -Pattern ([regex]::Escape("Update mode: v$v is installed in")) -Quiet)) {
+              Get-Content $log2 -Tail 30; throw 'Setup did not detect the installed copy'
+            }
+            Test-Shortcut $desk                     # the desktop shortcut chosen last time is kept
 
             Write-Host "=== Uninstall for $scope ==="
             Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
@@ -240,6 +250,7 @@ jobs:
             if (Test-Path $case.Old) { Get-Content $log -Tail 30; throw "The old copy is still in $($case.Old)" }
             $out = & (Join-Path $case.New 'screencap.exe') --version
             if ($out -notmatch [regex]::Escape("v$v")) { throw "Upgraded copy reports: $out" }
+            if (-not (Select-String -Path $log -Pattern 'Update mode: v1.16.0' -Quiet)) { Get-Content $log -Tail 30; throw 'Setup did not detect v1.16.0' }
             $reg = if ($case.Scope -eq 'CURRENTUSER') { 'HKCU:' } else { 'HKLM:' }
             $entries = @(Get-ChildItem "$reg\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
                          Get-ItemProperty | Where-Object DisplayName -eq $name)

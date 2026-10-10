@@ -1,6 +1,6 @@
 ; installer.iss
 ; 2026-10-10
-; Version: v1.1.0
+; Version: v1.2.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
@@ -9,7 +9,9 @@
 ; rights) or, when chosen, for the current user only in
 ; %LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool (no admin rights).
 ; A copy installed earlier in another folder (versions before 1.19.0 used
-; ...\Screencap Documentation Tool) is removed first. Adds a Start Menu shortcut
+; ...\Screencap Documentation Tool) is removed first. When a copy is already
+; installed, setup runs as an update: it skips the license, folder, and
+; (when FFmpeg is found) options pages, and says which version it updates. Adds a Start Menu shortcut
 ; with the app's taskbar identity, an optional desktop shortcut, and an
 ; uninstaller; and can install FFmpeg (required) and, optionally, Tesseract
 ; OCR and Pandoc with winget. Recordings, output, and settings are never
@@ -40,6 +42,8 @@ AppUpdatesURL=https://github.com/ILikeHostingServices/Screencap-Documentation-To
 DefaultDirName={autopf}\ILHS\Screencap-Documentation-Tool
 ; Upgrades move older copies to the folder above (see PrepareToInstall)
 UsePreviousAppDir=no
+; No "folder already exists" question: an existing copy is updated (see [Code])
+DirExistsWarning=no
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 ; All users by default (Program Files); the first page offers "Install for
@@ -144,6 +148,69 @@ begin
   Result := RemoveOldCopy(HKCU, WizardDirValue);
   if (Result = '') and IsAdminInstallMode then
     Result := RemoveOldCopy(HKLM, WizardDirValue);
+end;
+
+var
+  UpdateMode: Boolean;     { a copy is already installed: this run updates it }
+  OldVersion, OldDir: String;
+
+function FindInstalled(RootKey: Integer): Boolean;
+begin
+  Result := RegQueryStringValue(RootKey, UninstallKey, 'InstallLocation', OldDir);
+  if Result then
+  begin
+    OldDir := RemoveBackslashUnlessRoot(OldDir);
+    if not RegQueryStringValue(RootKey, UninstallKey, 'DisplayVersion', OldVersion) then
+      OldVersion := '';
+  end;
+end;
+
+procedure InitializeWizard;
+begin
+  { All users: a copy for all users, or one for this user only (moved by
+    PrepareToInstall). Only me: a copy for this user. }
+  if IsAdminInstallMode then
+    UpdateMode := FindInstalled(HKLM) or FindInstalled(HKCU)
+  else
+    UpdateMode := FindInstalled(HKCU);
+  if UpdateMode then
+    Log('Update mode: v' + OldVersion + ' is installed in ' + OldDir)
+  else
+    Log('New installation');
+end;
+
+{ An update keeps the license (already accepted), the folder (always the
+  standard one), and the options chosen last time. The options page is still
+  shown when FFmpeg is missing, so it can be installed. }
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := UpdateMode and ((PageID = wpLicense) or (PageID = wpSelectDir) or
+            ((PageID = wpSelectTasks) and FfmpegFound));
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+var
+  Action: String;
+begin
+  if not UpdateMode then
+    Exit;
+  if CompareText(OldVersion, '{#AppVersion}') = 0 then
+    Action := 'reinstall v{#AppVersion} of {#AppName}'
+  else if OldVersion <> '' then
+    Action := 'update {#AppName} from v' + OldVersion + ' to v{#AppVersion}'
+  else
+    Action := 'update {#AppName} to v{#AppVersion}';
+  if CurPageID = wpReady then
+  begin
+    WizardForm.PageNameLabel.Caption := 'Ready to Update';
+    WizardForm.PageDescriptionLabel.Caption := 'Setup is ready to ' + Action + '.';
+    WizardForm.ReadyLabel.Caption := '{#AppName} is already installed in ' + OldDir +
+      '. Click Update to replace it with this version. Your recordings, output, ' +
+      'settings, and presets are kept.';
+    WizardForm.NextButton.Caption := 'Update';
+  end
+  else if CurPageID = wpFinished then
+    WizardForm.FinishedLabel.Caption := '{#AppName} has been updated to v{#AppVersion}.';
 end;
 
 function WingetScope(Param: String): String;
