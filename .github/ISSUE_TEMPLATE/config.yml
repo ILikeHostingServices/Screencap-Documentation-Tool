@@ -1,0 +1,16 @@
+# config.yml
+# 2026-10-10
+# Version: v1.0.0
+#
+# PURPOSE:
+# Issue chooser settings: the two forms above, plus links for security
+# reports and the documentation.
+
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem privately
+    url: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/security/policy
+    about: Do not open a public issue for security problems; follow SECURITY.md.
+  - name: Documentation
+    url: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool#readme
+    about: Installing, using the GUI, presets, blurring, and troubleshooting.

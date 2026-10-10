@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-10-04
-# Version: v1.1.1
+# 2026-10-10
+# Version: v1.2.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
 # Videos list, then checks the Steps tab (arrow-key navigation, reordering,
-# captions, saving, captions from narration) and the version in the footer. Skipped when Tkinter or a
+# captions, saving, captions from narration), the version in the title, and
+# the Help menu (help, About, links, update check). Skipped when Tkinter or a
 # display is not available (on Linux CI it runs under xvfb-run).
 
 import os
@@ -15,6 +16,7 @@ import shutil
 import tempfile
 import time
 import unittest
+from unittest import mock
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -45,8 +47,11 @@ class GuiTests(unittest.TestCase):
             (cls.tmp / "link").symlink_to(cls.tmp, target_is_directory=True)
             cls.typed_source = cls.tmp / "link" / "source"
         # Keep GUI settings and presets out of the real user profile
-        cls.saved_env = {k: os.environ.get(k) for k in ("APPDATA", "XDG_CONFIG_HOME")}
+        cls.saved_env = {k: os.environ.get(k) for k in ("APPDATA", "XDG_CONFIG_HOME",
+                                                       "SCREENCAP_NO_UPDATE_CHECK")}
         os.environ["APPDATA"] = os.environ["XDG_CONFIG_HOME"] = str(cls.tmp / "profile")
+        # No automatic update check (and no question about it) during tests
+        os.environ["SCREENCAP_NO_UPDATE_CHECK"] = "1"
         # Dialogs would block an unattended run: answer them automatically
         cls.saved_dialogs = {}
         cls.dialogs = []      # (dialog, message) shown, to explain failures
@@ -214,6 +219,74 @@ class GuiTests(unittest.TestCase):
         self.assertTrue(ed.dirty)
         self.assertTrue((self.tmp / "narration" / "Demo" / "transcript.txt").is_file())
         self.assertEqual(self.errors, [])
+
+    def menu_labels(self, menu):
+        return [menu.entrycget(i, "label") for i in range(menu.index("end") + 1)
+                if menu.type(i) not in ("separator", "tearoff")]
+
+    def test_help_about_and_links(self):
+        import updates
+        import version
+        opened = []
+        self.app.open_url = opened.append
+        self.assertEqual(self.menu_labels(self.app.menubar)[-1], "Help")
+        labels = self.menu_labels(self.app.help_menu)
+        for label in ("Help", "Report a Problem...", "Project on GitHub", "Check for Updates...",
+                      "Check for Updates Automatically"):
+            self.assertIn(label, labels)
+        self.app.help_menu.invoke(self.entry_index("Report a Problem..."))
+        self.assertEqual(opened, [updates.BUG_REPORT_URL])
+
+        win = self.app.show_help("Presets")
+        self.pump()
+        self.assertIn("General desktop use", win.text.get("1.0", "end"))
+        win.destroy()
+        about = self.app.show_about()
+        self.pump()
+        self.assertIn(f"v{version.RELEASE}", about.details.get("1.0", "end"))
+        about.copy()
+        self.assertIn(version.RELEASE, self.root.clipboard_get())
+        about.destroy()
+        self.assertEqual(self.errors, [])
+
+    def entry_index(self, label):
+        menu = self.app.help_menu
+        return next(i for i in range(menu.index("end") + 1)
+                    if menu.type(i) not in ("separator", "tearoff")
+                    and menu.entrycget(i, "label") == label)
+
+    def run_update_check(self, latest):
+        import updates
+        opened = []
+        self.app.open_url = opened.append
+        with mock.patch.dict(os.environ, {"SCREENCAP_NO_UPDATE_CHECK": ""}), \
+                mock.patch.object(updates, "check_latest", return_value=latest):
+            self.app.check_for_updates(manual=True)
+            end = time.monotonic() + 20
+            while self.app.updater.running and time.monotonic() < end:
+                self.pump(0.1)
+        self.pump()
+        return opened
+
+    def test_update_check_offers_a_newer_version(self):
+        latest = {"version": "99.0.0", "tag": "v99.0.0", "name": "v99.0.0",
+                  "url": "https://example.test/release", "published": "2030-01-01",
+                  "notes": "Big update", "assets": {}}
+        opened = self.run_update_check(latest)
+        self.assertEqual([d for d, _ in self.dialogs], ["askyesnocancel"])
+        self.assertIn("99.0.0", self.dialogs[0][1])
+        self.assertEqual(opened, ["https://example.test/release"])
+        self.assertTrue(self.app.settings_extra.get("last_update_check"))
+        self.assertEqual(self.errors, [])
+
+    def test_update_check_when_up_to_date(self):
+        import version
+        latest = {"version": version.RELEASE, "tag": "v" + version.RELEASE, "name": "",
+                  "url": "", "published": "", "notes": "", "assets": {}}
+        opened = self.run_update_check(latest)
+        self.assertEqual([d for d, _ in self.dialogs], ["showinfo"])
+        self.assertIn("latest version", self.dialogs[0][1])
+        self.assertEqual(opened, [])
 
 
 if __name__ == "__main__":

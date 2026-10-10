@@ -2,12 +2,14 @@
 #
 # screencap_gui.pyw
 # 2026-10-10
-# Version: v1.12.1
+# Version: v1.13.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
 # settings, process recordings with live progress, then review and edit the
-# captured steps in the Steps tab (see gui_editor.py).
+# captured steps in the Steps tab (see gui_editor.py). The Help menu has
+# built-in help, the About window, project links, and the update check
+# (see gui_help.py).
 #
 # Requires: Python 3.8+ with Tkinter (included with the python.org / winget
 # Windows installer) and FFmpeg. The .pyw extension runs without a console
@@ -39,10 +41,12 @@ import version  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import transcribe  # noqa: E402
+import gui_help  # noqa: E402
+import updates  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.12.1"   # this file; the release version is in version.py
+GUI_VERSION = "1.13.0"   # this file; the release version is in version.py
 ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
@@ -127,12 +131,20 @@ class App:
         sc.log.addHandler(self.log_handler)
         sc.log.setLevel(logging.DEBUG)
 
+        # Remembered between runs but not shown in the form: update check
+        # choice, last check date, and a skipped version
+        self.settings_extra = {}
+        self.updater = gui_help.UpdateChecker(self)
+
         self.build_vars()
+        self.build_styles()
+        self.build_menu()
         self.build_ui()
         self.load_settings()
         self.refresh_videos()
         self.check_ffmpeg()
         self.poll_job = self.root.after(100, self.poll_queue)
+        self.update_job = self.root.after(2500, self.updater.startup)
 
     # ------------------------------------------------------------------ UI
 
@@ -163,6 +175,83 @@ class App:
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
+        self.v_auto_update = tk.BooleanVar(value=False)
+
+    def build_styles(self):
+        style = ttk.Style(self.root)
+        style.configure("Title.TLabel", font=("TkHeadingFont", 14, "bold"))
+        style.configure("Muted.TLabel", foreground="gray")
+        style.configure("Link.TButton")
+        try:   # the app icon, small, for the About window
+            self.root._about_icon = tk.PhotoImage(
+                file=str(ASSETS_DIR / "icon.png")).subsample(4)
+        except tk.TclError:
+            self.root._about_icon = None
+
+    def build_menu(self):
+        menubar = tk.Menu(self.root)
+        file_menu = tk.Menu(menubar, tearoff=False)
+        file_menu.add_command(label="Choose Source Folder...",
+                              command=lambda: self.browse(self.v_source))
+        file_menu.add_command(label="Choose Output Folder...",
+                              command=lambda: self.browse(self.v_output))
+        file_menu.add_separator()
+        file_menu.add_command(label="Open Source Folder",
+                              command=lambda: self.open_folder(self.v_source))
+        file_menu.add_command(label="Open Output Folder",
+                              command=lambda: self.open_folder(self.v_output))
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.on_close)
+        menubar.add_cascade(label="File", menu=file_menu)
+
+        help_menu = tk.Menu(menubar, tearoff=False)
+        help_menu.add_command(label="Help", accelerator="F1", command=self.show_help)
+        help_menu.add_command(label="Keyboard Shortcuts",
+                              command=lambda: self.show_help("Keyboard shortcuts"))
+        help_menu.add_command(label="Online Documentation",
+                              command=lambda: self.open_url(updates.DOCS_URL))
+        help_menu.add_separator()
+        help_menu.add_command(label="Report a Problem...",
+                              command=lambda: self.open_url(updates.BUG_REPORT_URL))
+        help_menu.add_command(label="Suggest an Idea...",
+                              command=lambda: self.open_url(updates.IDEA_URL))
+        help_menu.add_command(label="Project on GitHub",
+                              command=lambda: self.open_url(updates.REPO_URL))
+        help_menu.add_command(label="Release Notes",
+                              command=lambda: self.open_url(updates.RELEASES_URL))
+        help_menu.add_separator()
+        help_menu.add_command(label="Check for Updates...",
+                              command=lambda: self.check_for_updates(manual=True))
+        help_menu.add_checkbutton(label="Check for Updates Automatically",
+                                  variable=self.v_auto_update,
+                                  command=self.on_auto_update_toggled)
+        help_menu.add_separator()
+        help_menu.add_command(label=f"About {APP_NAME}", command=self.show_about)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        self.root.configure(menu=menubar)
+        self.menubar, self.help_menu = menubar, help_menu
+        self.root.bind("<F1>", lambda e: self.show_help())
+
+    # ---------------------------------------------------------------- help
+
+    def show_help(self, topic=None):
+        names = [name for name, _ in gui_help.TOPICS]
+        return gui_help.HelpWindow(self, names.index(topic) if topic in names else 0)
+
+    def show_about(self):
+        return gui_help.AboutWindow(self)
+
+    def open_url(self, url):
+        gui_help.open_url(url)
+
+    def check_for_updates(self, manual=True):
+        self.updater.start(manual)
+
+    def on_auto_update_toggled(self):
+        self.settings_extra["check_updates"] = bool(self.v_auto_update.get())
+        if self.v_auto_update.get():
+            self.updater.start(manual=False)
+        self.save_settings()
 
     def build_ui(self):
         pad = {"padx": 6, "pady": 4}
@@ -473,11 +562,15 @@ class App:
         self.v_preset.set(self.preset_for_threshold())
         if presets.get(self.v_profile.get()) is None:
             self.v_profile.set("Installer wizard")
+        self.settings_extra = {k: data[k] for k in ("check_updates", "last_update_check",
+                                                    "skip_version") if k in data}
+        self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))
 
     def save_settings(self):
         try:
             SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
             data = {k: v.get() for k, v in self.setting_vars().items()}
+            data.update(self.settings_extra)
             SETTINGS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except OSError:
             pass  # settings are a convenience; never block the user over them
@@ -778,6 +871,9 @@ class App:
                             self.show_steps()
                 elif kind == "done":
                     self.on_done(msg[1], msg[2])
+                elif kind == "update":
+                    self.updater.finished(msg[1], msg[2])
+                    self.save_settings()
         except queue.Empty:
             pass
         self.poll_job = self.root.after(100, self.poll_queue)
@@ -875,7 +971,8 @@ class App:
         self.save_settings()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
         # Cancel scheduled callbacks so none fire after the window is gone
-        for job in (getattr(self, "poll_job", None), self.editor.preview_job):
+        for job in (getattr(self, "poll_job", None), getattr(self, "update_job", None),
+                    self.editor.preview_job):
             if job:
                 try:
                     self.root.after_cancel(job)
