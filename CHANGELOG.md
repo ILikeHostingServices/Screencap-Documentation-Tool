@@ -1,8 +1,21 @@
-CHANGELOG.md v1.19.0 (Last Rev: 2026-10-04)
+CHANGELOG.md v1.20.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.17.0 - More built-in presets (2026-10-10)
+
+**New**
+- **General desktop use** preset: for moving around the operating system, such as opening apps, browsing files in File Explorer, and flipping through menus. It catches quick menu changes and saves the screenshots exactly as captured, with **no blurring and no red boxes**.
+- **Remote desktop / VM console** preset: RDP, VNC, Hyper-V, VMware, and other remote or virtual machine consoles. Ignores compression noise and waits for a slow screen to finish drawing.
+- **Forms and spreadsheets** preset: filling in forms, tickets, and spreadsheets. Catches small field changes and merges a whole entry being typed into one step.
+- **Slideshow / presentation** preset: one screenshot per slide, no forced shots on slides shown for a long time, no blurring, and no red boxes.
+- **Video meeting / screen share** preset: recorded calls and shared screens. Ignores webcam and video movement, keeps blurring on for names and email addresses, and draws no red boxes.
+- All presets work in the GUI (**Preset** list) and on the command line (`--preset "General desktop use"`, `--list-presets`). The README's Presets section explains what each one changes.
+
+**Changed**
+- The preset list in the GUI is wider, so the longer names fit.
 
 ## v1.16.0 - Windows installer (2026-10-04)
 
