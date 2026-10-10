@@ -1,8 +1,19 @@
-CHANGELOG.md v1.25.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.26.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.23.0 - Cleaner About, Advanced Settings, and menu bar (2026-10-10)
+
+**Improved**
+- **Menu bar follows the theme.** On Windows the File, View, and Help menus were on a white bar even in the dark theme, because the native Windows menu bar cannot change color. The menu bar is now part of the window and matches the light or dark theme. Alt+F, Alt+V, and Alt+H open the menus. (macOS keeps its system menu bar at the top of the screen.)
+- **About window:** laid out in sections. **System** lists the version, install type (in words, for example "Windows installer"), operating system, Python, and Tk, one per line. **Programs** lists each helper program on its own line with a green check mark when it is installed or a red cross when it is not, and what it is used for. The links (Project on GitHub, Release Notes, License, Privacy) are evenly spaced. **Copy Details** copies the same information, one program per line.
+- **Update status in the status bar:** the right end of the status bar shows the version and whether it is the latest: **Up to date** (green), **Update available** (orange; click to see it and download), or **Check for updates** (click to check). The update result no longer replaces the status message on the left.
+- **Advanced Settings window:** grouped into **Timing**, **Detection**, **Output**, and **Run**, with clearer labels, the unit after each box (seconds, percent, pixels), and all the boxes lined up. **Reset Defaults** is now **Reset to Defaults**.
+- **Preset names in title case:** Installer Wizard, General Desktop Use, Web Console, Terminal / Command Line, Remote Desktop / VM Console, Forms and Spreadsheets, Slideshow / Presentation, Video Meeting / Screen Share, and Fast Clicking. Saved settings and scripts that use the old names keep working: preset names are not case-sensitive (`--preset "web console"` still works).
+- **Help window:** topic titles in title case (Getting Started, Editing Steps, Blurring Sensitive Information, Keyboard Shortcuts), with more room between topics in the list.
+- Buttons and links use title case throughout: **Advanced Settings...**, **Save as Preset...**, **Delete Preset**.
 
 ## v1.22.0 - Homebrew for macOS (2026-10-10)
 

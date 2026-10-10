@@ -2,7 +2,7 @@
 #
 # updates.py
 # 2026-10-10
-# Version: v1.2.0
+# Version: v1.2.1
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -69,6 +69,20 @@ def install_kind():
     if not apppaths.FROZEN:
         return "python"
     return "installer" if (apppaths.APP_DIR / "unins000.exe").is_file() else "portable"
+
+
+INSTALL_KIND_NAMES = {
+    "installer": "Windows installer", "portable": "Windows portable (zip)",
+    "deb": "Debian/Ubuntu package (.deb)", "rpm": "Fedora/RHEL/openSUSE package (.rpm)",
+    "arch": "Arch Linux package", "snap": "Snap", "brew": "Homebrew",
+    "python": "Python source",
+}
+
+
+def install_kind_name(kind=None):
+    """install_kind() in words, for the About window."""
+    kind = kind or install_kind()
+    return INSTALL_KIND_NAMES.get(kind, kind)
 
 
 def check_latest(url=LATEST_API, timeout=TIMEOUT):

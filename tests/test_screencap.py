@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-10-10
-# Version: v1.10.0
+# Version: v1.11.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -104,6 +104,17 @@ class PresetTests(unittest.TestCase):
             presets.save_user("Web console", {})
         self.assertTrue(presets.delete_user("Portal"))
         self.assertNotIn("Portal", presets.names())
+
+    def test_preset_names_are_title_case_and_old_names_still_work(self):
+        small = {"and", "a", "/"}
+        for name in presets.BUILTIN:
+            self.assertTrue(all(w[0].isupper() for w in name.split() if w not in small), name)
+        # Names saved before v1.23.0 were in sentence case
+        self.assertEqual(presets.canonical("General desktop use"), "General Desktop Use")
+        self.assertEqual(presets.canonical("  terminal / command line "), "Terminal / Command Line")
+        self.assertIsNone(presets.canonical("No such preset"))
+        self.assertTrue(presets.describe("web console").startswith("Admin portals"))
+        self.assertTrue(presets.is_builtin("FAST CLICKING"))
 
     def test_every_builtin_preset_is_valid(self):
         for name in presets.BUILTIN:

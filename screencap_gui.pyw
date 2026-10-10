@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-10
-# Version: v2.0.1
+# Version: v2.1.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -46,7 +46,7 @@ import theme  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "2.0.1"   # this file; the release version is in version.py
+GUI_VERSION = "2.1.0"   # this file; the release version is in version.py
 ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
@@ -172,12 +172,12 @@ class App:
         self.v_patterns = tk.StringVar(value="")
         self.v_transcribe = tk.BooleanVar(value=False)
         self.v_whisper_model = tk.StringVar(value=transcribe.DEFAULT_MODEL)
-        self.v_profile = tk.StringVar(value="Installer wizard")
+        self.v_profile = tk.StringVar(value=presets.DEFAULT)
         self.v_force = tk.BooleanVar(value=False)
         self.v_dry = tk.BooleanVar(value=False)
         self.v_status = tk.StringVar(value="Ready")
         self.v_auto_update = tk.BooleanVar(value=False)
-        self.v_preset_about = tk.StringVar(value=presets.describe("Installer wizard"))
+        self.v_preset_about = tk.StringVar(value=presets.describe(presets.DEFAULT))
         self.v_theme = tk.StringVar(value="system")
 
     def build_styles(self):
@@ -205,8 +205,38 @@ class App:
             self.editor.on_theme_changed()
 
     def build_menu(self):
-        menubar = tk.Menu(self.root)
-        file_menu = tk.Menu(menubar, tearoff=False)
+        """File, View, and Help. On macOS they go in the system menu bar. On
+        Windows and Linux they are drawn inside the window: the native Windows
+        menu bar cannot change color, so it stayed white in the dark theme."""
+        self.native_menu = self.root.tk.call("tk", "windowingsystem") == "aqua"
+        if self.native_menu:
+            menubar = tk.Menu(self.root)
+            self.root.configure(menu=menubar)
+        else:
+            menubar = ttk.Frame(self.root, style="Menubar.TFrame", padding=(6, 2))
+            menubar.pack(side="top", fill="x")
+            ttk.Separator(self.root, orient="horizontal").pack(side="top", fill="x")
+        self.menubar = menubar
+        self.menus = {}           # "File", "View", "Help" -> tk.Menu
+        self.menu_buttons = {}    # same keys -> ttk.Menubutton (in-window bar only)
+
+        def cascade(label):
+            if self.native_menu:
+                menu = tk.Menu(menubar, tearoff=False)
+                menubar.add_cascade(label=label, menu=menu)
+            else:
+                button = ttk.Menubutton(menubar, text=label, style="Menubar.TMenubutton",
+                                        underline=0, takefocus=False)
+                menu = tk.Menu(button, tearoff=False)
+                button.configure(menu=menu)
+                button.pack(side="left")
+                self.menu_buttons[label] = button
+                self.root.bind(f"<Alt-{label[0].lower()}>",
+                               lambda e, b=button: self.post_menu(b))
+            self.menus[label] = menu
+            return menu
+
+        file_menu = cascade("File")
         file_menu.add_command(label="Choose Source Folder...",
                               command=lambda: self.browse(self.v_source))
         file_menu.add_command(label="Choose Output Folder...",
@@ -218,9 +248,8 @@ class App:
                               command=lambda: self.open_folder(self.v_output))
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_close)
-        menubar.add_cascade(label="File", menu=file_menu)
 
-        view_menu = tk.Menu(menubar, tearoff=False)
+        view_menu = cascade("View")
         for mode in theme.MODES:
             view_menu.add_radiobutton(label=f"{theme.MODE_LABELS[mode]} Theme", value=mode,
                                       variable=self.v_theme,
@@ -231,15 +260,14 @@ class App:
                               command=lambda: self.notebook.select(0))
         view_menu.add_command(label="Log", accelerator="Ctrl+2",
                               command=lambda: self.notebook.select(1))
-        menubar.add_cascade(label="View", menu=view_menu)
         self.view_menu = view_menu
         self.root.bind("<Control-Key-1>", lambda e: self.notebook.select(0))
         self.root.bind("<Control-Key-2>", lambda e: self.notebook.select(1))
 
-        help_menu = tk.Menu(menubar, tearoff=False)
+        help_menu = cascade("Help")
         help_menu.add_command(label="Help", accelerator="F1", command=self.show_help)
         help_menu.add_command(label="Keyboard Shortcuts",
-                              command=lambda: self.show_help("Keyboard shortcuts"))
+                              command=lambda: self.show_help("Keyboard Shortcuts"))
         help_menu.add_command(label="Online Documentation",
                               command=lambda: self.open_url(updates.DOCS_URL))
         help_menu.add_separator()
@@ -259,10 +287,17 @@ class App:
                                   command=self.on_auto_update_toggled)
         help_menu.add_separator()
         help_menu.add_command(label=f"About {APP_NAME}", command=self.show_about)
-        menubar.add_cascade(label="Help", menu=help_menu)
-        self.root.configure(menu=menubar)
-        self.menubar, self.help_menu = menubar, help_menu
+        self.help_menu = help_menu
         self.root.bind("<F1>", lambda e: self.show_help())
+
+    def post_menu(self, button):
+        """Alt+F, Alt+V, Alt+H: open that menu of the in-window menu bar."""
+        menu = self.menus[button.cget("text")]
+        try:
+            menu.tk_popup(button.winfo_rootx(), button.winfo_rooty() + button.winfo_height())
+        finally:
+            menu.grab_release()
+        return "break"
 
     # ---------------------------------------------------------------- help
 
@@ -364,16 +399,48 @@ class App:
         nb.add(self.editor, text="Steps")
         nb.add(self.build_log(nb), text="Log")
 
-        # Status bar: status, progress, version
+        # Status bar: what the app is doing (left), progress, and on the right
+        # the version with its update state (click it to check again)
         bar = ttk.Frame(main, style="Bar.TFrame", padding=(14, 6))
         bar.grid(row=2, column=0, sticky="ew", pady=(12, 0))
         bar.columnconfigure(0, weight=1)
         ttk.Label(bar, textvariable=self.v_status, style="Bar.TLabel", anchor="w").grid(
             row=0, column=0, sticky="ew")
-        self.progress = ttk.Progressbar(bar, maximum=1000, length=260)
-        self.progress.grid(row=0, column=1, padx=(12, 12))
-        ttk.Label(bar, text=f"v{version.RELEASE} ({version.RELEASE_DATE})",
-                  style="Bar.Muted.TLabel").grid(row=0, column=2, sticky="e")
+        self.progress = ttk.Progressbar(bar, maximum=1000, length=220)
+        self.progress.grid(row=0, column=1, padx=(12, 16))
+        ttk.Label(bar, text=f"Version {version.RELEASE}", style="Bar.Muted.TLabel").grid(
+            row=0, column=2, sticky="e")
+        ttk.Label(bar, text="\u00b7", style="Bar.Muted.TLabel").grid(row=0, column=3, padx=6)
+        self.lbl_update = ttk.Label(bar, style="Bar.Link.TLabel", cursor="hand2")
+        self.lbl_update.grid(row=0, column=4, sticky="e")
+        self.lbl_update.bind("<Button-1>", lambda e: self.on_update_label_clicked())
+        self.update_result = None
+        self.set_update_state("off" if updates.disabled_by_policy() else "unknown")
+
+    UPDATE_STATES = {   # state -> (text, label style); {v} is the newer version
+        "unknown": ("Check for updates", "Bar.Link.TLabel"),
+        "checking": ("Checking for updates...", "Bar.Muted.TLabel"),
+        "latest": ("\u2713 Up to date", "Bar.Ok.TLabel"),
+        "available": ("Update available: v{v}", "Bar.Warn.TLabel"),
+        "failed": ("Update check failed. Try again", "Bar.Link.TLabel"),
+        "off": ("Update checks turned off", "Bar.Muted.TLabel"),
+    }
+
+    def set_update_state(self, state, result=None):
+        """The update indicator in the status bar (bottom right)."""
+        self.update_state = state
+        if result is not None:
+            self.update_result = result
+        text, style = self.UPDATE_STATES[state]
+        newer = (self.update_result or {}).get("version", "")
+        self.lbl_update.configure(text=text.format(v=newer), style=style,
+                                  cursor="" if state in ("checking", "off") else "hand2")
+
+    def on_update_label_clicked(self):
+        if self.update_state == "available" and self.update_result:
+            self.updater.offer(self.update_result)
+        elif self.update_state not in ("checking", "off"):
+            self.check_for_updates(manual=True)
 
     def place_sash(self, body, width=470, tries=40):
         """Give the sidebar its starting width once the window has its size
@@ -441,11 +508,11 @@ class App:
 
         links = ttk.Frame(box, style="Card.TFrame")
         links.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(8, 0))
-        ttk.Button(links, text="Advanced settings...", style="Card.Link.TButton",
+        ttk.Button(links, text="Advanced Settings...", style="Card.Link.TButton",
                    command=self.open_advanced).pack(side="left")
-        ttk.Button(links, text="Delete preset", style="Card.Link.TButton",
+        ttk.Button(links, text="Delete Preset", style="Card.Link.TButton",
                    command=self.delete_profile).pack(side="right")
-        ttk.Button(links, text="Save as preset...", style="Card.Link.TButton",
+        ttk.Button(links, text="Save as Preset...", style="Card.Link.TButton",
                    command=self.save_profile).pack(side="right", padx=(0, 14))
         return box
 
@@ -463,50 +530,90 @@ class App:
         win.resizable(False, False)
         win.transient(self.root)
         self.advanced_window = win
-        adv = ttk.Frame(win, padding=16)
+        adv = ttk.Frame(win, padding=(20, 18))
         adv.pack(fill="both", expand=True)
-        adv.columnconfigure(1, weight=1)
-        adv.columnconfigure(3, weight=1)
+        adv.columnconfigure(0, weight=1)
         ttk.Label(adv, text="Advanced Settings", style="Heading.TLabel").grid(
-            row=0, column=0, columnspan=4, sticky="w")
-        ttk.Label(adv, text="Changes apply to the next run. Save them as a preset to keep them.",
-                  style="Muted.TLabel").grid(row=1, column=0, columnspan=4, sticky="w",
-                                             pady=(0, 10))
-        pad = {"padx": (0, 8), "pady": 3}
-        fields = (("Merge changes within (s)", self.v_debounce),
-                  ("Min gap between shots (s)", self.v_min_gap),
-                  ("Force a shot after (s)", self.v_max_wait),
-                  ("Shot before change (s)", self.v_lead),
-                  ("Settle after change (s)", self.v_settle),
-                  ("Duplicate if differs by (%)", self.v_dedup_thr),
-                  ("Analyze fps", self.v_fps),
-                  ("Analyze width (px)", self.v_width))
-        for n, (text, var) in enumerate(fields):
-            r, c = divmod(n, 2)
-            ttk.Label(adv, text=text).grid(row=r + 2, column=c * 2, sticky="w", **pad)
-            ttk.Entry(adv, textvariable=var, width=8).grid(row=r + 2, column=c * 2 + 1,
-                                                           sticky="w", padx=(0, 18), pady=3)
-        r = len(fields) // 2 + 2
-        ttk.Label(adv, text="Image format").grid(row=r, column=0, sticky="w", **pad)
-        ttk.Combobox(adv, textvariable=self.v_format, state="readonly",
-                     values=("png", "jpg"), width=6).grid(row=r, column=1, sticky="w", pady=3)
-        ttk.Label(adv, text="Also blur (regex, ; separates)").grid(row=r + 1, column=0,
-                                                                     sticky="w", **pad)
-        ttk.Entry(adv, textvariable=self.v_patterns, width=40).grid(
-            row=r + 1, column=1, columnspan=3, sticky="ew", pady=3)
-        ttk.Checkbutton(adv, text="Reprocess recordings that are already done",
-                        variable=self.v_force).grid(row=r + 2, column=0, columnspan=4,
-                                                    sticky="w", pady=(10, 0))
-        ttk.Checkbutton(adv, text="Dry run (count steps only, save nothing)",
-                        variable=self.v_dry).grid(row=r + 3, column=0, columnspan=4, sticky="w")
+            row=0, column=0, sticky="w")
+        ttk.Label(adv, text="These apply to the next run. To keep them, save them as a preset "
+                            "(Save as Preset in the main window).",
+                  style="Muted.TLabel", wraplength=470, justify="left").grid(
+            row=1, column=0, sticky="w", pady=(2, 12))
+        seconds = "seconds"
+        sections = (
+            ("Timing", (
+                ("Merge changes closer than", self.v_debounce, seconds),
+                ("Minimum time between screenshots", self.v_min_gap, seconds),
+                ("Take a screenshot anyway after", self.v_max_wait, seconds),
+                ("Screenshot before the next change", self.v_lead, seconds),
+                ("Wait after a change (right-after mode)", self.v_settle, seconds))),
+            ("Detection", (
+                ("Frames checked per second", self.v_fps, "0 = every frame"),
+                ("Analysis width", self.v_width, "pixels, 0 = full size"),
+                ("Duplicate when it differs by at most", self.v_dedup_thr, "percent"))),
+        )
+        row, cards, labels = 2, [], []
+        for title, fields in sections:
+            card = self.advanced_card(adv, title, row)
+            cards.append(card)
+            for n, (text, var, unit) in enumerate(fields, start=1):
+                labels.append(ttk.Label(card, text=text, style="Card.TLabel"))
+                labels[-1].grid(row=n, column=0, sticky="w", padx=(0, 16), pady=2)
+                ttk.Entry(card, textvariable=var, width=8, justify="right").grid(
+                    row=n, column=1, sticky="w", pady=2)
+                ttk.Label(card, text=unit, style="Card.Muted.TLabel").grid(
+                    row=n, column=2, sticky="w", padx=(8, 0), pady=2)
+            row += 1
+
+        card = self.advanced_card(adv, "Output", row)
+        cards.append(card)
+        labels.append(ttk.Label(card, text="Image format", style="Card.TLabel"))
+        labels[-1].grid(row=1, column=0, sticky="w", padx=(0, 16), pady=2)
+        ttk.Combobox(card, textvariable=self.v_format, state="readonly",
+                     values=("png", "jpg"), width=6).grid(row=1, column=1, sticky="w", pady=2)
+        ttk.Label(card, text="Also blur", style="Card.TLabel").grid(
+            row=2, column=0, sticky="w", padx=(0, 16), pady=(8, 3))
+        ttk.Entry(card, textvariable=self.v_patterns).grid(
+            row=2, column=1, columnspan=2, sticky="ew", pady=(8, 3))
+        ttk.Label(card, text="Regular expressions, separated by semicolons; "
+                             "for example corp\\.example\\.com;TICKET-\\d+",
+                  style="Card.Muted.TLabel", wraplength=300, justify="left").grid(
+            row=3, column=1, columnspan=2, sticky="w")
+        row += 1
+
+        card = self.advanced_card(adv, "Run", row)
+        ttk.Checkbutton(card, text="Reprocess recordings that are already done",
+                        variable=self.v_force, style="Card.TCheckbutton").grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=2)
+        ttk.Checkbutton(card, text="Dry run: count the steps only, save nothing",
+                        variable=self.v_dry, style="Card.TCheckbutton").grid(
+            row=2, column=0, columnspan=3, sticky="w", pady=2)
+        row += 1
+
+        # The same label column width in every group, so all the boxes line up
+        win.update_idletasks()
+        widest = max(label.winfo_reqwidth() for label in labels) + 16
+        for card in cards:
+            card.columnconfigure(0, minsize=widest)
+
         bar = ttk.Frame(adv)
-        bar.grid(row=r + 4, column=0, columnspan=4, sticky="ew", pady=(14, 0))
-        ttk.Button(bar, text="Reset Defaults", command=self.reset_defaults).pack(side="left")
+        bar.grid(row=row, column=0, sticky="ew", pady=(16, 0))
+        ttk.Button(bar, text="Reset to Defaults", command=self.reset_defaults).pack(side="left")
         ttk.Button(bar, text="Close", style="Accent.TButton", command=win.destroy).pack(
             side="right")
         win.bind("<Escape>", lambda e: win.destroy())
         self.theme.style_widgets(win)
         return win
+
+    @staticmethod
+    def advanced_card(parent, title, row):
+        """One titled group in the Advanced Settings window."""
+        card = ttk.Frame(parent, style="Card.TFrame", padding=(14, 8))
+        card.grid(row=row, column=0, sticky="ew", pady=(0, 8))
+        card.columnconfigure(2, weight=1)
+        ttk.Label(card, text=title, style="Card.Heading.TLabel").grid(
+            row=0, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        return card
 
     def build_log(self, parent):
         frame = ttk.Frame(parent, padding=10)
@@ -555,8 +662,8 @@ class App:
         self.v_patterns.set("")
         self.v_transcribe.set(False)
         self.v_whisper_model.set(transcribe.DEFAULT_MODEL)
-        self.v_profile.set("Installer wizard")
-        self.v_preset_about.set(presets.describe("Installer wizard"))
+        self.v_profile.set(presets.DEFAULT)
+        self.v_preset_about.set(presets.describe(presets.DEFAULT))
 
     # ------------------------------------------------------------ presets
 
@@ -624,8 +731,8 @@ class App:
         if messagebox.askyesno(APP_NAME, f'Delete the preset "{name}"?', parent=self.root):
             presets.delete_user(name)
             self.cmb_profile.configure(values=presets.names())
-            self.v_profile.set("Installer wizard")
-            self.v_preset_about.set(presets.describe("Installer wizard"))
+            self.v_profile.set(presets.DEFAULT)
+            self.v_preset_about.set(presets.describe(presets.DEFAULT))
             self.set_status(f"Deleted preset '{name}'.")
 
     def setting_vars(self):
@@ -660,8 +767,8 @@ class App:
                 except tk.TclError:
                     pass
         self.v_preset.set(self.preset_for_threshold())
-        if presets.get(self.v_profile.get()) is None:
-            self.v_profile.set("Installer wizard")
+        # canonical(): names saved before v1.23.0 were in sentence case
+        self.v_profile.set(presets.canonical(self.v_profile.get()) or presets.DEFAULT)
         self.settings_extra = {k: data[k] for k in ("check_updates", "last_update_check",
                                                     "skip_version") if k in data}
         self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))

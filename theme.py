@@ -2,7 +2,7 @@
 #
 # theme.py
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Light and dark appearance for the GUI, and "System" mode that follows the
@@ -10,7 +10,8 @@
 # Colors; macOS: Appearance; Linux: the GNOME/KDE color scheme) and switches
 # when it changes. Built on Tk's "clam" theme with our own colors, so it
 # needs nothing beyond the Tkinter that comes with Python. On Windows the
-# title bar is switched to dark as well.
+# title bar is switched to dark as well, and the menu bar is drawn inside
+# the window (the native Windows one cannot change color).
 
 import os
 import subprocess
@@ -42,6 +43,7 @@ PALETTES = {
         "disabled": "#a0a3a8",
         "warn": "#9a5b00",
         "error": "#c42b1c",
+        "ok": "#107c10",
         "canvas": "#e6e6e9",
         "canvas_text": "#1b1b1f",
     },
@@ -63,6 +65,7 @@ PALETTES = {
         "disabled": "#6b6e74",
         "warn": "#f0b45b",
         "error": "#ff7b72",
+        "ok": "#6ccb5f",
         "canvas": "#161618",
         "canvas_text": "#ececf1",
     },
@@ -227,6 +230,11 @@ class Theme:
                         font=self.fonts["title"])
             s.configure(f"{prefix}Warn.TLabel", background=bg, foreground=c["warn"],
                         font=self.fonts["bold"])
+            s.configure(f"{prefix}Ok.TLabel", background=bg, foreground=c["ok"],
+                        font=self.fonts["bold"])
+            s.configure(f"{prefix}Error.TLabel", background=bg, foreground=c["error"],
+                        font=self.fonts["bold"])
+            s.configure(f"{prefix}Link.TLabel", background=bg, foreground=c["accent"])
             s.configure(f"{prefix}TCheckbutton", background=bg, foreground=c["text"],
                         indicatorbackground=c["surface"], indicatorforeground=c["accent"],
                         indicatormargin=(0, 0, 6, 0), padding=(0, 2))
@@ -263,13 +271,37 @@ class Theme:
               lightcolor=[("active", c["accent_hover"])], darkcolor=[("active", c["accent_hover"])],
               bordercolor=[("disabled", c["border"])],
               foreground=[("disabled", c["disabled"])])
-        for name, bg in (("Link.TButton", c["bg"]), ("Card.Link.TButton", c["surface"])):
+        for name, bg in (("Link.TButton", c["bg"]), ("Card.Link.TButton", c["surface"]),
+                         ("Bar.Link.TButton", c["surface"])):
             s.configure(name, background=bg, foreground=c["accent"], bordercolor=bg,
-                        lightcolor=bg, darkcolor=bg, padding=(0, 2), focusthickness=0)
+                        lightcolor=bg, darkcolor=bg, padding=(0, 2), focusthickness=0,
+                        width=0)   # no minimum width: spacing comes from the text alone
             s.map(name, background=[("active", bg), ("pressed", bg)],
                   lightcolor=[("active", bg)], darkcolor=[("active", bg)],
                   foreground=[("active", c["accent_hover"])])
         s.configure("Toolbutton", background=c["surface"], padding=(8, 3))
+        s.configure("TMenubutton", background=c["button"], foreground=c["text"],
+                    bordercolor=c["border"], lightcolor=c["button"], darkcolor=c["button"],
+                    arrowcolor=c["text"], padding=(10, 5))
+        s.map("TMenubutton",
+              background=[("disabled", c["surface_alt"]), ("pressed", c["button_pressed"]),
+                          ("active", c["button_hover"])],
+              lightcolor=[("active", c["button_hover"])], darkcolor=[("active", c["button_hover"])],
+              foreground=[("disabled", c["disabled"])])
+        # The in-window menu bar (File, View, Help): flat buttons on the bar color
+        s.configure("Menubar.TFrame", background=c["surface"])
+        s.configure("Menubar.TMenubutton", background=c["surface"], foreground=c["text"],
+                    bordercolor=c["surface"], lightcolor=c["surface"], darkcolor=c["surface"],
+                    relief="flat", padding=(10, 4), width=0)
+        s.layout("Menubar.TMenubutton", [("Menubutton.border", {"sticky": "nswe", "children": [
+            ("Menubutton.padding", {"sticky": "nswe", "children": [
+                ("Menubutton.label", {"sticky": "nswe"})]})]})])
+        s.map("Menubar.TMenubutton",
+              background=[("pressed", c["select"]), ("active", c["button_hover"])],
+              bordercolor=[("pressed", c["select"]), ("active", c["button_hover"])],
+              lightcolor=[("pressed", c["select"]), ("active", c["button_hover"])],
+              darkcolor=[("pressed", c["select"]), ("active", c["button_hover"])],
+              foreground=[("pressed", c["select_text"])])
         s.configure("Segment.TRadiobutton", background=c["button"], foreground=c["text"],
                     padding=(12, 4), indicatorsize=0, indicatormargin=0, borderwidth=1,
                     relief="solid", bordercolor=c["border"])

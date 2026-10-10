@@ -1,6 +1,6 @@
 # bug_report.yml
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # GitHub issue form for problem reports (Help > Report a Problem in the GUI).
@@ -54,7 +54,7 @@ body:
       label: Steps to reproduce
       description: The preset and settings used, and what kind of recording (length, resolution, what it shows).
       placeholder: |
-        1. Preset "Web console"
+        1. Preset "Web Console"
         2. Processed a 3 minute 1920x1080 recording of a settings page
         3. ...
   - type: textarea
