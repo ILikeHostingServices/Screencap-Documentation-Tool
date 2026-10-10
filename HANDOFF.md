@@ -1,4 +1,4 @@
-HANDOFF.md v1.10.0 (Last Rev: 2026-10-10)
+HANDOFF.md v1.11.0 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -77,6 +77,28 @@ Signing does not remove SmartScreen warnings instantly: reputation builds per ce
 - **Owner, once:** on the first pull request on `microsoft/winget-pkgs`, the Microsoft contributor license agreement bot asks the submitting account (`ILHS-Owner`) to accept the agreement by replying in a comment. Moderators review a new package by hand, which can take days; later versions are usually merged after the automatic checks.
 - **After it is listed:** add the winget command to the README's Windows install section (cloud session).
 
+### 4. Linux Package Stores
+
+Every release gets `.deb`, `.rpm`, Arch, and snap packages attached automatically (`.github/workflows/build-linux.yml`, run by `release.yml`). Two stores need an account first; until their secrets exist, the workflow skips them with a warning.
+
+**AUR (Arch Linux User Repository):**
+1. Create an account at https://aur.archlinux.org/register (use `ILHS-Owner`'s address or a dedicated one).
+2. On any PC, make a key just for this: `ssh-keygen -t ed25519 -f aur_ilhs -C "ILHS AUR publishing" -N ""`.
+3. AUR **My Account > SSH Public Key**: paste the contents of `aur_ilhs.pub`.
+4. GitHub repository **Settings > Secrets and variables > Actions > New repository secret**: name `AUR_SSH_PRIVATE_KEY`, value the whole contents of `aur_ilhs` (the private key). Then delete both files from the PC.
+5. Ask the cloud session to run **Actions > Linux build > Run workflow** with the newest release tag (or wait for the next release): the package `screencap-documentation-tool` is created on the first push.
+
+**Snap Store:**
+1. Create an Ubuntu One account at https://snapcraft.io (Sign in), and accept the developer agreement.
+2. Register the name: https://snapcraft.io/register-snap with `screencap-documentation-tool`.
+3. On a Linux PC (or WSL) with snapcraft (`sudo snap install snapcraft --classic`), run `snapcraft export-login --snaps=screencap-documentation-tool --acls package_access,package_push,package_update,package_release --expires 2027-10-10 creds.txt` and sign in.
+4. Add the repository secret `SNAPCRAFT_STORE_CREDENTIALS` with the contents of `creds.txt`, then delete the file. (It expires on the date given; renew it the same way.)
+5. As with the AUR, the next release (or a manual run of the Linux build with a release tag) publishes to the `stable` channel. The snap uses strict confinement with the `home`, `removable-media`, and `network` interfaces, which the store approves automatically.
+
+**Flathub (later):** not started. Flathub's runtimes have no Tkinter, so the Flatpak would have to build Tcl/Tk (and Tesseract) itself; Flathub also asks submitters to disclose AI-generated code (this project's code was largely written with Claude) and has at times refused such apps, so check its current policy first. The desktop entry and AppStream file (`packaging/linux/`) already use the Flathub-style ID `io.github.ILikeHostingServices.ScreencapDocumentationTool`.
+
+**Official distribution repositories (Debian, Ubuntu, Fedora):** need a volunteer maintainer inside each distribution (a sponsor for Debian, a packager for Fedora); not practical to automate. The packages here are the usual route for independent tools.
+
 ## Done
 
 | Date | Item |
@@ -101,3 +123,4 @@ Signing does not remove SmartScreen warnings instantly: reputation builds per ce
 | 2026-10-10 | `WINGET_TOKEN` repository secret added (owner): classic token of `ILHS-Owner`, `public_repo` scope only. winget publishing workflow added (cloud session). |
 | 2026-10-10 | v1.17.0 (more presets), v1.18.0 (Help menu, About, update check, issue forms), v1.19.0 (install folder `C:\Program Files\ILHS\Screencap-Documentation-Tool`, older copies moved), and v1.20.0 (redesigned GUI, light/dark/system themes) published by the cloud session; pull requests #11 to #14 merged under the standing permission. |
 | 2026-10-10 | First winget test run (v1.16.0) stalled inside winget on the test machine and was cancelled; the install test is now time-boxed and best effort (`winget.yml` v1.2.0). |
+| 2026-10-10 | v1.21.0 Linux packages (cloud session): `.deb`, `.rpm`, Arch, and snap, each installed and tested on its distributions in GitHub Actions and attached to releases; AUR and Snap Store publishing ready, waiting on the accounts in item 4. |

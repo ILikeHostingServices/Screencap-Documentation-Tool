@@ -1,6 +1,6 @@
 # release.yml
 # 2026-10-10
-# Version: v1.6.0
+# Version: v1.7.0
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -12,6 +12,10 @@
 #    version includes packaging/screencap.spec) and attaches the files,
 #    unless they are attached already (see build-windows.yml).
 # 4. Then publishes that release to winget (see winget.yml).
+# 5. Builds the Linux packages for the newest release (when that version
+#    includes packaging/linux/) and attaches them, unless they are
+#    attached already; then updates the AUR and the Snap Store when their
+#    secrets are set (see build-linux.yml).
 # Versions are Major.Minor.Patch only (vX.Y.Z); anything else is rejected.
 # A tag that cannot be created is reported and the others still go ahead.
 # GitHub refuses a tag on a commit whose .github/workflows/ files differ from
@@ -46,6 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       build_tag: ${{ steps.releases.outputs.build_tag }}
+      linux_tag: ${{ steps.releases.outputs.linux_tag }}
       failed_tags: ${{ steps.tags.outputs.failed_tags }}
     steps:
       - uses: actions/checkout@v5
@@ -117,6 +122,11 @@ jobs:
               echo "Windows build needed for $newest"
               echo "build_tag=$newest" >> "$GITHUB_OUTPUT"
             fi
+            if git cat-file -e "$newest:packaging/linux/build_packages.py" 2>/dev/null \
+               && ! gh release view "$newest" --json assets --jq '.assets[].name' | grep -q '_all\.deb$'; then
+              echo "Linux packages needed for $newest"
+              echo "linux_tag=$newest" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
   windows:
@@ -141,9 +151,22 @@ jobs:
     secrets:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
 
+  linux:
+    name: Linux packages
+    needs: publish
+    if: needs.publish.outputs.linux_tag != ''
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      release_tag: ${{ needs.publish.outputs.linux_tag }}
+    secrets:
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+
   missing-tags:
     name: Report tags that could not be created
-    needs: [publish, windows, winget]
+    needs: [publish, windows, winget, linux]
     if: always() && needs.publish.outputs.failed_tags != ''
     runs-on: ubuntu-latest
     steps:

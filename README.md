@@ -1,4 +1,4 @@
-README.md v1.27.0 (Last Rev: 2026-10-10)
+README.md v1.28.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -41,6 +41,9 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `Run-Screencap.bat` | Double-click to run the command line version on Windows. Passes any arguments through to `screencap.py`. |
 | `install.ps1` | One-step Windows installer used by the Quick Start command. |
 | `install.sh` | One-step Linux and macOS installer used by the Quick Start commands. |
+| `packaging/linux/` | Linux packages: `stage.sh` (the shared install layout), `build_packages.py` (.deb and .rpm with nfpm), the menu entry, and the software center details. |
+| `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
+| `snap/snapcraft.yaml` | The snap package (Snap Store). |
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
 | `theme.py` | The GUI's light, dark, and system themes. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
@@ -74,6 +77,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |
 | `.github/workflows/build-windows.yml` | Builds and tests the packaged Windows app on a real Windows machine for every pull request, and attaches it to releases. |
+| `.github/workflows/build-linux.yml` | Builds the Linux packages and tests each one on its distributions, attaches them to releases, and updates the AUR and the Snap Store. |
 | `.github/workflows/winget.yml` | Tests installing each release through winget and submits it to the Windows Package Manager catalog. |
 | `source/` | Default folder for your recordings. |
 | `output/` | Default folder for results, one subfolder per recording. |
@@ -170,7 +174,20 @@ Differences from the Python install:
 
 ### Linux
 
-Paste into a terminal (works on Debian/Ubuntu, Fedora, and Arch based distributions):
+**Packages (recommended).** From v1.21.0 every release has packages for the common distributions. Your package manager installs FFmpeg, Python, and Tkinter with them, and the app appears in the application menu. Recordings and output go in `~/Documents/Screencap Documentation Tool` by default.
+
+| Distribution | Install |
+| --- | --- |
+| Ubuntu, Debian, Linux Mint, Pop!_OS | Download `screencap-documentation-tool_X.Y.Z-1_all.deb` from the [latest release](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest), then `sudo apt install ./screencap-documentation-tool_X.Y.Z-1_all.deb` |
+| Fedora | Download `screencap-documentation-tool-X.Y.Z-1.noarch.rpm`, then `sudo dnf install ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm`. Fedora's own FFmpeg cannot read H.264 (most .mp4 recordings); for those, switch to the full FFmpeg from [RPM Fusion](https://rpmfusion.org/Howto/Multimedia) |
+| RHEL, Rocky Linux, AlmaLinux 9 | FFmpeg comes from RPM Fusion: `sudo dnf install epel-release && sudo dnf config-manager --set-enabled crb && sudo dnf install https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm`, then `sudo dnf install ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm` |
+| openSUSE Tumbleweed | `sudo zypper install --allow-unsigned-rpm ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm` (for H.264 recordings, FFmpeg from [Packman](https://en.opensuse.org/Additional_package_repositories#Packman)) |
+| Arch Linux, Manjaro, EndeavourOS | From the AUR: `yay -S screencap-documentation-tool` (or any AUR helper), or download `screencap-documentation-tool-X.Y.Z-1-any.pkg.tar.zst` and `sudo pacman -U` it |
+| Any distribution with snapd | `sudo snap install screencap-documentation-tool` once it is in the Snap Store, or download the `.snap` and `sudo snap install --dangerous ./screencap-documentation-tool_X.Y.Z_amd64.snap`. The snap brings its own FFmpeg, Tesseract, and Pandoc and can use your home folder and removable drives. Command line: `screencap-documentation-tool.cli` |
+
+Every package is installed and tested on its distributions for every change (see `.github/workflows/build-linux.yml`), and `SHA256SUMS-linux.txt` on each release lists their checksums. Tesseract OCR and Pandoc are recommended extras (the `.deb` installs them by default; otherwise add them with your package manager). Remove a package the usual way, for example `sudo apt remove screencap-documentation-tool`.
+
+**Install command.** Or paste this into a terminal (works on Debian/Ubuntu, Fedora, and Arch based distributions):
 
 ```bash
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"

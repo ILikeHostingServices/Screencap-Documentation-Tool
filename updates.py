@@ -2,7 +2,7 @@
 #
 # updates.py
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -62,7 +62,10 @@ def is_newer(latest, current=version.RELEASE):
 
 def install_kind():
     """How this copy was installed, which decides how to update it:
-    'installer' (Windows setup), 'portable' (Windows zip), or 'python'."""
+    'installer' (Windows setup), 'portable' (Windows zip), 'deb', 'rpm',
+    'arch', 'snap' (Linux packages), or 'python'."""
+    if apppaths.PACKAGE_KIND:
+        return apppaths.PACKAGE_KIND
     if not apppaths.FROZEN:
         return "python"
     return "installer" if (apppaths.APP_DIR / "unins000.exe").is_file() else "portable"
@@ -106,7 +109,9 @@ def download_for(latest, kind=None):
     """The best download link for this kind of install."""
     kind = kind or install_kind()
     suffix = {"installer": "-windows-x64-setup.exe",
-              "portable": "-windows-x64-portable.zip"}.get(kind)
+              "portable": "-windows-x64-portable.zip",
+              "deb": "_all.deb", "rpm": ".noarch.rpm",
+              "arch": "-any.pkg.tar.zst"}.get(kind)
     if suffix:
         for name, link in latest["assets"].items():
             if name.endswith(suffix) and link:
@@ -123,6 +128,18 @@ def how_to_update(kind=None):
     if kind == "portable":
         return ("Download the new portable zip and replace this folder with it. Your "
                 "settings and recordings are kept (they are not in the app folder).")
+    if kind == "deb":
+        return ("Download the new .deb and install it over this one: "
+                "sudo apt install ./screencap-documentation-tool_X.Y.Z-1_all.deb")
+    if kind == "rpm":
+        return ("Download the new .rpm and install it over this one: "
+                "sudo dnf install ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm "
+                "(openSUSE: sudo zypper install ...)")
+    if kind == "arch":
+        return ("Update from the AUR with your AUR helper (for example yay -Syu), or "
+                "download the new package and run sudo pacman -U on it.")
+    if kind == "snap":
+        return "Snaps update by themselves; to update now: sudo snap refresh"
     return ("Run the Quick Start install command from the README again; it updates this "
             "copy and keeps your settings.")
 

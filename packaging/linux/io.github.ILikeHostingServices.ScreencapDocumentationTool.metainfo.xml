@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Software center details (AppStream) for the Linux packages -->
+<component type="desktop-application">
+  <id>io.github.ILikeHostingServices.ScreencapDocumentationTool</id>
+  <name>Screencap Documentation Tool</name>
+  <summary>Turn screen recordings into step-by-step screenshot documentation</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.ilikehostingservices">
+    <name>ILikeHostingServices</name>
+  </developer>
+  <description>
+    <p>
+      Screencap Documentation Tool finds every step in a screen recording with FFmpeg scene
+      detection and saves a screenshot of each one. Built with system administrators in mind,
+      and useful for anyone who writes how-to guides.
+    </p>
+    <ul>
+      <li>Presets for installers, the desktop, web consoles, terminals, remote desktops, and more</li>
+      <li>Review the steps: reorder, delete, crop, and write a caption for each one</li>
+      <li>Blur passwords, keys, and addresses automatically, with an unblurred copy kept</li>
+      <li>Export to HTML, Word, or PDF</li>
+      <li>Light and dark themes; everything runs locally, with no telemetry</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.ILikeHostingServices.ScreencapDocumentationTool.desktop</launchable>
+  <url type="homepage">https://github.com/ILikeHostingServices/Screencap-Documentation-Tool</url>
+  <url type="bugtracker">https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues</url>
+  <url type="vcs-browser">https://github.com/ILikeHostingServices/Screencap-Documentation-Tool</url>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <provides>
+    <binary>screencap</binary>
+    <binary>screencap-gui</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.21.0" date="2026-10-10">
+      <description>
+        <p>Packages for Debian, Ubuntu, Fedora, openSUSE, Arch Linux, and the Snap Store.</p>
+      </description>
+    </release>
+  </releases>
+</component>

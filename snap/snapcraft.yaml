@@ -1,0 +1,87 @@
+# snapcraft.yaml
+# 2026-10-10
+# Version: v1.0.0
+#
+# PURPOSE:
+# Snap package for the Snap Store (Ubuntu and any distribution with snapd).
+# Strict confinement: the app can read and write your home folder and
+# removable drives, and nothing else. FFmpeg, Tesseract OCR, Pandoc,
+# Python, and Tkinter come inside the snap, so nothing else has to be
+# installed. Built by .github/workflows/build-linux.yml with snapcraft.
+
+name: screencap-documentation-tool
+title: Screencap Documentation Tool
+summary: Turn screen recordings into step-by-step screenshot documentation
+description: |
+  Finds every step in a screen recording with FFmpeg scene detection and
+  saves a screenshot of each one. Review the steps, add captions, crop, blur
+  sensitive information, and export to HTML or Word. Everything runs locally,
+  with no telemetry.
+
+  Recordings and output go in Documents/Screencap Documentation Tool in your
+  home folder by default; any folder in your home or on a removable drive
+  can be chosen.
+license: MIT
+website: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool
+source-code: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool
+issues: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues
+contact: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues
+icon: assets/icon.png
+adopt-info: app
+base: core24
+grade: stable
+confinement: strict
+platforms:
+  amd64:
+
+apps:
+  screencap-documentation-tool:
+    command: usr/bin/screencap-gui
+    desktop: usr/share/applications/io.github.ILikeHostingServices.ScreencapDocumentationTool.desktop
+    common-id: io.github.ILikeHostingServices.ScreencapDocumentationTool
+    extensions: [gnome]
+    plugs: [home, removable-media, network]
+    environment: &env
+      # Tkinter, Tcl/Tk, FFmpeg, and Tesseract staged in the snap
+      PYTHONPATH: $SNAP/usr/lib/python3.12:$SNAP/usr/lib/python3.12/lib-dynload:$SNAP/usr/lib/python3/dist-packages
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/usr/lib/x86_64-linux-gnu/blas:$SNAP/usr/lib/x86_64-linux-gnu/lapack:$LD_LIBRARY_PATH
+      TCL_LIBRARY: $SNAP/usr/share/tcltk/tcl8.6
+      TK_LIBRARY: $SNAP/usr/share/tcltk/tk8.6
+      TESSDATA_PREFIX: $SNAP/usr/share/tesseract-ocr/5/tessdata
+  cli:
+    command: usr/bin/screencap
+    extensions: [gnome]
+    plugs: [home, removable-media, network]
+    environment: *env
+
+parts:
+  app:
+    plugin: dump
+    source: .
+    source-type: local
+    override-pull: |
+      craftctl default
+      craftctl set version="$(sed -n 's/^RELEASE = "\(.*\)"/\1/p' version.py)"
+    override-build: |
+      bash packaging/linux/stage.sh "$CRAFT_PART_INSTALL" snap
+      # The menu entry starts the snap's own command
+      sed -i 's|^Exec=.*|Exec=screencap-documentation-tool|; s|^Icon=.*|Icon=${SNAP}/usr/share/icons/hicolor/256x256/apps/io.github.ILikeHostingServices.ScreencapDocumentationTool.png|' \
+        "$CRAFT_PART_INSTALL/usr/share/applications/io.github.ILikeHostingServices.ScreencapDocumentationTool.desktop"
+    prime:
+      - usr/bin/screencap
+      - usr/bin/screencap-gui
+      - usr/share/screencap-documentation-tool
+      - usr/share/applications
+      - usr/share/icons
+      - usr/share/metainfo
+      - usr/share/doc/screencap-documentation-tool
+  runtime:
+    plugin: nil
+    stage-packages:
+      - python3
+      - python3-tk
+      - ffmpeg
+      - tesseract-ocr
+      - tesseract-ocr-eng
+      - pandoc
+      - xdg-utils

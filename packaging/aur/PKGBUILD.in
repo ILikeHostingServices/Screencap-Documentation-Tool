@@ -1,0 +1,27 @@
+# Maintainer: ILikeHostingServices <337515992+ILHS-Owner@users.noreply.github.com>
+#
+# Arch Linux package (AUR: screencap-documentation-tool). Generated from
+# packaging/aur/PKGBUILD.in by packaging/aur/make_pkgbuild.sh for each
+# release; edit the template, not the generated file.
+
+pkgname=screencap-documentation-tool
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Turns screen recordings into step-by-step screenshot documentation"
+arch=('any')
+url="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool"
+license=('MIT')
+depends=('python' 'tk' 'ffmpeg' 'ttf-font')
+optdepends=('tesseract: blur sensitive text automatically'
+            'tesseract-data-eng: English text for automatic blurring'
+            'pandoc-cli: Word export'
+            'chromium: PDF export (or Google Chrome or Microsoft Edge)'
+            'vlc: Play in VLC'
+            'xdg-utils: open folders and files from the app')
+source=("@SOURCE@")
+sha256sums=('@SHA256@')
+
+package() {
+    cd "Screencap-Documentation-Tool-$pkgver"
+    bash packaging/linux/stage.sh "$pkgdir" arch
+}
