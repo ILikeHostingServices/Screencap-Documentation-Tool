@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # presets.py
-# 2026-10-02
-# Version: v1.0.0
+# 2026-10-10
+# Version: v1.1.0
 #
 # PURPOSE:
 # Named sets of detection and output settings. A few presets are built in
@@ -23,6 +23,12 @@ BUILTIN = {
     "Installer wizard": {
         "_about": "The defaults. Setup wizards and settings dialogs with clear pauses between steps.",
     },
+    "General desktop use": {
+        "_about": "Moving around the operating system: opening apps, browsing files, and "
+                  "flipping through menus. No blurring and no red boxes.",
+        "threshold": 0.003, "debounce": 0.8, "min_gap": 0.8,
+        "no_highlight": True, "no_redact": True,
+    },
     "Web console": {
         "_about": "Admin portals and web apps: ignores spinners and slow-loading pages.",
         "threshold": 0.008, "debounce": 2.0, "max_wait": 15.0, "min_gap": 1.5,
@@ -30,6 +36,28 @@ BUILTIN = {
     "Terminal / command line": {
         "_about": "Shells and consoles: catches small text changes, merges bursts of typing.",
         "threshold": 0.002, "debounce": 1.5, "min_gap": 1.0, "analyze_width": 0,
+    },
+    "Remote desktop / VM console": {
+        "_about": "RDP, VNC, and virtual machine consoles: ignores compression noise and "
+                  "waits for a laggy screen to finish drawing.",
+        "threshold": 0.01, "debounce": 2.0, "settle": 1.0, "max_wait": 20.0, "min_gap": 1.5,
+    },
+    "Forms and spreadsheets": {
+        "_about": "Filling in forms, tickets, and spreadsheets: catches small field changes "
+                  "and merges a whole entry being typed into one step.",
+        "threshold": 0.002, "debounce": 2.5, "min_gap": 1.5, "analyze_width": 1280,
+    },
+    "Slideshow / presentation": {
+        "_about": "Slide decks and click-through demos: one screenshot per slide, no red "
+                  "boxes, and no forced shots on slides shown for a long time.",
+        "threshold": 0.02, "debounce": 0.5, "max_wait": 60.0, "min_gap": 1.0,
+        "no_highlight": True, "no_redact": True,
+    },
+    "Video meeting / screen share": {
+        "_about": "Recorded calls and screen shares: ignores webcam and video movement, "
+                  "keeps the blurring on for names and email addresses.",
+        "threshold": 0.03, "debounce": 3.0, "max_wait": 30.0, "min_gap": 3.0,
+        "analyze_fps": 2.0, "no_highlight": True,
     },
     "Fast clicking": {
         "_about": "Recordings with short pauses between actions.",

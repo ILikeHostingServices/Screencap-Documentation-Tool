@@ -15,7 +15,7 @@ For each recording you get:
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps.
-- Saved presets: built-in settings for installer wizards, web consoles, terminals, and fast clicking, plus your own.
+- Saved presets: built-in settings for installer wizards, general desktop use, web consoles, terminals, remote desktops, forms, slideshows, video meetings, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
 - Optional **Captions From Narration**: if you talk while you record, what you said becomes the first-draft caption of each step. Speech recognition runs offline on your PC.
 - One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header. Every original frame is kept, so nothing you do in the editor is permanent.
@@ -278,9 +278,16 @@ A preset is a named set of the Detection Settings. Pick one from **Preset** abov
 | Built-in preset | Use it for | What it changes |
 | --- | --- | --- |
 | **Installer wizard** | Setup wizards and settings dialogs with clear pauses (the default) | Nothing; the recommended defaults |
+| **General desktop use** | Moving around the operating system: opening apps, browsing files in File Explorer, and flipping through menus | Slightly more sensitive with shorter waits, so quick menu changes are caught. **No blurring and no red boxes**: screenshots are saved exactly as captured |
 | **Web console** | Admin portals and web apps | Ignores spinners and slow-loading pages: less sensitive, waits longer for the screen to settle |
 | **Terminal / command line** | Shells and consoles | Catches small text changes and analyzes at full resolution; merges bursts of typing |
+| **Remote desktop / VM console** | RDP, VNC, Hyper-V, VMware, and other remote or virtual machine consoles | Ignores compression noise and waits longer for a slow screen to finish drawing |
+| **Forms and spreadsheets** | Filling in forms, tickets, and spreadsheets | Catches small field changes and merges a whole entry being typed into one step |
+| **Slideshow / presentation** | Slide decks and click-through demos | One screenshot per slide, no forced shots on slides shown for a long time. No blurring and no red boxes |
+| **Video meeting / screen share** | Recorded calls and shared screens (Teams, Zoom, Meet) | Much less sensitive, so webcam and video movement do not count as steps; analyzes fewer frames. Blurring stays on (names and email addresses), no red boxes |
 | **Fast clicking** | Recordings with short pauses between actions | Shorter waits, and analyzes more frames per second |
+
+The presets are starting points: if a recording gets too many or too few screenshots, adjust **Sensitivity** and save the result as your own preset.
 
 To save your own, adjust the settings (including **Also blur** patterns), click **Save As...**, and give it a name, for example `Customer portal`. **Delete** removes a saved preset (built-in presets cannot be deleted). Saved presets are stored in your profile and can be used on the command line too:
 

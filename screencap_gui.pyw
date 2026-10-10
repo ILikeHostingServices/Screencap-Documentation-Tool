@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-10-04
-# Version: v1.12.0
+# 2026-10-10
+# Version: v1.12.1
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -42,7 +42,7 @@ import transcribe  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "1.12.0"   # this file; the release version is in version.py
+GUI_VERSION = "1.12.1"   # this file; the release version is in version.py
 ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
@@ -249,7 +249,7 @@ class App:
         bar = ttk.Frame(parent)
         ttk.Label(bar, text="Preset:").pack(side="left")
         self.cmb_profile = ttk.Combobox(bar, textvariable=self.v_profile, state="readonly",
-                                        values=presets.names(), width=26)
+                                        values=presets.names(), width=30)
         self.cmb_profile.pack(side="left", padx=4)
         self.cmb_profile.bind("<<ComboboxSelected>>", lambda e: self.apply_profile())
         ttk.Button(bar, text="Save As...", command=self.save_profile).pack(side="left", padx=(4, 0))

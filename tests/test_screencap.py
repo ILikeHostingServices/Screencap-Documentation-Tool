@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-04
-# Version: v1.9.2
+# 2026-10-10
+# Version: v1.10.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -105,6 +105,19 @@ class PresetTests(unittest.TestCase):
         self.assertTrue(presets.delete_user("Portal"))
         self.assertNotIn("Portal", presets.names())
 
+    def test_every_builtin_preset_is_valid(self):
+        for name in presets.BUILTIN:
+            with self.subTest(preset=name):
+                args = sc.parse_args(["--preset", name])
+                self.assertTrue(presets.describe(name).strip())
+                self.assertLessEqual(set(presets.get(name)), set(presets.KEYS))
+                self.assertTrue(0 < args.threshold < 1)
+
+    def test_general_desktop_preset_has_no_blur_or_boxes(self):
+        args = sc.parse_args(["--preset", "General desktop use"])
+        self.assertTrue(args.no_highlight)
+        self.assertTrue(args.no_redact)
+
     def test_unknown_preset_is_an_error(self):
         with self.assertRaises(SystemExit):
             sc.parse_args(["--preset", "does not exist"])
@@ -128,6 +141,17 @@ class EngineTests(unittest.TestCase):
         rc = sc.main(["-s", str(self.source), "-o", str(out), *extra])
         self.assertEqual(rc, 0)
         return out / "Demo"
+
+    def test_general_desktop_preset_end_to_end(self):
+        out = self.process("desktop", "--preset", "General desktop use")
+        doc = stepdoc.load(out)
+        self.assertFalse(doc["highlight"])
+        self.assertFalse(doc["redact"])
+        self.assertGreaterEqual(len(doc["steps"]), 3)
+        self.assertFalse((out / stepdoc.UNREDACTED_DIR).exists())
+        for step in doc["steps"]:      # saved exactly as captured: no boxes, no blur
+            self.assertEqual((out / step["file"]).read_bytes(),
+                             (out / step["original"]).read_bytes())
 
     def test_process_keeps_originals_and_renders_steps(self):
         out = self.process("basic")
