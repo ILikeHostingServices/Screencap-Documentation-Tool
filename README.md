@@ -1,4 +1,4 @@
-README.md v1.24.0 (Last Rev: 2026-10-10)
+README.md v1.25.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -46,6 +46,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
 | `gui_editor.py` | The GUI's Steps tab (step editor). |
 | `version.py` | The release version of the tool as a whole, shown in the GUI title bar and footer and by `screencap.py --version`. |
+| `gui_help.py` | The GUI's Help menu: built-in help, the About window, and the update check. |
+| `updates.py` | Project links and the update check (asks GitHub for the newest release). |
 | `presets.py` | Built-in and saved presets (named sets of settings), shared by the GUI and `--preset`. |
 | `player.py` | Opens the recording in VLC media player at a given moment. |
 | `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
@@ -61,6 +63,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
 | `CHANGELOG.md` | What changed in every release. |
 | `LICENSE` | The MIT License: free to use, change, and share, with no warranty. See [License And Support](#license-and-support). |
+| `.github/ISSUE_TEMPLATE/` | The forms used to report a problem or suggest an idea on GitHub. |
 | `SECURITY.md` | How to report a security problem privately. |
 | `CODE_SIGNING_POLICY.md` | Code signing status of the Windows programs (not signed), how to check a download, how the programs are built, and the privacy statement. |
 | `HANDOFF.md` | Open tasks that need the repository owner or a machine with full access, and the code signing options for later. |
@@ -233,6 +236,18 @@ The window is laid out top to bottom in the order you use it:
 
 Your folders and settings are saved when you process or close the window and restored the next time you open it.
 
+### Help Menu And Update Checks
+
+The **Help** menu (or F1) has:
+
+- **Help** and **Keyboard Shortcuts**: short built-in guides to getting started, presets, editing, blurring, exporting, and troubleshooting. **Online Documentation** opens this README.
+- **Report a Problem...** and **Suggest an Idea...**: open the matching form on GitHub. **About** shows the version and can **Copy Details** (version, operating system, and which helper programs were found, without any folder paths) to paste into the form.
+- **Project on GitHub** and **Release Notes**.
+- **Check for Updates...**: asks GitHub whether a newer release is out and, if so, shows what changed and opens the right download for your copy (the installer, the portable zip, or the Releases page for the Python install).
+- **Check for Updates Automatically**: the first time the GUI starts it asks whether to do this; when on, it checks at most once a day, in the background. **Cancel** on the update message skips that version.
+
+The update check only asks GitHub for the public list of releases, the same as opening the Releases page in a browser; nothing about the PC or your files is sent. To turn update checks off for everyone on a PC (for example in a managed environment), set the environment variable `SCREENCAP_NO_UPDATE_CHECK=1` with Group Policy, Intune, or a login script.
+
 ### Editing Steps
 
 Select a processed recording in the **Videos** list and the **Steps** tab shows its steps.
@@ -374,7 +389,7 @@ and confirm that no media, logs, or files containing secrets are listed. Also re
 
 ### Updating And Uninstalling
 
-**Update:** paste the same Quick Start command again. It downloads the latest version over the top of the old one. Nothing in `source` or `output` is deleted, and GUI settings are kept.
+**Update:** **Help > Check for Updates...** in the GUI says whether a newer version is out. For the Python install, paste the same Quick Start command again. It downloads the latest version over the top of the old one. Nothing in `source` or `output` is deleted, and GUI settings are kept.
 
 **Uninstall:** move any recordings or screenshots you want to keep out of the install folder first, because removing the folder deletes them.
 
@@ -542,6 +557,6 @@ The Screencap Documentation Tool is free and open source under the [MIT License]
 
 FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them.
 
-Support is best effort, with no guaranteed response time. For bugs and ideas, open an issue on GitHub and include the version from the GUI footer or `screencap.py --version`, plus the relevant lines from `output/screencap.log`. Never attach real recordings or screenshots; a synthetic example is enough. Report security problems privately as described in [SECURITY.md](SECURITY.md).
+Support is best effort, with no guaranteed response time. For bugs and ideas, use **Help > Report a Problem...** or **Suggest an Idea...** in the GUI, or open an [issue on GitHub](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues/new/choose). Include the details from **Help > About > Copy Details** (or `screencap.py --version`), plus the relevant lines from `output/screencap.log`. Never attach real recordings or screenshots; a synthetic example is enough. Report security problems privately as described in [SECURITY.md](SECURITY.md).
 
 The Windows programs are not code signed; the [Code Signing Policy](CODE_SIGNING_POLICY.md) explains how to check a download and holds the privacy statement: the program does not send any information anywhere unless the person using it asks for something that needs it.

@@ -1,6 +1,6 @@
 # winget.yml
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Publishes a release to the Windows Package Manager (winget), so it can be
@@ -9,7 +9,9 @@
 #   2. Writes the winget manifest (packaging/make_winget_manifests.py).
 #   3. Validates it and tests a real install and uninstall through winget.
 #   4. Opens a pull request on microsoft/winget-pkgs with Microsoft's
-#      wingetcreate tool, unless that version is already listed there.
+#      wingetcreate tool, unless that version is already listed there or a
+#      pull request for this package is still open (one at a time; the
+#      newest release can be submitted by hand once it has merged).
 # Called by the release workflow after the Windows build is attached, or run
 # by hand (Actions > Publish to winget > Run workflow) for an existing release.
 # The pull request is opened with the WINGET_TOKEN repository secret: a
@@ -91,6 +93,7 @@ jobs:
           Get-ChildItem build\winget -Recurse -File | ForEach-Object { Write-Host "--- $($_.Name)"; Get-Content $_.FullName }
 
       - name: Validate the manifest and test installing with winget
+        timeout-minutes: 20
         run: |
           $ErrorActionPreference = 'Stop'
           $v = '${{ steps.release.outputs.version }}'
@@ -144,6 +147,12 @@ jobs:
           $path = "manifests/i/ILikeHostingServices/ScreencapDocumentationTool/$v"
           gh api "repos/microsoft/winget-pkgs/contents/$path" --silent 2>$null
           if ($LASTEXITCODE -eq 0) { Write-Host "$env:PACKAGE_ID $v is already in winget-pkgs."; exit 0 }
+          # One pull request at a time: wait for an open one to be merged or closed
+          $open = gh api -X GET search/issues -f q="repo:microsoft/winget-pkgs is:pr is:open in:title $env:PACKAGE_ID" --jq '.items[] | "\(.html_url) \(.title)"'
+          if ($open) {
+            Write-Host "::warning::A winget pull request for $env:PACKAGE_ID is still open, so $v was not submitted: $open"
+            exit 0
+          }
           Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
           .\wingetcreate.exe submit --token $env:WINGET_TOKEN "build\winget\$v"
           if ($LASTEXITCODE -ne 0) { throw "wingetcreate submit failed ($LASTEXITCODE)" }
