@@ -1,4 +1,4 @@
-HANDOFF.md v1.12.1 (Last Rev: 2026-10-10)
+HANDOFF.md v1.13.0 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -40,17 +40,17 @@ Everything that needs the owner (an account, a key, an approval, or a setting), 
 
 | # | Platform | What to do | Why | Where |
 | --- | --- | --- | --- | --- |
-| A1 | Windows (winget) | Accept Microsoft's contributor agreement on the open winget pull request, signed in as `ILHS-Owner`: reply `@microsoft-github-policy-service agree` | Microsoft does not review a first pull request until the submitter accepts | https://github.com/microsoft/winget-pkgs/pull/450166 |
+| A1 | Windows (winget) | Accept Microsoft's contributor license agreement (CLA) on the open winget pull request, signed in as `ILHS-Owner`. Post one comment: `@microsoft-github-policy-service agree company="ILikeHostingServices"` (the code is copyrighted to the organization, so use the company form). It is signed once per GitHub account and covers every later pull request | Microsoft does not review or merge until the submitter accepts (the `Needs-CLA` label and the queued `license/cla` check) | https://github.com/microsoft/winget-pkgs/pull/450166 |
 | A2 | Windows (winget) | Answer moderator questions on that pull request, if any (the cloud session can draft the replies) | New packages are reviewed by hand | Same pull request |
 | A3 | Windows (winget) | Renew the `WINGET_TOKEN` secret before it expires (created 2026-10-10, one year): new classic token, `public_repo` scope only, then replace the secret | Without it, releases stop reaching winget (they still publish) | https://github.com/settings/tokens, repository **Settings > Secrets and variables > Actions** |
-| B1 | Linux (AUR) | Create an AUR account | Arch users install from the AUR | https://aur.archlinux.org/register |
-| B2 | Linux (AUR) | Make an SSH key just for publishing (item 4), add the public half to the AUR account, the private half as the `AUR_SSH_PRIVATE_KEY` secret, then delete both files | Lets the release workflow push the PKGBUILD | AUR **My Account**; repository secrets |
-| B3 | Linux (Snap Store) | Create an Ubuntu One account, accept the developer agreement, and register the name `screencap-documentation-tool` | Reserves the store listing | https://snapcraft.io/register-snap |
-| B4 | Linux (Snap Store) | Export a login token with snapcraft (needs Linux or WSL, item 4) and add it as the `SNAPCRAFT_STORE_CREDENTIALS` secret; renew before it expires | Lets the release workflow upload snaps | Repository secrets |
+| B1 | Linux (AUR) | **Blocked (2026-10-10):** AUR registration is paused by the Arch team (wave of automated sign-ups). Try again when it reopens; watch the Arch news feed or the aur-general list. Nothing breaks meanwhile: the Arch package is attached to every release | Arch users install from the AUR | https://aur.archlinux.org/register, https://archlinux.org/news/ |
+| B2 | Linux (AUR) | After B1: make an SSH key just for publishing (item 4), add the public half to the AUR account, the private half as the `AUR_SSH_PRIVATE_KEY` secret, then delete both files | Lets the release workflow push the PKGBUILD | AUR **My Account**; repository secrets |
+| B3 | Linux (Snap Store) | ~~Create an Ubuntu One account and register the name~~ Done 2026-10-10: account `ilhs-owner2026`, name `screencap-documentation-tool` registered | | |
+| B4 | Linux (Snap Store) | In WSL Ubuntu: install snapcraft and export a login token (exact commands in item 4), then add it as the `SNAPCRAFT_STORE_CREDENTIALS` secret; renew before it expires (2027-10-10) | Lets the release workflow upload snaps | Repository secrets |
 | C1 | macOS (Homebrew) | ~~Create the public repository `ILikeHostingServices/homebrew-tap`~~ Done 2026-10-10 (created as `Homebrew-Tap`; GitHub names ignore case, so `brew tap ilikehostingservices/tap` finds it) | | |
-| C2 | macOS (Homebrew) | In that repository, **Settings > Actions > General > Workflow permissions**: choose **Read and write permissions** | Its update workflow commits the new formula with the repository's own token (no secret needed) | homebrew-tap settings |
+| C2 | macOS (Homebrew) | ~~Workflow permissions: Read and write~~ Done 2026-10-10: the tap workflow committed the v1.22.0 formula | | |
 | C3 | macOS (Homebrew) | ~~Give the Claude GitHub app access to it~~ Done 2026-10-10; the cloud session pushed the tap files the same day | | |
-| C4 | macOS | No Apple Developer account, signing, or notarization: not needed for Homebrew (owner's decision, 2026-10-10) | | |
+| C4 | macOS (Apple) | **Shelved (2026-10-10, cost):** no Apple Developer Program membership for now. Homebrew needs none. Revisit later: see item 6 | | |
 | D1 | GitHub | Optional: ask GitHub Support to drop the old pull request refs (item 1) | Old commit names stay visible there until then | https://support.github.com |
 | D2 | All | When a secret is added or renewed, tell the cloud session; it runs the publish (Linux build or tap update with the newest release) and checks the result | | |
 
@@ -119,8 +119,16 @@ Every release gets `.deb`, `.rpm`, Arch, and snap packages attached automaticall
 **Snap Store:**
 1. Create an Ubuntu One account at https://snapcraft.io (Sign in), and accept the developer agreement.
 2. Register the name: https://snapcraft.io/register-snap with `screencap-documentation-tool`.
-3. On a Linux PC (or WSL) with snapcraft (`sudo snap install snapcraft --classic`), run `snapcraft export-login --snaps=screencap-documentation-tool --acls package_access,package_push,package_update,package_release --expires 2027-10-10 creds.txt` and sign in.
-4. Add the repository secret `SNAPCRAFT_STORE_CREDENTIALS` with the contents of `creds.txt`, then delete the file. (It expires on the date given; renew it the same way.)
+3. In WSL Ubuntu (or any Linux PC). snapcraft is only published as a snap, not an apt package, and `export-login` is a snapcraft command, not a `snap` one:
+   ```bash
+   sudo snap install snapcraft --classic
+   snapcraft export-login --snaps=screencap-documentation-tool \
+     --acls=package_access,package_push,package_update,package_release \
+     --expires=2027-10-10 ~/snap-creds.txt
+   ```
+   It asks for the Ubuntu One email, password, and two-factor code of the account that owns the name (`ilhs-owner2026`). The token can only upload and release this one snap.
+4. Copy it to the Windows clipboard with `clip.exe < ~/snap-creds.txt`, add it as the repository secret `SNAPCRAFT_STORE_CREDENTIALS` (**Settings > Secrets and variables > Actions > New repository secret**, paste, save), then delete the file: `shred -u ~/snap-creds.txt`. It expires on the date given; renew it the same way.
+   - `sudo` in WSL asks for the Linux user's password (set when the distribution was first started), not the Windows one. If it is forgotten, reset it from PowerShell: `wsl -u root passwd <linux user name>`.
 5. As with the AUR, the next release (or a manual run of the Linux build with a release tag) publishes to the `stable` channel. The snap uses strict confinement with the `home`, `removable-media`, and `network` interfaces, which the store approves automatically.
 
 **Flathub (later):** not started. Flathub's runtimes have no Tkinter, so the Flatpak would have to build Tcl/Tk (and Tesseract) itself; Flathub also asks submitters to disclose AI-generated code (this project's code was largely written with Claude) and has at times refused such apps, so check its current policy first. The desktop entry and AppStream file (`packaging/linux/`) already use the Flathub-style ID `io.github.ILikeHostingServices.ScreencapDocumentationTool`.
@@ -132,7 +140,18 @@ Every release gets `.deb`, `.rpm`, Arch, and snap packages attached automaticall
 - **Goal:** `brew install ilikehostingservices/tap/screencap-documentation-tool` (from v1.22.0, the first version that knows about Homebrew installs). No Apple Developer account: Homebrew builds the app on the Mac from the release source, so it is not quarantined.
 - **How it works:** the formula is written by `packaging/homebrew/make_formula.py` (Homebrew's `python@3.13`, `python-tk@3.13`, `ffmpeg`; `screencap` and `screencap-gui` commands; a small `Screencap Documentation Tool.app` the user can link into `~/Applications`). `build-macos.yml` installs and tests it on a Mac for every pull request (`packaging/homebrew/test_formula.sh`).
 - **The tap repository** `ILikeHostingServices/homebrew-tap` holds the files in `packaging/homebrew/tap/` (README, LICENSE, `Formula/`, and `.github/workflows/update.yml`). Its workflow checks the latest release every day, writes and tests the new formula on a Mac, and commits it with the tap's own token. Owner steps C1 to C3 above set it up.
-- **Status (2026-10-10):** the tap files are pushed. Once C2 is done and v1.22.0 is released, run **Update formula** once (the daily run would also pick it up).
+- **Status (2026-10-10):** live. The tap workflow published v1.22.0 and runs daily for new releases.
+- **One tap for the whole organization:** a tap is a repository of formulas, and its name (`ilikehostingservices/tap`) is not tied to this project. Any other ILHS app can be added as another file in `Formula/` (or `Casks/` for a ready-made, signed `.app`), installed as `brew install ilikehostingservices/tap/<name>`. Each app needs its own formula generator and a line in the tap's update workflow; the current workflow updates only this project's formula.
+
+### 6. Apple Developer Program (macOS Signing): Shelved
+
+**Status (2026-10-10):** shelved by the owner because of the cost (the Apple Developer Program is a yearly paid membership, about 99 US dollars; check the current price). Nothing needs doing now: the Homebrew tap (item 5) builds the app on each Mac from source, so macOS Gatekeeper does not block it and no signature is needed.
+
+**What a membership would add, when revisited:**
+- A **Developer ID** certificate to sign the app and Apple **notarization** (an automated malware scan), so a downloadable `.dmg` or `.zip` opens without the "cannot be opened because the developer cannot be verified" warning. That suits people who do not use Homebrew.
+- A Homebrew **cask** (a ready-made app instead of a build on the Mac), and optionally the Mac App Store (needs sandboxing work).
+
+**Revisit when:** people ask for a plain download for Mac, the project earns money or sponsorship to cover the fee, or a client requires signed software. **Then:** the owner joins the program (organization enrollment needs a D-U-N-S number; individual enrollment does not), creates a Developer ID Application certificate and an app-specific password or App Store Connect API key, and stores them as repository secrets; a cloud session adds a macOS build job (PyInstaller app, `codesign`, `notarytool`, a `.dmg`) and a cask to the tap.
 
 ## Done
 
