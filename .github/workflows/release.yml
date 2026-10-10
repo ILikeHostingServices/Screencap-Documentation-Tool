@@ -1,6 +1,6 @@
 # release.yml
 # 2026-10-10
-# Version: v1.5.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -13,6 +13,10 @@
 #    unless they are attached already (see build-windows.yml).
 # 4. Then publishes that release to winget (see winget.yml).
 # Versions are Major.Minor.Patch only (vX.Y.Z); anything else is rejected.
+# A tag that cannot be created is reported and the others still go ahead.
+# GitHub refuses a tag on a commit whose .github/workflows/ files differ from
+# the newest commit's (the workflow token may not change workflows); point
+# such a version at a commit with the current workflow files instead.
 # Runs when a tag is pushed, or by hand (Actions > Publish releases > Run
 # workflow). Safe to re-run: finished work is skipped. It only ever creates
 # tags and releases. It never deletes or rewrites existing ones; the only
@@ -42,12 +46,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       build_tag: ${{ steps.releases.outputs.build_tag }}
+      failed_tags: ${{ steps.tags.outputs.failed_tags }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Create missing tags from the release manifest
+        id: tags
         run: |
           set -euo pipefail
           # Re-fetch tags so annotated tags keep their messages (checkout can
@@ -55,7 +61,8 @@ jobs:
           git fetch --force --tags origin
           manifest=.github/releases/manifest.txt
           [ -f "$manifest" ] || { echo "No manifest; nothing to tag."; exit 0; }
-          grep -v '^\s*#' "$manifest" | while read -r tag sha; do
+          failed=""
+          while read -r tag sha; do
             [ -n "${tag:-}" ] || continue
             if ! [[ "$tag" =~ $VERSION_RE ]]; then
               echo "::error::$tag is not a Major.Minor.Patch version (vX.Y.Z)"; exit 1
@@ -70,8 +77,14 @@ jobs:
             echo "Creating tag: $tag -> $sha"
             git -c user.name="$TAGGER_NAME" -c user.email="$TAGGER_EMAIL" \
               tag -a "$tag" "$sha" --cleanup=whitespace -F "$notes"
-            git push origin "refs/tags/$tag"
-          done
+            if ! git push origin "refs/tags/$tag"; then
+              echo "::error::Could not push $tag (see the note at the top of release.yml)"
+              git tag -d "$tag" >/dev/null
+              failed="$failed $tag"
+            fi
+          done < <(grep -v '^\s*#' "$manifest")
+          # Publish what worked, then fail so the missing tags are noticed
+          echo "failed_tags=${failed# }" >> "$GITHUB_OUTPUT"
 
       - name: Create missing releases and mark the newest as Latest
         id: releases
@@ -127,3 +140,13 @@ jobs:
       release_tag: ${{ needs.publish.outputs.build_tag }}
     secrets:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+
+  missing-tags:
+    name: Report tags that could not be created
+    needs: [publish, windows, winget]
+    if: always() && needs.publish.outputs.failed_tags != ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::Not created: ${{ needs.publish.outputs.failed_tags }}. Point these versions at a commit whose .github/workflows/ files match main's (see release.yml)."
+          exit 1
