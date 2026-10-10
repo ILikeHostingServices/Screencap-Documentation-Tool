@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_editor.py
-# 2026-10-03
-# Version: v1.8.0
+# 2026-10-10
+# Version: v2.0.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -66,26 +66,36 @@ class StepEditor(ttk.Frame):
         self.columnconfigure(1, weight=1)
         self.rowconfigure(1, weight=1)
 
+        # Header: document title, unsaved marker, removed count, and the
+        # switches that apply to the whole recording
         top = ttk.Frame(self)
-        top.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
-        ttk.Label(top, textvariable=self.v_title, font=("TkDefaultFont", 10, "bold")).pack(side="left")
-        ttk.Label(top, textvariable=self.v_dirty, foreground="#b06000").pack(side="left", padx=10)
-        ttk.Label(top, textvariable=self.v_removed, foreground="gray").pack(side="left", padx=4)
-        self.options_bar = ttk.Frame(top)   # per-recording toggles
+        top.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        ttk.Label(top, textvariable=self.v_title, style="Heading.TLabel").pack(side="left")
+        ttk.Label(top, textvariable=self.v_dirty, style="Warn.TLabel").pack(side="left", padx=10)
+        ttk.Label(top, textvariable=self.v_removed, style="Muted.TLabel").pack(side="left", padx=4)
+        self.options_bar = ttk.Frame(top)
         self.options_bar.pack(side="right")
-        ttk.Checkbutton(self.options_bar, text="Blur sensitive info", variable=self.v_redact_doc,
-                        command=self.toggle_doc_redact).pack(side="left", padx=4)
         ttk.Checkbutton(self.options_bar, text="Highlight changes", variable=self.v_hl_doc,
-                        command=self.toggle_doc_highlight).pack(side="left", padx=4)
+                        command=self.toggle_doc_highlight).pack(side="right", padx=(12, 0))
+        ttk.Checkbutton(self.options_bar, text="Blur sensitive info", variable=self.v_redact_doc,
+                        command=self.toggle_doc_redact).pack(side="right")
+        ttk.Label(self.options_bar, text="Whole recording:", style="Muted.TLabel").pack(
+            side="right", padx=(0, 8))
 
+        # Left: the list of steps and reordering
         left = ttk.Frame(self)
         left.grid(row=1, column=0, sticky="ns")
-        left.rowconfigure(0, weight=1)
-        self.step_list = tk.Listbox(left, width=30, exportselection=False, activestyle="none",
-                                    font=("Consolas", 9) if self.app.is_windows else ("Courier", 9))
-        self.step_list.grid(row=0, column=0, columnspan=2, sticky="ns")
+        left.rowconfigure(1, weight=1)
+        left.columnconfigure(0, weight=1)
+        ttk.Label(left, text="Steps", style="Heading.TLabel").grid(row=0, column=0, sticky="w",
+                                                                    pady=(0, 6))
+        self.step_list = tk.Listbox(left, width=28, height=8, exportselection=False,
+                                    activestyle="none",
+                                    font=self.app.theme.fonts["mono"] if hasattr(self.app, "theme")
+                                    else ("Consolas", 9))
+        self.step_list.grid(row=1, column=0, sticky="nsew")
         sb = ttk.Scrollbar(left, orient="vertical", command=self.step_list.yview)
-        sb.grid(row=0, column=2, sticky="ns")
+        sb.grid(row=1, column=1, sticky="ns")
         self.step_list.configure(yscrollcommand=sb.set)
         self.step_list.bind("<<ListboxSelect>>", lambda e: self.on_select())
         self.step_list.bind("<Double-1>", lambda e: self.open_image())
@@ -93,63 +103,64 @@ class StepEditor(ttk.Frame):
         # Ctrl+Up/Down reorder; plain Up/Down page through steps (see on_arrow)
         self.step_list.bind("<Control-Up>", lambda e: self.move(-1) or "break")
         self.step_list.bind("<Control-Down>", lambda e: self.move(1) or "break")
-        top = self.winfo_toplevel()
-        top.bind("<Up>", lambda e: self.on_arrow(e, -1), add="+")
-        top.bind("<Down>", lambda e: self.on_arrow(e, 1), add="+")
+        top_level = self.winfo_toplevel()
+        top_level.bind("<Up>", lambda e: self.on_arrow(e, -1), add="+")
+        top_level.bind("<Down>", lambda e: self.on_arrow(e, 1), add="+")
+        order = ttk.Frame(left)
+        order.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        order.columnconfigure((0, 1), weight=1, uniform="order")
         self.step_buttons = []
-        for r, (text, cmd) in enumerate((("Move Step Up", lambda: self.move(-1)),
-                                         ("Move Step Down", lambda: self.move(1)),
+        for n, (text, cmd) in enumerate((("Move Up", lambda: self.move(-1)),
+                                         ("Move Down", lambda: self.move(1)),
                                          ("Delete Step", self.delete_step),
-                                         ("Restore Deleted", self.restore_deleted)), 1):
-            b = ttk.Button(left, text=text, command=cmd)
-            b.grid(row=(r + 1) // 2, column=(r + 1) % 2, sticky="ew", pady=(4, 0), padx=(0, 4))
+                                         ("Restore Deleted", self.restore_deleted))):
+            b = ttk.Button(order, text=text, command=cmd)
+            b.grid(row=n // 2, column=n % 2, sticky="ew", padx=(0 if n % 2 == 0 else 4, 0),
+                   pady=(0 if n < 2 else 4, 0))
             self.step_buttons.append(b)
-        # Rows 1-2 hold the four buttons above; extra tools go from row 3
-        self.tools_frame = ttk.Frame(left)
-        self.tools_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(6, 0))
-        self.chk_hl_step = ttk.Checkbutton(self.tools_frame, text="Highlight this step",
-                                           variable=self.v_hl_step,
-                                           command=self.toggle_step_highlight)
-        self.chk_hl_step.pack(anchor="w")
-        ttk.Label(self.tools_frame, text="Crop (drag on the picture):").pack(anchor="w", pady=(8, 0))
-        crop_row = ttk.Frame(self.tools_frame)
-        crop_row.pack(fill="x")
-        ttk.Button(crop_row, text="All Steps", command=lambda: self.begin_draw("crop", "all")
-                   ).pack(side="left", fill="x", expand=True)
-        ttk.Button(crop_row, text="This Step", command=lambda: self.begin_draw("crop", "step")
-                   ).pack(side="left", fill="x", expand=True, padx=(4, 0))
-        crop_row2 = ttk.Frame(self.tools_frame)
-        crop_row2.pack(fill="x", pady=(4, 0))
-        ttk.Button(crop_row2, text="No Crop Here", command=self.no_crop_step
-                   ).pack(side="left", fill="x", expand=True)
-        ttk.Button(crop_row2, text="Clear All Crops", command=self.clear_crops
-                   ).pack(side="left", fill="x", expand=True, padx=(4, 0))
-        ttk.Label(self.tools_frame, text="Blur (sensitive information):").pack(anchor="w", pady=(8, 0))
-        ttk.Checkbutton(self.tools_frame, text="Blur this step", variable=self.v_redact_step,
-                        command=self.toggle_step_redact).pack(anchor="w")
-        blur_row = ttk.Frame(self.tools_frame)
-        blur_row.pack(fill="x")
-        ttk.Button(blur_row, text="Add Blur Box", command=lambda: self.begin_draw("blur", "step")
-                   ).pack(side="left", fill="x", expand=True)
-        ttk.Button(blur_row, text="Un-blur / Re-blur", command=self.begin_pick
-                   ).pack(side="left", fill="x", expand=True, padx=(4, 0))
-        ttk.Button(self.tools_frame, text="Re-scan All Steps for Sensitive Text",
-                   command=self.rescan).pack(fill="x", pady=(4, 0))
 
+        # Right: picture with its tools, caption, document details, export
         right = ttk.Frame(self)
-        right.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
+        right.grid(row=1, column=1, sticky="nsew", padx=(14, 0))
         right.columnconfigure(0, weight=1)
         right.rowconfigure(1, weight=1)
         viewbar = ttk.Frame(right)
-        viewbar.grid(row=0, column=0, sticky="ew")
-        ttk.Label(viewbar, text="Show:").pack(side="left")
-        ttk.Radiobutton(viewbar, text="Screenshot", value="final", variable=self.v_view,
-                        command=self.schedule_preview).pack(side="left", padx=4)
-        ttk.Radiobutton(viewbar, text="Original frame", value="original", variable=self.v_view,
-                        command=self.schedule_preview).pack(side="left", padx=4)
+        viewbar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        for value, text in (("final", "Screenshot"), ("original", "Original frame")):
+            ttk.Radiobutton(viewbar, text=text, value=value, variable=self.v_view,
+                            style="Segment.TRadiobutton",
+                            command=self.schedule_preview).pack(side="left")
+        crop = ttk.Menubutton(viewbar, text="Crop")
+        crop_menu = tk.Menu(crop, tearoff=False)
+        crop_menu.add_command(label="Crop All Steps (drag on the picture)",
+                              command=lambda: self.begin_draw("crop", "all"))
+        crop_menu.add_command(label="Crop This Step Only (drag on the picture)",
+                              command=lambda: self.begin_draw("crop", "step"))
+        crop_menu.add_command(label="No Crop on This Step", command=self.no_crop_step)
+        crop_menu.add_separator()
+        crop_menu.add_command(label="Clear All Crops", command=self.clear_crops)
+        crop.configure(menu=crop_menu)
+        crop.pack(side="left", padx=(14, 0))
+        blur = ttk.Menubutton(viewbar, text="Blur")
+        blur_menu = tk.Menu(blur, tearoff=False)
+        blur_menu.add_command(label="Add Blur Box (drag on the picture)",
+                              command=lambda: self.begin_draw("blur", "step"))
+        blur_menu.add_command(label="Un-blur / Re-blur (click a box)", command=self.begin_pick)
+        blur_menu.add_checkbutton(label="Blur This Step", variable=self.v_redact_step,
+                                  command=self.toggle_step_redact)
+        blur_menu.add_separator()
+        blur_menu.add_command(label="Re-scan All Steps for Sensitive Text", command=self.rescan)
+        blur.configure(menu=blur_menu)
+        blur.pack(side="left", padx=(6, 0))
+        self.tool_menus = (crop_menu, blur_menu)
+        self.chk_hl_step = ttk.Checkbutton(viewbar, text="Highlight this step",
+                                           variable=self.v_hl_step,
+                                           command=self.toggle_step_highlight)
+        self.chk_hl_step.pack(side="right")
         self.viewbar = viewbar
-        self.canvas = tk.Canvas(right, background="#202020", highlightthickness=0)
-        self.canvas.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
+
+        self.canvas = tk.Canvas(right, highlightthickness=0, height=180, width=320)
+        self.canvas.grid(row=1, column=0, sticky="nsew")
         self.canvas.bind("<Configure>", lambda e: self.schedule_preview())
         self.canvas.bind("<ButtonPress-1>", self.on_press)
         # Clicking the picture takes the keyboard, so Up/Down page from there
@@ -158,54 +169,91 @@ class StepEditor(ttk.Frame):
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
         self.winfo_toplevel().bind("<Escape>", lambda e: self.cancel_draw(), add="+")
 
-        info = ttk.Label(right, textvariable=self.v_info, anchor="w", justify="left")
-        info.grid(row=2, column=0, sticky="ew", pady=(4, 0))
+        info = ttk.Label(right, textvariable=self.v_info, style="Muted.TLabel", anchor="w",
+                         justify="left")
+        info.grid(row=2, column=0, sticky="ew", pady=(6, 0))
         right.bind("<Configure>", lambda e: info.configure(wraplength=max(200, e.width - 10)))
-        cap = ttk.Frame(right)
-        cap.grid(row=3, column=0, sticky="ew", pady=(4, 0))
-        cap.columnconfigure(1, weight=1)
-        ttk.Label(cap, text="Caption:").grid(row=0, column=0, sticky="nw", padx=(0, 6))
-        self.caption = tk.Text(cap, height=3, wrap="word", undo=True)
-        self.caption.grid(row=0, column=1, sticky="ew")
+        ttk.Label(right, text="Caption", style="Heading.TLabel").grid(row=3, column=0, sticky="w",
+                                                                       pady=(8, 4))
+        self.caption = tk.Text(right, height=3, wrap="word", undo=True, padx=8, pady=6,
+                               font="TkDefaultFont")
+        self.caption.grid(row=4, column=0, sticky="ew")
         self.caption.bind("<<Modified>>", self.on_caption_modified)
 
-        docrow = ttk.Frame(right)
-        docrow.grid(row=4, column=0, sticky="ew", pady=(6, 0))
-        for col, (label, var, width) in enumerate((("Title:", self.v_doc_title, 24),
-                                                   ("Version:", self.v_doc_version, 7),
-                                                   ("Author:", self.v_doc_author, 12))):
-            ttk.Label(docrow, text=label).pack(side="left", padx=(8 if col else 0, 2))
-            ttk.Entry(docrow, textvariable=var, width=width).pack(side="left")
+        # Document details and export, side by side
+        lower = ttk.Frame(self)
+        lower.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        lower.columnconfigure(0, weight=1)
+        doc = ttk.Frame(lower, style="Card.TFrame", padding=10)
+        doc.grid(row=0, column=0, sticky="nsew")
+        doc.columnconfigure(0, weight=1)
+        for col, text in enumerate(("Document title", "Version", "Author")):
+            ttk.Label(doc, text=text, style="Card.Muted.TLabel").grid(
+                row=0, column=col, sticky="w", padx=(0 if col == 0 else 8, 0))
+        self.entry_title = ttk.Entry(doc, textvariable=self.v_doc_title, width=40,
+                                     font=self.app.theme.fonts["heading"]
+                                     if hasattr(self.app, "theme") else None)
+        self.entry_title.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+        ttk.Entry(doc, textvariable=self.v_doc_version, width=8).grid(
+            row=1, column=1, sticky="nsew", padx=(8, 0), pady=(2, 0))
+        ttk.Entry(doc, textvariable=self.v_doc_author, width=14).grid(
+            row=1, column=2, sticky="nsew", padx=(8, 0), pady=(2, 0))
+        for var in (self.v_doc_title, self.v_doc_version, self.v_doc_author):
             var.trace_add("write", lambda *a: self.on_meta_changed())
-        exprow = ttk.Frame(right)
-        exprow.grid(row=5, column=0, sticky="ew", pady=(4, 0))
-        ttk.Label(exprow, text="Export:").pack(side="left")
+        exp = ttk.Frame(lower, style="Card.TFrame", padding=10)
+        exp.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        ttk.Label(exp, text="Export", style="Card.Muted.TLabel").grid(row=0, column=0,
+                                                                       columnspan=3, sticky="w")
         self.export_buttons = []
-        for fmt, text in (("html", "HTML"), ("docx", "Word"), ("pdf", "PDF")):
-            b = ttk.Button(exprow, text=text, width=6, command=lambda f=fmt: self.export(f))
-            b.pack(side="left", padx=(4, 0))
+        for col, (fmt, text) in enumerate((("html", "HTML"), ("docx", "Word"), ("pdf", "PDF"))):
+            b = ttk.Button(exp, text=text, width=6, command=lambda f=fmt: self.export(f))
+            b.grid(row=1, column=col, padx=(0 if col == 0 else 4, 0), pady=(2, 6))
             self.export_buttons.append(b)
-        ttk.Checkbutton(exprow, text="Unblurred copy",
-                        variable=self.v_export_unredacted).pack(side="left", padx=6)
-        ttk.Button(exprow, text="Open Exports", command=self.open_export_folder
-                   ).pack(side="left", padx=(4, 0))
+        ttk.Checkbutton(exp, text="Unblurred copy", variable=self.v_export_unredacted,
+                        style="Card.TCheckbutton").grid(row=2, column=0, columnspan=2, sticky="w")
+        ttk.Button(exp, text="Open Exports", style="Card.Link.TButton",
+                   command=self.open_export_folder).grid(row=2, column=2, sticky="e")
 
+        # Bottom bar: navigation and actions on the left, saving on the right
         bar = ttk.Frame(self)
-        bar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        ttk.Button(bar, text="< Prev", command=lambda: self.step_by(-1)).pack(side="left")
-        ttk.Button(bar, text="Next >", command=lambda: self.step_by(1)).pack(side="left", padx=4)
-        ttk.Button(bar, text="Open Image", command=self.open_image).pack(side="left", padx=4)
+        bar.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        ttk.Button(bar, text="< Prev", width=7, command=lambda: self.step_by(-1)).pack(side="left")
+        ttk.Button(bar, text="Next >", width=7, command=lambda: self.step_by(1)).pack(
+            side="left", padx=4)
+        ttk.Separator(bar, orient="vertical").pack(side="left", fill="y", padx=8)
+        opener = ttk.Menubutton(bar, text="Open", width=6)
+        open_menu = tk.Menu(opener, tearoff=False)
+        open_menu.add_command(label="Open Image", command=self.open_image)
+        open_menu.add_command(label="Open steps.md", command=self.open_index)
+        open_menu.add_command(label="Open Output Folder", command=self.open_folder)
+        open_menu.add_command(label="Open Exports Folder", command=self.open_export_folder)
+        opener.configure(menu=open_menu)
+        opener.pack(side="left")
+        self.tool_menus = self.tool_menus + (open_menu,)
         self.action_bar = ttk.Frame(bar)
         self.action_bar.pack(side="left", padx=4)
         ttk.Button(self.action_bar, text="Play in VLC", command=self.play).pack(side="left")
         self.btn_narration = ttk.Button(self.action_bar, text="Captions From Narration",
                                         command=self.captions_from_narration)
         self.btn_narration.pack(side="left", padx=(4, 0))
-        self.btn_save = ttk.Button(bar, text="Save Changes", command=self.save)
+        self.btn_save = ttk.Button(bar, text="Save Changes", style="Accent.TButton",
+                                   command=self.save)
         self.btn_save.pack(side="right")
-        ttk.Button(bar, text="Discard Changes", command=self.discard).pack(side="right", padx=4)
-        ttk.Button(bar, text="steps.md", command=self.open_index).pack(side="right", padx=4)
-        ttk.Button(bar, text="Folder", command=self.open_folder).pack(side="right")
+        ttk.Button(bar, text="Discard", command=self.discard).pack(side="right", padx=6)
+
+    def on_theme_changed(self):
+        """Colors that are not styles: menus of the tool buttons and the
+        picture background. Redraw the picture in the new colors."""
+        theme = getattr(self.app, "theme", None)
+        if theme is None:
+            return
+        for menu in self.tool_menus:
+            theme.style_widgets(menu)
+        self.schedule_preview()
+
+    def canvas_text_color(self):
+        theme = getattr(self.app, "theme", None)
+        return theme.colors["canvas_text"] if theme else "white"
 
     # ------------------------------------------------------------- loading
 
@@ -689,7 +737,7 @@ class StepEditor(ttk.Frame):
         w, h = self.preview_size()
         src = self.out_dir / step["original"]
         if not src.is_file():
-            self.canvas.create_text(w // 2, h // 2, fill="white",
+            self.canvas.create_text(w // 2, h // 2, fill=self.canvas_text_color(),
                                     text="Original image is missing (deleted or moved).")
             return
         filters = None
@@ -714,7 +762,7 @@ class StepEditor(ttk.Frame):
                                  (h - self.preview_image.height()) / 2)
                 self.draw_overlays(step)
         except Exception as exc:
-            self.canvas.create_text(w // 2, h // 2, fill="white", width=w - 20,
+            self.canvas.create_text(w // 2, h // 2, fill=self.canvas_text_color(), width=w - 20,
                                     text=f"Preview unavailable: {exc}")
 
     def overlay(self, rect, color, label=None):

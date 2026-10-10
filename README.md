@@ -1,4 +1,4 @@
-README.md v1.26.0 (Last Rev: 2026-10-10)
+README.md v1.27.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -15,6 +15,7 @@ For each recording you get:
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps.
+- A clean GUI with light and dark themes that can follow the system setting.
 - Saved presets: built-in settings for installer wizards, general desktop use, web consoles, terminals, remote desktops, forms, slideshows, video meetings, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
 - Optional **Captions From Narration**: if you talk while you record, what you said becomes the first-draft caption of each step. Speech recognition runs offline on your PC.
@@ -41,6 +42,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `install.ps1` | One-step Windows installer used by the Quick Start command. |
 | `install.sh` | One-step Linux and macOS installer used by the Quick Start commands. |
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
+| `theme.py` | The GUI's light, dark, and system themes. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
 | `screencap.py` | The detection engine and command line tool. |
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
@@ -226,13 +228,19 @@ sudo bash install.sh        # macOS: bash install.sh
 
 ### Using The GUI
 
-The window is laid out top to bottom in the order you use it:
+The window is laid out in the order you use it:
 
-1. **Folders.** Choose where recordings come from and where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the source folder recursively.
-2. **Videos.** Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
-3. **Preset and Detection Settings.** Pick a **Preset** for the kind of recording (see [Presets](#presets)), or adjust the settings yourself. Pick a **Sensitivity** level (High, Normal, Low) or type your own threshold. **Screenshot taken** chooses between the finished state of each step (default) and right after each change. **Remove duplicate screenshots** drops screenshots that look the same as an earlier one. **Highlight what changed in each step** draws the red box. **Blur passwords, keys, IP and email addresses** turns on automatic blurring, and **Also blur** adds your own patterns (see [Blurring Sensitive Information](#blurring-sensitive-information)). Tick **Dry run** to count steps without saving anything. **Reset Defaults** restores the recommended values.
-4. **Steps tab.** The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
-5. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`.
+1. **Folders** (top bar). **Recordings** is where recordings come from and **Output** is where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the recordings folder recursively.
+2. **Recordings** (left). Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
+3. **Settings** (left, below). Pick a **Preset** for the kind of recording (see [Presets](#presets)); a line under it says what it is for. **Sensitivity** (High, Normal, Low, or your own threshold) and **Screenshot taken** (the finished state of each step, or right after each change) are the settings you change most. The check boxes switch the red **highlight** box, automatic **blurring** of passwords, keys, IP and email addresses (see [Blurring Sensitive Information](#blurring-sensitive-information)), **duplicate removal**, and **Captions from narration**. **Save as preset...** and **Delete preset** manage your own presets.
+4. **Advanced settings...** opens a separate window with the timing settings, image format, extra **Also blur** patterns, **Reprocess recordings that are already done**, **Dry run** (count steps without saving anything), and **Reset Defaults**.
+5. **Steps tab** (right). The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
+6. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`. Ctrl+1 and Ctrl+2 switch between the tabs.
+7. **Status bar** (bottom). What is happening, the progress of a run, and the version.
+
+Drag the divider between the left side and the tabs to give either more room.
+
+**Appearance:** **View > System Theme** (the default) follows the light or dark app setting of Windows (Settings > Personalization > Colors), macOS, or the Linux desktop, and switches when that setting changes. **View > Light Theme** and **View > Dark Theme** pick one for good. The choice is remembered.
 
 Your folders and settings are saved when you process or close the window and restored the next time you open it.
 
@@ -250,33 +258,27 @@ The update check only asks GitHub for the public list of releases, the same as o
 
 ### Editing Steps
 
-Select a processed recording in the **Videos** list and the **Steps** tab shows its steps.
+Select a processed recording in the **Recordings** list and the **Steps** tab shows its steps.
 
 | Control | What it does |
 | --- | --- |
 | Step list | Every step with its time and caption. **< Prev** / **Next >**, or the **Up** and **Down** arrow keys, page through them. The arrow keys work anywhere in the Steps tab except while typing a caption or title. |
-| **Move Step Up** / **Move Step Down** (or **Ctrl+Up** / **Ctrl+Down** in the list) | Change the order of steps. The step you move stays selected, so the picture keeps showing it; the status bar says where it moved to. |
+| **Move Up** / **Move Down** (or **Ctrl+Up** / **Ctrl+Down** in the list) | Change the order of steps. The step you move stays selected, so the picture keeps showing it; the status bar says where it moved to. |
 | **Delete Step** (or the Delete key) | Remove a step. Its original frame is kept. |
 | **Restore Deleted** | Put every deleted step back at its place in the video's timeline. |
-| **Caption** | The text shown under the step in `steps.md`, replacing the `_Notes:_` placeholder. |
-| **Highlight changes** (top right) | Turn the red "what changed" box on or off for the whole recording. |
-| **Highlight this step** | Turn the box on or off for the selected step only. This overrides the recording-wide setting. |
-| **Crop: All Steps / This Step** | Drag a rectangle on the picture around the area to keep. **All Steps** sets the crop for the whole recording; **This Step** gives the selected step its own crop. Press Esc to cancel. |
-| **No Crop Here** | Leave the selected step uncropped even when the recording has a crop. |
-| **Clear All Crops** | Remove the recording-wide crop and every per-step crop. |
-| **Blur sensitive info** (top right) | Turn blurring on or off for the whole recording. |
-| **Blur this step** | Turn blurring on or off for the selected step only. |
-| **Add Blur Box** | Drag a rectangle around anything else to blur on the selected step. |
-| **Un-blur / Re-blur** | Click a blur box on the picture: a detected box is switched off (gray outline) or back on; a hand-drawn box is removed. |
-| **Re-scan All Steps for Sensitive Text** | Detect sensitive text again on every step and save, for example after installing Tesseract. Hand-drawn boxes are kept. |
+| **Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
+| **Crop** menu | **Crop All Steps** or **Crop This Step Only**: drag a rectangle on the picture around the area to keep (Esc cancels). **No Crop on This Step** leaves the selected step uncropped even when the recording has a crop. **Clear All Crops** removes every crop. |
+| **Blur** menu | **Add Blur Box**: drag a rectangle around anything else to blur. **Un-blur / Re-blur**: click a blur box on the picture; a detected box is switched off (gray outline) or back on, a hand-drawn box is removed. **Blur This Step** switches blurring for the selected step only. **Re-scan All Steps for Sensitive Text** detects sensitive text again on every step and saves, for example after installing Tesseract (hand-drawn boxes are kept). |
+| **Highlight this step** | Turn the red "what changed" box on or off for the selected step only. This overrides the recording-wide setting. |
+| **Whole recording: Blur sensitive info / Highlight changes** (top right) | Turn blurring or the red box on or off for the whole recording. |
+| **Caption** | The text shown under the step in `steps.md` and in exports, replacing the `_Notes:_` placeholder. |
+| **Document title / Version / Author** | The header of exported documents. The title defaults to the recording's name and the version to `v1.0.0`; the date is the day you export. |
+| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. |
+| **Open** menu | Open the screenshot, `steps.md`, the recording's output folder, or the exports folder. |
 | **Play in VLC** | Open the original recording in VLC 3 seconds before the selected step's screen appeared, so you can watch the click or keystroke that led to it. Needs [VLC](https://www.videolan.org/) and the recording still in its source folder. |
-| **Title / Version / Author** | The header of exported documents. Title defaults to the recording's name and version to `v1.0.0`; the date is the day you export. |
-| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. |
-| **Unblurred copy** | Export the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). |
-| **Open Exports** | Open the `export/` folder. |
-| **Show: Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
+| **Captions From Narration** | Fill the empty captions from what was said in the recording (see [Captions From Narration](#captions-from-narration)). |
 | **Save Changes** | Re-render the screenshots from the originals and regenerate `steps.md` and `steps.json`. |
-| **Discard Changes** | Go back to the last saved version. |
+| **Discard** | Go back to the last saved version. |
 
 On **Original frame**, dashed outlines show what will be applied: blue for the crop, red for the "what changed" box, yellow for detected sensitive text (gray when switched off), and orange for hand-drawn blur boxes. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
 

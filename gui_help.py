@@ -2,7 +2,7 @@
 #
 # gui_help.py
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -34,7 +34,9 @@ TOPICS = [
 
 5. Export. Fill in the document title, version, and author, then export to HTML, Word, or PDF.
 
-The original screenshots are always kept, so every edit can be changed again later."""),
+The original screenshots are always kept, so every edit can be changed again later.
+
+More settings (timing, image format, extra blur patterns, dry run) are under Advanced settings. View > Light Theme, Dark Theme, or System Theme changes the look."""),
     ("Presets", """\
 A preset is a named set of detection settings for one kind of recording:
 
@@ -54,9 +56,11 @@ In the Steps tab:
 
 - Up and Down page through the steps (from the picture or the buttons). Ctrl+Up and Ctrl+Down move the selected step. Delete removes it; Restore Deleted brings removed steps back.
 - Caption: type what the reader should do in this step.
-- Crop: drag a rectangle on the picture to keep only part of the screen, for all steps or just this one.
-- Highlight: the red box shows what changed since the previous step. Switch it off for the whole recording or for one step.
-- Show Screenshot or Original frame to compare the edited picture with the untouched capture.
+- Crop menu: drag a rectangle on the picture to keep only part of the screen, for all steps or just this one.
+- Blur menu: add a blur box, or click a blurred area to switch it off or back on.
+- Highlight: the red box shows what changed since the previous step. Switch it off for the whole recording (top right) or for one step (Highlight this step).
+- Screenshot / Original frame compares the edited picture with the untouched capture.
+- Open menu: the screenshot, steps.md, or the output and export folders.
 - Save Changes re-renders the screenshots and steps.md from the originals. Discard Changes goes back to the last save.
 - Play in VLC opens the recording just before the selected step."""),
     ("Blurring sensitive information", """\
@@ -83,6 +87,7 @@ Delete               Delete the selected step
 Esc                  Cancel drawing a crop or blur box
 Double-click a step  Open the screenshot
 Double-click a video Open its output folder
+Ctrl+1 / Ctrl+2      Steps tab / Log tab
 F1                   This help"""),
     ("Troubleshooting", """\
 - "FFmpeg not found": install it with winget install --id Gyan.FFmpeg -e, then restart the app. FFmpeg does all the video work and is required.
@@ -197,7 +202,7 @@ class AboutWindow(tk.Toplevel):
                        command=lambda u=url: app.open_url(u)).pack(side="left", padx=(0, 6))
         ttk.Label(body, text="Details for problem reports:").grid(
             row=4, column=0, columnspan=2, sticky="w", pady=(14, 2))
-        self.details = tk.Text(body, height=6, width=70, wrap="word", relief="flat",
+        self.details = tk.Text(body, height=7, width=70, wrap="word", relief="flat",
                                highlightthickness=1, padx=8, pady=6)
         self.details.insert("1.0", details_text(app))
         self.details.configure(state="disabled")

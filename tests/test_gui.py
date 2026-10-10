@@ -2,13 +2,14 @@
 #
 # test_gui.py
 # 2026-10-10
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
 # Videos list, then checks the Steps tab (arrow-key navigation, reordering,
 # captions, saving, captions from narration), the version in the title, and
-# the Help menu (help, About, links, update check). Skipped when Tkinter or a
+# the Help menu (help, About, links, update check), the light, dark, and
+# system themes, and the Advanced Settings window. Skipped when Tkinter or a
 # display is not available (on Linux CI it runs under xvfb-run).
 
 import os
@@ -287,6 +288,43 @@ class GuiTests(unittest.TestCase):
         self.assertEqual([d for d, _ in self.dialogs], ["showinfo"])
         self.assertIn("latest version", self.dialogs[0][1])
         self.assertEqual(opened, [])
+
+    def test_themes_switch_and_are_remembered(self):
+        import json
+        import theme
+        self.assertIn(theme.system_theme(), ("light", "dark"))
+        for mode in ("dark", "light", "system"):
+            self.app.set_theme(mode)
+            self.pump(0.2)
+            expected = theme.system_theme() if mode == "system" else mode
+            self.assertEqual(self.app.theme.name, expected)
+            colors = theme.PALETTES[expected]
+            self.assertEqual(str(self.app.editor.step_list.cget("background")), colors["surface"])
+            self.assertEqual(str(self.root.cget("background")), colors["bg"])
+            saved = json.loads(self.gui.SETTINGS_FILE.read_text(encoding="utf-8"))
+            self.assertEqual(saved["theme"], mode)
+        self.app.set_theme("dark")
+        self.app.show_about().destroy()        # dialogs follow the theme too
+        self.assertEqual(self.errors, [])
+
+    def test_advanced_settings_window_edits_the_same_settings(self):
+        win = self.app.open_advanced()
+        self.pump()
+        self.assertIs(self.app.open_advanced(), win)          # one window, brought back
+        entries = [w for w in self.descendants(win) if isinstance(w, self.gui.ttk.Entry)]
+        self.assertTrue(entries)
+        self.app.v_debounce.set("2.5")
+        self.assertEqual(self.app.build_args().debounce, 2.5)
+        win.destroy()
+        self.assertEqual(self.errors, [])
+
+    def descendants(self, widget):
+        out, stack = [], [widget]
+        while stack:
+            w = stack.pop()
+            out.append(w)
+            stack.extend(w.winfo_children())
+        return out
 
 
 if __name__ == "__main__":

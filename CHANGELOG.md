@@ -1,8 +1,25 @@
-CHANGELOG.md v1.22.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.23.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.20.0 - New look, with light and dark themes (2026-10-10)
+
+**New**
+- **Light and dark themes.** **View > System Theme** (the default) follows the app theme of Windows (Settings > Personalization > Colors), macOS, or the Linux desktop, and switches by itself when that setting changes. **View > Light Theme** and **View > Dark Theme** pick one for good. On Windows the title bar turns dark too. The choice is remembered.
+- A cleaner main window: the folders sit in a slim bar at the top, the **Recordings** list and **Settings** are cards on the left, the step editor and log are on the right, and a status bar at the bottom shows progress and the version. Drag the divider to give either side more room.
+- **Settings** shows only what you change most: the preset (with a line saying what it is for), sensitivity, when the screenshot is taken, and the highlight, blur, duplicate, and narration switches. Everything else moved to **Advanced settings...**, a separate window (also in the **View** menu).
+- **Save as preset...** and **Delete preset** sit next to **Advanced settings...**.
+- The Steps tab is reorganized: **Crop** and **Blur** are menus above the picture, **Highlight this step** is next to them, and the rarely used **Open** buttons (image, steps.md, folders) are one menu.
+- **Document title** now has a full-width box with larger text, with **Version** and **Author** beside it, in their own row together with **Export**.
+- New check boxes and radio buttons that look the same everywhere, primary buttons (**Process All**, **Save Changes**) in the accent color, and Segoe UI on Windows.
+- Ctrl+1 and Ctrl+2 switch between the Steps and Log tabs.
+
+**Changed**
+- The window opens at 1400 x 860 and still fits down to 1180 x 720.
+
+Your settings, presets, and recordings carry over unchanged.
 
 ## v1.19.0 - New install folder for the Windows installer (2026-10-10)
 
