@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Screencap Documentation Tool
+GenericName=Step-by-Step Screenshot Tool
+Comment=Turn screen recordings into step-by-step screenshot documentation
+Exec=screencap-gui
+Icon=io.github.ILikeHostingServices.ScreencapDocumentationTool
+Terminal=false
+Categories=Utility;
+Keywords=screenshot;documentation;screen recording;how-to;tutorial;steps;
+StartupWMClass=ScreencapDocTool

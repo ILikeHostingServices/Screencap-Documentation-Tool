@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-10
-# Version: v2.0.0
+# Version: v2.0.1
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -46,7 +46,7 @@ import theme  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "2.0.0"   # this file; the release version is in version.py
+GUI_VERSION = "2.0.1"   # this file; the release version is in version.py
 ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
@@ -113,7 +113,7 @@ class App:
         self.vlc = player.find_vlc()
         self.whisper_python = transcribe.find_python()
         self.defaults = sc.parse_args([])
-        if apppaths.FROZEN:
+        if apppaths.FROZEN or apppaths.PACKAGE_KIND:
             # Packaged app: make the default folders in Documents on first start
             for folder in (self.defaults.source, self.defaults.output):
                 try:
@@ -1115,7 +1115,12 @@ def main():
     # className sets the Linux WM_CLASS used to match the .desktop menu entry
     root = tk.Tk(className="ScreencapDocTool")
     set_window_icon(root)
-    App(root)
+    smoke = "--smoke-test" in sys.argv[1:]
+    if smoke:   # used by the package tests: no update question, close by itself
+        os.environ["SCREENCAP_NO_UPDATE_CHECK"] = "1"
+    app = App(root)
+    if smoke:
+        root.after(3000, lambda: (print(root.title(), flush=True), app.on_close()))
     root.mainloop()
 
 

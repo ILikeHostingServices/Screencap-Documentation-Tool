@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 #
 # apppaths.py
-# 2026-10-04
-# Version: v1.0.0
+# 2026-10-10
+# Version: v1.1.0
 #
 # PURPOSE:
 # Where the tool's files live. The same code runs two ways:
 #   - from the Python install (screencap.py and friends in one folder): the
 #     program, its tools/ folder, and the default source/ and output/
 #     folders are all in that folder, as they always have been;
-#   - as the packaged Windows app (PyInstaller): the program files are in
-#     the app's folder (often under Program Files, which normal users cannot
-#     write to), so the default source/ and output/ folders go in the user's
-#     Documents folder instead.
+#   - as the packaged Windows app (PyInstaller), or from a Linux package
+#     (.deb, .rpm, Arch, snap): the program files are in a folder normal
+#     users cannot write to (Program Files, /usr/share), so the default
+#     source/ and output/ folders go in the user's Documents folder instead.
+#     Linux packages mark themselves with a package-kind file next to the
+#     program (see packaging/linux/stage.sh).
 
 import os
 import sys
@@ -44,8 +46,35 @@ def documents_dir():
                 return Path(buf.value)
         except (AttributeError, OSError):
             pass
-    return Path.home() / "Documents"
+    if os.environ.get("SNAP_REAL_HOME"):          # inside a snap, HOME is the snap's own
+        home = Path(os.environ["SNAP_REAL_HOME"])
+    else:
+        home = Path.home()
+    if sys.platform.startswith("linux"):
+        # The desktop's own Documents folder (it can have a translated name)
+        try:
+            import subprocess
+            out = subprocess.run(["xdg-user-dir", "DOCUMENTS"], capture_output=True,
+                                 text=True, timeout=3).stdout.strip()
+            if out and Path(out) != home and Path(out).is_absolute():
+                if not os.environ.get("SNAP_REAL_HOME"):
+                    return Path(out)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+    return home / "Documents"
 
+
+def package_kind():
+    """'deb', 'rpm', 'arch', or 'snap' for a Linux package install, else None."""
+    try:
+        kind = (APP_DIR / "package-kind").read_text(encoding="ascii").strip()
+    except OSError:
+        return None
+    return kind if kind in ("deb", "rpm", "arch", "snap") else None
+
+
+PACKAGE_KIND = package_kind()
 
 # Default home of the source/ and output/ folders
-DATA_DIR = (documents_dir() / "Screencap Documentation Tool") if FROZEN else APP_DIR
+DATA_DIR = ((documents_dir() / "Screencap Documentation Tool") if FROZEN or PACKAGE_KIND
+            else APP_DIR)
