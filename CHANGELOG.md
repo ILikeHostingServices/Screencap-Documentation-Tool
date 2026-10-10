@@ -1,8 +1,14 @@
-CHANGELOG.md v1.27.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.28.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.23.2 - New winget package ID (2026-10-10)
+
+**Changed**
+- The winget package ID is now `ILHS.ScreencapDocumentationTool`, matching the organization's naming for its apps (the same ILHS prefix as the install folder and the Windows taskbar ID). Once Microsoft approves the listing, install with `winget install ILHS.ScreencapDocumentationTool`. The first submission under the old ID was never listed, so nobody needs to change anything.
+- **Help > Check for Updates** suggests the new winget ID for winget installs.
 
 ## v1.23.1 - Windows installer updates in place (2026-10-10)
 

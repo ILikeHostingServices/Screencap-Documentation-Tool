@@ -1,4 +1,4 @@
-HANDOFF.md v1.13.0 (Last Rev: 2026-10-10)
+HANDOFF.md v1.14.0 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -40,7 +40,7 @@ Everything that needs the owner (an account, a key, an approval, or a setting), 
 
 | # | Platform | What to do | Why | Where |
 | --- | --- | --- | --- | --- |
-| A1 | Windows (winget) | Accept Microsoft's contributor license agreement (CLA) on the open winget pull request, signed in as `ILHS-Owner`. Post one comment: `@microsoft-github-policy-service agree company="ILikeHostingServices"` (the code is copyrighted to the organization, so use the company form). It is signed once per GitHub account and covers every later pull request | Microsoft does not review or merge until the submitter accepts (the `Needs-CLA` label and the queued `license/cla` check) | https://github.com/microsoft/winget-pkgs/pull/450166 |
+| A1 | Windows (winget) | Close the first pull request (https://github.com/microsoft/winget-pkgs/pull/450166, old ID `ILikeHostingServices.ScreencapDocumentationTool`, never merged, so nothing to retire). On the new pull request for `ILHS.ScreencapDocumentationTool` (opened by the v1.23.2 release), accept Microsoft's contributor license agreement, signed in as `ILHS-Owner`: comment `@microsoft-github-policy-service agree company="ILikeHostingServices"`. It is signed once per GitHub account and covers every later pull request | Microsoft does not review or merge until the submitter accepts | https://github.com/microsoft/winget-pkgs/pulls?q=is%3Apr+ILHS.ScreencapDocumentationTool |
 | A2 | Windows (winget) | Answer moderator questions on that pull request, if any (the cloud session can draft the replies) | New packages are reviewed by hand | Same pull request |
 | A3 | Windows (winget) | Renew the `WINGET_TOKEN` secret before it expires (created 2026-10-10, one year): new classic token, `public_repo` scope only, then replace the secret | Without it, releases stop reaching winget (they still publish) | https://github.com/settings/tokens, repository **Settings > Secrets and variables > Actions** |
 | B1 | Linux (AUR) | **Blocked (2026-10-10):** AUR registration is paused by the Arch team (wave of automated sign-ups). Try again when it reopens; watch the Arch news feed or the aur-general list. Nothing breaks meanwhile: the Arch package is attached to every release | Arch users install from the AUR | https://aur.archlinux.org/register, https://archlinux.org/news/ |
@@ -99,7 +99,7 @@ Signing does not remove SmartScreen warnings instantly: reputation builds per ce
 
 ### 3. winget (Windows Package Manager) Listing
 
-- **Goal:** `winget install ILikeHostingServices.ScreencapDocumentationTool` works for anyone. winget installs FFmpeg with it (a dependency in the manifest).
+- **Goal:** `winget install ILHS.ScreencapDocumentationTool` works for anyone. winget installs FFmpeg with it (a dependency in the manifest).
 - **How it works:** `.github/workflows/winget.yml` downloads the release's installer, writes the manifest from `packaging/winget/` (`packaging/make_winget_manifests.py`), validates it, tests installing and uninstalling through winget, then opens a pull request on `microsoft/winget-pkgs` with Microsoft's `wingetcreate` tool. `release.yml` runs it after each new release; it can also be run by hand for an existing release.
 - **Credential:** the `WINGET_TOKEN` repository secret, a classic personal access token of `ILHS-Owner` with only the `public_repo` scope (created 2026-10-10 with a one-year expiry). The submission uses a fork of `microsoft/winget-pkgs` under the `ILHS-Owner` account. Least-privilege alternative for later: a separate bot account outside the organization. When the token expires, create a new one the same way and replace the secret; without it, releases still publish and only the winget submission is skipped (with a warning).
 - **Owner, once:** on the first pull request on `microsoft/winget-pkgs`, the Microsoft contributor license agreement bot asks the submitting account (`ILHS-Owner`) to accept the agreement by replying in a comment. Moderators review a new package by hand, which can take days; later versions are usually merged after the automatic checks.
