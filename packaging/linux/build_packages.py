@@ -49,7 +49,8 @@ DEPENDS = {
     "rpm": {
         "depends": ["python3 >= 3.8", "(python3-tkinter or python3-tk)",
                     "/usr/bin/ffmpeg", "/usr/bin/ffprobe"],
-        "recommends": ["(tesseract or tesseract-ocr)", "pandoc", "xdg-utils"],
+        "recommends": ["(tesseract or tesseract-ocr)", "pandoc", "xdg-utils",
+                       "(dejavu-sans-fonts or dejavu-fonts)"],
         "suggests": ["vlc"],
     },
 }

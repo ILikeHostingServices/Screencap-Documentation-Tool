@@ -42,6 +42,9 @@ apps:
     extensions: [gnome]
     plugs: [home, removable-media, network]
     environment: &env
+      # Tkinter, Tcl/Tk, FFmpeg, and Tesseract staged in the snap
+      PYTHONPATH: $SNAP/usr/lib/python3.12:$SNAP/usr/lib/python3.12/lib-dynload:$SNAP/usr/lib/python3/dist-packages
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/usr/lib/x86_64-linux-gnu/blas:$SNAP/usr/lib/x86_64-linux-gnu/lapack:$LD_LIBRARY_PATH
       TCL_LIBRARY: $SNAP/usr/share/tcltk/tcl8.6
       TK_LIBRARY: $SNAP/usr/share/tcltk/tk8.6
       TESSDATA_PREFIX: $SNAP/usr/share/tesseract-ocr/5/tessdata

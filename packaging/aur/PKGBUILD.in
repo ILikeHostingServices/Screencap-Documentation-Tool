@@ -11,7 +11,7 @@ pkgdesc="Turns screen recordings into step-by-step screenshot documentation"
 arch=('any')
 url="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool"
 license=('MIT')
-depends=('python' 'tk' 'ffmpeg')
+depends=('python' 'tk' 'ffmpeg' 'ttf-font')
 optdepends=('tesseract: blur sensitive text automatically'
             'tesseract-data-eng: English text for automatic blurring'
             'pandoc-cli: Word export'

@@ -48,15 +48,27 @@ chmod 644 "$SHARE/package-kind"
 # Launchers. The system Python, where the package dependencies put Tkinter,
 # with -B so no cache files are written into the package folder
 # (not whatever python3 comes first on PATH); the snap brings its own
-# shellcheck disable=SC2016  # $SNAP must expand when the launcher runs, not now
-if [ "$KIND" = snap ]; then PY='"$SNAP/usr/bin/python3"'; PREFIX='$SNAP'; else PY=/usr/bin/python3; PREFIX=''; fi
 for pair in "screencap:screencap.py" "screencap-gui:screencap_gui.pyw"; do
     cmd="${pair%%:*}"; script="${pair#*:}"
-    cat > "$DEST/usr/bin/$cmd" <<LAUNCHER
+    if [ "$KIND" = snap ]; then
+        # The snap's own Python, or the base snap's (snapcraft leaves out
+        # packages the base already has); Tkinter comes from the snap
+        cat > "$DEST/usr/bin/$cmd" <<LAUNCHER
+#!/bin/sh
+# $cmd: start the Screencap Documentation Tool (installed by the snap package)
+for py in "\$SNAP/usr/bin/python3" /usr/bin/python3; do
+    [ -x "\$py" ] && exec "\$py" -B "\$SNAP/usr/share/$NAME/$script" "\$@"
+done
+echo "Python 3 not found in the snap" >&2
+exit 127
+LAUNCHER
+    else
+        cat > "$DEST/usr/bin/$cmd" <<LAUNCHER
 #!/bin/sh
 # $cmd: start the Screencap Documentation Tool (installed by the $KIND package)
-exec $PY -B "$PREFIX/usr/share/$NAME/$script" "\$@"
+exec /usr/bin/python3 -B "/usr/share/$NAME/$script" "\$@"
 LAUNCHER
+    fi
     chmod 755 "$DEST/usr/bin/$cmd"
 done
 

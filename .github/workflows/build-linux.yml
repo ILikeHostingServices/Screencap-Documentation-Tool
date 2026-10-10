@@ -174,7 +174,7 @@ jobs:
               dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm"
               dnf install -y ./pkg/*.rpm xorg-x11-server-Xvfb ;;
             suse)
-              zypper --non-interactive install --allow-unsigned-rpm ./pkg/*.rpm xorg-x11-server-Xvfb ;;
+              zypper --non-interactive install --allow-unsigned-rpm ./pkg/*.rpm xorg-x11-server-Xvfb dejavu-fonts ;;
             arch)
               pacman -Syu --noconfirm
               pacman -U --noconfirm ./pkg/*.pkg.tar.zst
