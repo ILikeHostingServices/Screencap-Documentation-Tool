@@ -65,8 +65,9 @@ class ScreencapDocumentationTool < Formula
     EOS
     chmod 0755, app/"MacOS/Screencap Documentation Tool"
     # The app icon: an .icns file is a small header around PNG images, so the
-    # 256 x 256 PNG is wrapped as-is ("ic08" entry); no Apple tools needed
-    png = File.binread("assets/icon.png")
+    # 256 x 256 PNG is wrapped as-is ("ic08" entry); no Apple tools needed.
+    # (assets/ has already been moved into libexec above.)
+    png = File.binread(libexec/"assets/icon.png")
     entry = "ic08" + [png.bytesize + 8].pack("N") + png
     File.binwrite(app/"Resources/AppIcon.icns", "icns" + [entry.bytesize + 8].pack("N") + entry)
     (app/"Info.plist").write <<~EOS
