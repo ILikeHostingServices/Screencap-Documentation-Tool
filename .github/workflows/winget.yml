@@ -1,0 +1,150 @@
+# winget.yml
+# 2026-10-10
+# Version: v1.0.0
+#
+# PURPOSE:
+# Publishes a release to the Windows Package Manager (winget), so it can be
+# installed with: winget install ILikeHostingServices.ScreencapDocumentationTool
+#   1. Downloads the release's installer and SHA256SUMS.txt and checks them.
+#   2. Writes the winget manifest (packaging/make_winget_manifests.py).
+#   3. Validates it and tests a real install and uninstall through winget.
+#   4. Opens a pull request on microsoft/winget-pkgs with Microsoft's
+#      wingetcreate tool, unless that version is already listed there.
+# Called by the release workflow after the Windows build is attached, or run
+# by hand (Actions > Publish to winget > Run workflow) for an existing release.
+# The pull request is opened with the WINGET_TOKEN repository secret: a
+# classic personal access token of the ILHS-Owner account with only the
+# public_repo scope (see HANDOFF.md). Without the secret, everything except
+# the submission still runs.
+
+name: Publish to winget
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to publish, for example v1.16.0"
+        required: true
+      submit:
+        description: "Open the pull request on microsoft/winget-pkgs (untick to only test)"
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      release_tag:
+        type: string
+        required: true
+    secrets:
+      WINGET_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: winget-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  winget:
+    name: Test and submit to winget
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.release_tag }}
+      PACKAGE_ID: ILikeHostingServices.ScreencapDocumentationTool
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download the release installer and checksums
+        id: release
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:TAG -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Not a release tag: $env:TAG" }
+          $v = $Matches[1]
+          New-Item -ItemType Directory -Force release | Out-Null
+          gh release download $env:TAG --dir release --pattern SHA256SUMS.txt --pattern '*-windows-x64-setup.exe'
+          if ($LASTEXITCODE -ne 0) { throw "Could not download the release files for $env:TAG" }
+          $setup = "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          if (-not (Test-Path $setup)) { throw "$env:TAG has no installer attached" }
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          $line = Get-Content release\SHA256SUMS.txt | Where-Object { $_ -match [regex]::Escape((Split-Path $setup -Leaf)) }
+          if (-not $line -or -not $line.StartsWith($hash)) { throw "The installer does not match SHA256SUMS.txt" }
+          $date = (gh release view $env:TAG --json publishedAt --jq .publishedAt).Substring(0, 10)
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "date=$date" >> $env:GITHUB_OUTPUT
+          Write-Host "Release $env:TAG ($date), installer SHA-256 $hash"
+
+      - name: Write the winget manifest
+        run: |
+          python packaging/make_winget_manifests.py --version ${{ steps.release.outputs.version }} `
+            --sha256-file release/SHA256SUMS.txt --release-date ${{ steps.release.outputs.date }} --out build/winget
+          Get-ChildItem build\winget -Recurse -File | ForEach-Object { Write-Host "--- $($_.Name)"; Get-Content $_.FullName }
+
+      - name: Validate the manifest and test installing with winget
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = '${{ steps.release.outputs.version }}'
+          $dir = "build\winget\$v"
+          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            throw 'winget is not available on this runner, so the manifest cannot be tested'
+          }
+          winget --version
+          winget validate --manifest $dir --disable-interactivity
+          if ($LASTEXITCODE -ne 0) { throw "winget validate failed ($LASTEXITCODE)" }
+
+          winget settings --enable LocalManifestFiles
+          winget source update --disable-interactivity | Out-Host
+          winget install --manifest $dir --scope user --silent --accept-package-agreements `
+            --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0) { throw "winget install failed ($LASTEXITCODE)" }
+
+          # Find the install through its Apps & Features entry, wherever it went
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1'
+          $entry = Get-ItemProperty $key
+          Write-Host "Installed: $($entry.DisplayName) $($entry.DisplayVersion) in $($entry.InstallLocation)"
+          if ($entry.DisplayVersion -ne $v) { throw "Installed version is $($entry.DisplayVersion), expected $v" }
+          $out = & (Join-Path $entry.InstallLocation 'screencap.exe') --version
+          Write-Host $out
+          if ($out -notmatch [regex]::Escape("v$v")) { throw "screencap.exe reports the wrong version: $out" }
+
+          $unins = Join-Path $entry.InstallLocation 'unins000.exe'
+          Start-Process $unins -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          for ($i = 0; $i -lt 60 -and (Test-Path $key); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $key) { throw 'The uninstaller did not remove the Apps & Features entry' }
+          Write-Host 'Install and uninstall through winget work.'
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: winget-manifest-${{ inputs.release_tag }}
+          path: build/winget/
+          retention-days: 30
+
+      - name: Submit to microsoft/winget-pkgs
+        if: inputs.submit != false
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = '${{ steps.release.outputs.version }}'
+          if (-not $env:WINGET_TOKEN) {
+            Write-Host '::warning::No WINGET_TOKEN secret, so nothing was submitted (see HANDOFF.md).'
+            exit 0
+          }
+          # Already listed (or merged earlier): nothing to do
+          $path = "manifests/i/ILikeHostingServices/ScreencapDocumentationTool/$v"
+          gh api "repos/microsoft/winget-pkgs/contents/$path" --silent 2>$null
+          if ($LASTEXITCODE -eq 0) { Write-Host "$env:PACKAGE_ID $v is already in winget-pkgs."; exit 0 }
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          .\wingetcreate.exe submit --token $env:WINGET_TOKEN "build\winget\$v"
+          if ($LASTEXITCODE -ne 0) { throw "wingetcreate submit failed ($LASTEXITCODE)" }
+          Write-Host "Pull request opened on microsoft/winget-pkgs for $env:PACKAGE_ID $v."

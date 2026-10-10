@@ -1,0 +1,32 @@
+# Created by packaging/make_winget_manifests.py from the Screencap Documentation Tool repository
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+
+PackageIdentifier: {PACKAGE_ID}
+PackageVersion: {VERSION}
+PackageLocale: en-US
+Publisher: ILikeHostingServices
+PublisherUrl: https://github.com/ILikeHostingServices
+PublisherSupportUrl: {REPO_URL}/issues
+PrivacyUrl: {REPO_URL}/blob/main/CODE_SIGNING_POLICY.md#privacy
+PackageName: Screencap Documentation Tool
+PackageUrl: {REPO_URL}
+License: MIT
+LicenseUrl: {REPO_URL}/blob/main/LICENSE
+Copyright: Copyright (c) 2026 ILikeHostingServices
+ShortDescription: Turns screen recordings into step-by-step screenshot documentation.
+Description: |-
+  Screencap Documentation Tool finds every step in a screen recording with FFmpeg scene detection and saves a screenshot of each one.
+  Review the steps, add captions, crop, blur sensitive information, and export the result as HTML, Word, or PDF documentation.
+  Everything runs locally on the PC, with no telemetry.
+Moniker: screencap-doc-tool
+Tags:
+- documentation
+- ffmpeg
+- how-to
+- screen-recording
+- screenshot
+- sysadmin
+- tutorial
+ReleaseNotesUrl: {REPO_URL}/releases/tag/v{VERSION}
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0
