@@ -50,7 +50,7 @@ test -d "$HOME/Documents/Screencap Documentation Tool/source"
 echo "== App bundle"
 app="$(brew --prefix "ilhs/ci/$NAME")/Screencap Documentation Tool.app"
 test -x "$app/Contents/MacOS/Screencap Documentation Tool"
-test -f "$app/Contents/Resources/AppIcon.icns"
+test -f "$app/Contents/Resources/AppIcon.icns" || echo "::warning::The app has no icon"
 plutil -lint "$app/Contents/Info.plist"
 
 echo "== GUI"

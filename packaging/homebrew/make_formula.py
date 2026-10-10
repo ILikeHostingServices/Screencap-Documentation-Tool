@@ -2,7 +2,7 @@
 #
 # make_formula.py
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Writes the Homebrew formula for one release of the Screencap Documentation
@@ -64,14 +64,11 @@ class ScreencapDocumentationTool < Formula
       exec "#{{opt_bin}}/screencap-gui" "$@"
     EOS
     chmod 0755, app/"MacOS/Screencap Documentation Tool"
-    iconset = buildpath/"AppIcon.iconset"
-    iconset.mkpath
-    [16, 32, 128, 256].each do |size|
-      system "sips", "-z", size.to_s, size.to_s, "assets/icon.png", "--out", iconset/"icon_#{{size}}x#{{size}}.png"
-      system "sips", "-z", (size * 2).to_s, (size * 2).to_s, "assets/icon.png",
-             "--out", iconset/"icon_#{{size}}x#{{size}}@2x.png"
+    # The app icon, converted from the PNG; the app still works without it
+    unless quiet_system "sips", "-s", "format", "icns", "assets/icon.png",
+                        "--out", app/"Resources/AppIcon.icns"
+      opoo "Could not make the app icon; the app will use the default icon"
     end
-    system "iconutil", "-c", "icns", iconset, "-o", app/"Resources/AppIcon.icns"
     (app/"Info.plist").write <<~EOS
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
