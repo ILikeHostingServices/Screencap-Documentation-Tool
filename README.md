@@ -1,4 +1,4 @@
-README.md v1.30.0 (Last Rev: 2026-10-10)
+README.md v1.31.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -155,7 +155,7 @@ The Windows programs are not code signed. See [CODE_SIGNING_POLICY.md](CODE_SIGN
 1. Download `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` and `SHA256SUMS.txt` from the latest release.
 2. Optional but recommended, check the download is intact: in PowerShell, `(Get-FileHash .\Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe).Hash` must match the line for that file in `SHA256SUMS.txt` (ignoring upper and lower case).
 3. Run it. It installs for all users in `C:\Program Files\ILHS\Screencap-Documentation-Tool` (Windows asks for admin rights). Without admin rights, choose **Install for me only** on the first page to install in `%LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool` instead. A copy from v1.16.0 or earlier (in `...\Screencap Documentation Tool`) is moved to the new folder automatically; settings are kept. If FFmpeg is not found it offers to install it with winget, and one tick also installs Tesseract OCR and Pandoc.
-4. Start the app from the Start Menu. To update, run the newer installer; to remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
+4. Start the app from the Start Menu. To update, run the newer installer: it detects the installed copy and goes straight to **Ready to Update** (no license, folder, or options pages, unless FFmpeg is missing), keeping your desktop shortcut choice. To remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
 
 For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` installs for all users (run it elevated, for example from Intune, SCCM, or PDQ). Add `/CURRENTUSER` for a per-user install without admin rights, `/TASKS=desktopicon` for a desktop shortcut, or `/DIR="D:\Apps\Screencap"` for another folder. Silent uninstall: `"C:\Program Files\ILHS\Screencap-Documentation-Tool\unins000.exe" /VERYSILENT`.
 
