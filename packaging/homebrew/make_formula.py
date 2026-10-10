@@ -109,6 +109,7 @@ class ScreencapDocumentationTool < Formula
 
   test do
     assert_match "v#{{version}}", shell_output("#{{bin}}/screencap --version")
+    (testpath/"src").mkpath
     system Formula["ffmpeg"].opt_bin/"ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
            "-f", "lavfi", "-i", "color=white:s=640x360:r=10:d=8",
            "-vf", "drawbox=x=150:y=100:w=300:h=150:color=gray:t=fill:enable='gte(t,3)'",
