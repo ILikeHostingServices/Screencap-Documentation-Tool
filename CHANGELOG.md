@@ -1,8 +1,19 @@
-CHANGELOG.md v1.24.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.25.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.22.0 - Homebrew for macOS (2026-10-10)
+
+**New**
+- macOS: install with Homebrew, `brew install ilikehostingservices/tap/screencap-documentation-tool`, once the tap repository is live. It installs the tool with Homebrew's own Python, Tkinter, and FFmpeg, adds the `screencap-gui` and `screencap` commands, and builds a `Screencap Documentation Tool.app` you can link into `~/Applications` for Launchpad, Spotlight, and the Dock.
+- No Apple Developer account or notarization is needed: Homebrew builds the app on your Mac from the published source, so macOS does not block it.
+- Installed with Homebrew, the default folders are in `~/Documents/Screencap Documentation Tool`, and **Help > Check for Updates** suggests `brew upgrade`.
+- Every change is now also installed and tested with Homebrew on a real Mac: the command line program, the default folders, the app bundle, the GUI window, and uninstalling.
+
+**Fixed**
+- The Linux package tests now really fail if uninstalling leaves files behind (the check could not fail before).
 
 ## v1.21.0 - Linux packages for Debian, Ubuntu, Fedora, openSUSE, Arch, and snap (2026-10-10)
 

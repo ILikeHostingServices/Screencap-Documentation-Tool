@@ -1,4 +1,4 @@
-HANDOFF.md v1.11.0 (Last Rev: 2026-10-10)
+HANDOFF.md v1.12.1 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -33,6 +33,34 @@ Tasks that the cloud coding session cannot finish alone, because they need the r
 ### What The Cloud Session Can And Cannot Do
 
 It can push only to its own working branch (`claude/...`), open and (see above) merge pull requests, start workflows, and read public GitHub data. It cannot push to `main`, force-push, create or delete tags, change repository, organization, or account settings, or reach websites outside its network policy (huggingface.co was added on 2026-10-04 and works in sessions started after that).
+
+## Owner To-Do List
+
+Everything that needs the owner (an account, a key, an approval, or a setting), in one place. Details for each are in the numbered items below. Tell the cloud session when a step is done; it runs the publishing and checks the result.
+
+| # | Platform | What to do | Why | Where |
+| --- | --- | --- | --- | --- |
+| A1 | Windows (winget) | Accept Microsoft's contributor agreement on the open winget pull request, signed in as `ILHS-Owner`: reply `@microsoft-github-policy-service agree` | Microsoft does not review a first pull request until the submitter accepts | https://github.com/microsoft/winget-pkgs/pull/450166 |
+| A2 | Windows (winget) | Answer moderator questions on that pull request, if any (the cloud session can draft the replies) | New packages are reviewed by hand | Same pull request |
+| A3 | Windows (winget) | Renew the `WINGET_TOKEN` secret before it expires (created 2026-10-10, one year): new classic token, `public_repo` scope only, then replace the secret | Without it, releases stop reaching winget (they still publish) | https://github.com/settings/tokens, repository **Settings > Secrets and variables > Actions** |
+| B1 | Linux (AUR) | Create an AUR account | Arch users install from the AUR | https://aur.archlinux.org/register |
+| B2 | Linux (AUR) | Make an SSH key just for publishing (item 4), add the public half to the AUR account, the private half as the `AUR_SSH_PRIVATE_KEY` secret, then delete both files | Lets the release workflow push the PKGBUILD | AUR **My Account**; repository secrets |
+| B3 | Linux (Snap Store) | Create an Ubuntu One account, accept the developer agreement, and register the name `screencap-documentation-tool` | Reserves the store listing | https://snapcraft.io/register-snap |
+| B4 | Linux (Snap Store) | Export a login token with snapcraft (needs Linux or WSL, item 4) and add it as the `SNAPCRAFT_STORE_CREDENTIALS` secret; renew before it expires | Lets the release workflow upload snaps | Repository secrets |
+| C1 | macOS (Homebrew) | ~~Create the public repository `ILikeHostingServices/homebrew-tap`~~ Done 2026-10-10 (created as `Homebrew-Tap`; GitHub names ignore case, so `brew tap ilikehostingservices/tap` finds it) | | |
+| C2 | macOS (Homebrew) | In that repository, **Settings > Actions > General > Workflow permissions**: choose **Read and write permissions** | Its update workflow commits the new formula with the repository's own token (no secret needed) | homebrew-tap settings |
+| C3 | macOS (Homebrew) | ~~Give the Claude GitHub app access to it~~ Done 2026-10-10; the cloud session pushed the tap files the same day | | |
+| C4 | macOS | No Apple Developer account, signing, or notarization: not needed for Homebrew (owner's decision, 2026-10-10) | | |
+| D1 | GitHub | Optional: ask GitHub Support to drop the old pull request refs (item 1) | Old commit names stay visible there until then | https://support.github.com |
+| D2 | All | When a secret is added or renewed, tell the cloud session; it runs the publish (Linux build or tap update with the newest release) and checks the result | | |
+
+**Secrets and tokens kept for publishing** (all in this repository's **Settings > Secrets and variables > Actions**; none are ever written into files):
+
+| Secret | Holds | Scope | Expires | If it leaks |
+| --- | --- | --- | --- | --- |
+| `WINGET_TOKEN` | Classic personal access token of `ILHS-Owner` | `public_repo` only | 2027-10-10 | Revoke it at https://github.com/settings/tokens and make a new one |
+| `AUR_SSH_PRIVATE_KEY` | SSH private key used only for the AUR | Push to this AUR package | Never (rotate yearly) | Remove the public key from the AUR account, make a new pair |
+| `SNAPCRAFT_STORE_CREDENTIALS` | Snapcraft login export | Upload and release this snap only | The date given to `--expires` | Revoke it in the Snapcraft dashboard, export a new one |
 
 ## Open Items
 
@@ -99,6 +127,13 @@ Every release gets `.deb`, `.rpm`, Arch, and snap packages attached automaticall
 
 **Official distribution repositories (Debian, Ubuntu, Fedora):** need a volunteer maintainer inside each distribution (a sponsor for Debian, a packager for Fedora); not practical to automate. The packages here are the usual route for independent tools.
 
+### 5. Homebrew Tap (macOS)
+
+- **Goal:** `brew install ilikehostingservices/tap/screencap-documentation-tool` (from v1.22.0, the first version that knows about Homebrew installs). No Apple Developer account: Homebrew builds the app on the Mac from the release source, so it is not quarantined.
+- **How it works:** the formula is written by `packaging/homebrew/make_formula.py` (Homebrew's `python@3.13`, `python-tk@3.13`, `ffmpeg`; `screencap` and `screencap-gui` commands; a small `Screencap Documentation Tool.app` the user can link into `~/Applications`). `build-macos.yml` installs and tests it on a Mac for every pull request (`packaging/homebrew/test_formula.sh`).
+- **The tap repository** `ILikeHostingServices/homebrew-tap` holds the files in `packaging/homebrew/tap/` (README, LICENSE, `Formula/`, and `.github/workflows/update.yml`). Its workflow checks the latest release every day, writes and tests the new formula on a Mac, and commits it with the tap's own token. Owner steps C1 to C3 above set it up.
+- **Status (2026-10-10):** the tap files are pushed. Once C2 is done and v1.22.0 is released, run **Update formula** once (the daily run would also pick it up).
+
 ## Done
 
 | Date | Item |
@@ -124,3 +159,4 @@ Every release gets `.deb`, `.rpm`, Arch, and snap packages attached automaticall
 | 2026-10-10 | v1.17.0 (more presets), v1.18.0 (Help menu, About, update check, issue forms), v1.19.0 (install folder `C:\Program Files\ILHS\Screencap-Documentation-Tool`, older copies moved), and v1.20.0 (redesigned GUI, light/dark/system themes) published by the cloud session; pull requests #11 to #14 merged under the standing permission. |
 | 2026-10-10 | First winget test run (v1.16.0) stalled inside winget on the test machine and was cancelled; the install test is now time-boxed and best effort (`winget.yml` v1.2.0). |
 | 2026-10-10 | v1.21.0 Linux packages (cloud session): `.deb`, `.rpm`, Arch, and snap, each installed and tested on its distributions in GitHub Actions and attached to releases; AUR and Snap Store publishing ready, waiting on the accounts in item 4. |
+| 2026-10-10 | Homebrew formula, macOS CI test, and tap repository files prepared (cloud session); waiting on owner steps C1 to C3. The cloud session could not create the tap repository (GitHub: "Resource not accessible by integration"). |

@@ -2,7 +2,7 @@
 #
 # updates.py
 # 2026-10-10
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -63,7 +63,7 @@ def is_newer(latest, current=version.RELEASE):
 def install_kind():
     """How this copy was installed, which decides how to update it:
     'installer' (Windows setup), 'portable' (Windows zip), 'deb', 'rpm',
-    'arch', 'snap' (Linux packages), or 'python'."""
+    'arch', 'snap' (Linux packages), 'brew' (Homebrew), or 'python'."""
     if apppaths.PACKAGE_KIND:
         return apppaths.PACKAGE_KIND
     if not apppaths.FROZEN:
@@ -140,6 +140,9 @@ def how_to_update(kind=None):
                 "download the new package and run sudo pacman -U on it.")
     if kind == "snap":
         return "Snaps update by themselves; to update now: sudo snap refresh"
+    if kind == "brew":
+        return ("Update with Homebrew: brew update && brew upgrade "
+                "screencap-documentation-tool")
     return ("Run the Quick Start install command from the README again; it updates this "
             "copy and keeps your settings.")
 
