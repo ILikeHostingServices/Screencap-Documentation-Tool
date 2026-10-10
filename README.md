@@ -211,7 +211,7 @@ This installs the tool with Homebrew's own Python, Tkinter, and FFmpeg and adds 
 ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/Screencap Documentation Tool.app" ~/Applications/
 ```
 
-Optional extras: `brew install tesseract` (automatic blurring) and `brew install pandoc` (Word export). Update with `brew update && brew upgrade screencap-documentation-tool`. Recordings and output go in `~/Documents/Screencap Documentation Tool` by default. The app is built on your Mac by Homebrew from the published source, so macOS does not block it even though it is not notarized. (Available from v1.22.0, once the `ILikeHostingServices/homebrew-tap` repository is live.)
+Optional extras: `brew install tesseract` (automatic blurring) and `brew install pandoc` (Word export). Update with `brew update && brew upgrade screencap-documentation-tool`. Recordings and output go in `~/Documents/Screencap Documentation Tool` by default. The app is built on your Mac by Homebrew from the published source, so macOS does not block it even though it is not notarized. (Available from v1.22.0.)
 
 **Install command.** Or paste this into Terminal as your normal user (no `sudo`):
 

@@ -1,4 +1,4 @@
-HANDOFF.md v1.12.0 (Last Rev: 2026-10-10)
+HANDOFF.md v1.12.1 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -47,9 +47,9 @@ Everything that needs the owner (an account, a key, an approval, or a setting), 
 | B2 | Linux (AUR) | Make an SSH key just for publishing (item 4), add the public half to the AUR account, the private half as the `AUR_SSH_PRIVATE_KEY` secret, then delete both files | Lets the release workflow push the PKGBUILD | AUR **My Account**; repository secrets |
 | B3 | Linux (Snap Store) | Create an Ubuntu One account, accept the developer agreement, and register the name `screencap-documentation-tool` | Reserves the store listing | https://snapcraft.io/register-snap |
 | B4 | Linux (Snap Store) | Export a login token with snapcraft (needs Linux or WSL, item 4) and add it as the `SNAPCRAFT_STORE_CREDENTIALS` secret; renew before it expires | Lets the release workflow upload snaps | Repository secrets |
-| C1 | macOS (Homebrew) | Create the public repository `ILikeHostingServices/homebrew-tap`, empty (no README, license, or .gitignore) | `brew install ilikehostingservices/tap/...` looks for exactly this name; the cloud session is not allowed to create repositories | https://github.com/organizations/ILikeHostingServices/repositories/new |
+| C1 | macOS (Homebrew) | ~~Create the public repository `ILikeHostingServices/homebrew-tap`~~ Done 2026-10-10 (created as `Homebrew-Tap`; GitHub names ignore case, so `brew tap ilikehostingservices/tap` finds it) | | |
 | C2 | macOS (Homebrew) | In that repository, **Settings > Actions > General > Workflow permissions**: choose **Read and write permissions** | Its update workflow commits the new formula with the repository's own token (no secret needed) | homebrew-tap settings |
-| C3 | macOS (Homebrew) | Give the Claude GitHub app access to it: **Organization settings > GitHub Apps > Claude > Configure > Repository access** (All repositories, or add `homebrew-tap`) | So the cloud session can push the tap's files; otherwise copy `packaging/homebrew/tap/` into it yourself | Organization settings |
+| C3 | macOS (Homebrew) | ~~Give the Claude GitHub app access to it~~ Done 2026-10-10; the cloud session pushed the tap files the same day | | |
 | C4 | macOS | No Apple Developer account, signing, or notarization: not needed for Homebrew (owner's decision, 2026-10-10) | | |
 | D1 | GitHub | Optional: ask GitHub Support to drop the old pull request refs (item 1) | Old commit names stay visible there until then | https://support.github.com |
 | D2 | All | When a secret is added or renewed, tell the cloud session; it runs the publish (Linux build or tap update with the newest release) and checks the result | | |
@@ -132,7 +132,7 @@ Every release gets `.deb`, `.rpm`, Arch, and snap packages attached automaticall
 - **Goal:** `brew install ilikehostingservices/tap/screencap-documentation-tool` (from v1.22.0, the first version that knows about Homebrew installs). No Apple Developer account: Homebrew builds the app on the Mac from the release source, so it is not quarantined.
 - **How it works:** the formula is written by `packaging/homebrew/make_formula.py` (Homebrew's `python@3.13`, `python-tk@3.13`, `ffmpeg`; `screencap` and `screencap-gui` commands; a small `Screencap Documentation Tool.app` the user can link into `~/Applications`). `build-macos.yml` installs and tests it on a Mac for every pull request (`packaging/homebrew/test_formula.sh`).
 - **The tap repository** `ILikeHostingServices/homebrew-tap` holds the files in `packaging/homebrew/tap/` (README, LICENSE, `Formula/`, and `.github/workflows/update.yml`). Its workflow checks the latest release every day, writes and tests the new formula on a Mac, and commits it with the tap's own token. Owner steps C1 to C3 above set it up.
-- **After C1 to C3:** the cloud session pushes the tap files (or the owner copies them), then runs **Update formula** once.
+- **Status (2026-10-10):** the tap files are pushed. Once C2 is done and v1.22.0 is released, run **Update formula** once (the daily run would also pick it up).
 
 ## Done
 
