@@ -1,4 +1,4 @@
-README.md v1.29.0 (Last Rev: 2026-10-10)
+README.md v1.30.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -265,11 +265,11 @@ The window is laid out in the order you use it:
 
 1. **Folders** (top bar). **Recordings** is where recordings come from and **Output** is where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the recordings folder recursively.
 2. **Recordings** (left). Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
-3. **Settings** (left, below). Pick a **Preset** for the kind of recording (see [Presets](#presets)); a line under it says what it is for. **Sensitivity** (High, Normal, Low, or your own threshold) and **Screenshot taken** (the finished state of each step, or right after each change) are the settings you change most. The check boxes switch the red **highlight** box, automatic **blurring** of passwords, keys, IP and email addresses (see [Blurring Sensitive Information](#blurring-sensitive-information)), **duplicate removal**, and **Captions from narration**. **Save as preset...** and **Delete preset** manage your own presets.
-4. **Advanced settings...** opens a separate window with the timing settings, image format, extra **Also blur** patterns, **Reprocess recordings that are already done**, **Dry run** (count steps without saving anything), and **Reset Defaults**.
+3. **Settings** (left, below). Pick a **Preset** for the kind of recording (see [Presets](#presets)); a line under it says what it is for. **Sensitivity** (High, Normal, Low, or your own threshold) and **Screenshot taken** (the finished state of each step, or right after each change) are the settings you change most. The check boxes switch the red **highlight** box, automatic **blurring** of passwords, keys, IP and email addresses (see [Blurring Sensitive Information](#blurring-sensitive-information)), **duplicate removal**, and **Captions from narration**. **Save as Preset...** and **Delete Preset** manage your own presets.
+4. **Advanced Settings...** (also in the **View** menu) opens a separate window, grouped into **Timing**, **Detection** (frames checked per second, analysis width, duplicate tolerance), **Output** (image format and extra **Also blur** patterns), and **Run** (**Reprocess recordings that are already done**, and **Dry run** to count steps without saving anything). **Reset to Defaults** puts everything back.
 5. **Steps tab** (right). The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
 6. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`. Ctrl+1 and Ctrl+2 switch between the tabs.
-7. **Status bar** (bottom). What is happening, the progress of a run, and the version.
+7. **Status bar** (bottom). On the left, what is happening; in the middle, the progress of a run; on the right, the version and whether it is the latest (**Up to date**, or **Update available** in orange). Click the update part to check again or to see the new version.
 
 Drag the divider between the left side and the tabs to give either more room.
 
@@ -282,7 +282,7 @@ Your folders and settings are saved when you process or close the window and res
 The **Help** menu (or F1) has:
 
 - **Help** and **Keyboard Shortcuts**: short built-in guides to getting started, presets, editing, blurring, exporting, and troubleshooting. **Online Documentation** opens this README.
-- **Report a Problem...** and **Suggest an Idea...**: open the matching form on GitHub. **About** shows the version and can **Copy Details** (version, operating system, and which helper programs were found, without any folder paths) to paste into the form.
+- **Report a Problem...** and **Suggest an Idea...**: open the matching form on GitHub. **About** shows the version, the system, and each helper program on its own line (a green check mark when it is installed, a red cross when not, and what it is for), and can **Copy Details** (the same information as text, without any folder paths) to paste into the form.
 - **Project on GitHub** and **Release Notes**.
 - **Check for Updates...**: asks GitHub whether a newer release is out and, if so, shows what changed and opens the right download for your copy (the installer, the portable zip, or the Releases page for the Python install).
 - **Check for Updates Automatically**: the first time the GUI starts it asks whether to do this; when on, it checks at most once a day, in the background. **Cancel** on the update message skips that version.
@@ -327,23 +327,23 @@ A preset is a named set of the Detection Settings. Pick one from **Preset** abov
 
 | Built-in preset | Use it for | What it changes |
 | --- | --- | --- |
-| **Installer wizard** | Setup wizards and settings dialogs with clear pauses (the default) | Nothing; the recommended defaults |
-| **General desktop use** | Moving around the operating system: opening apps, browsing files in File Explorer, and flipping through menus | Slightly more sensitive with shorter waits, so quick menu changes are caught. **No blurring and no red boxes**: screenshots are saved exactly as captured |
-| **Web console** | Admin portals and web apps | Ignores spinners and slow-loading pages: less sensitive, waits longer for the screen to settle |
-| **Terminal / command line** | Shells and consoles | Catches small text changes and analyzes at full resolution; merges bursts of typing |
-| **Remote desktop / VM console** | RDP, VNC, Hyper-V, VMware, and other remote or virtual machine consoles | Ignores compression noise and waits longer for a slow screen to finish drawing |
-| **Forms and spreadsheets** | Filling in forms, tickets, and spreadsheets | Catches small field changes and merges a whole entry being typed into one step |
-| **Slideshow / presentation** | Slide decks and click-through demos | One screenshot per slide, no forced shots on slides shown for a long time. No blurring and no red boxes |
-| **Video meeting / screen share** | Recorded calls and shared screens (Teams, Zoom, Meet) | Much less sensitive, so webcam and video movement do not count as steps; analyzes fewer frames. Blurring stays on (names and email addresses), no red boxes |
-| **Fast clicking** | Recordings with short pauses between actions | Shorter waits, and analyzes more frames per second |
+| **Installer Wizard** | Setup wizards and settings dialogs with clear pauses (the default) | Nothing; the recommended defaults |
+| **General Desktop Use** | Moving around the operating system: opening apps, browsing files in File Explorer, and flipping through menus | Slightly more sensitive with shorter waits, so quick menu changes are caught. **No blurring and no red boxes**: screenshots are saved exactly as captured |
+| **Web Console** | Admin portals and web apps | Ignores spinners and slow-loading pages: less sensitive, waits longer for the screen to settle |
+| **Terminal / Command Line** | Shells and consoles | Catches small text changes and analyzes at full resolution; merges bursts of typing |
+| **Remote Desktop / VM Console** | RDP, VNC, Hyper-V, VMware, and other remote or virtual machine consoles | Ignores compression noise and waits longer for a slow screen to finish drawing |
+| **Forms and Spreadsheets** | Filling in forms, tickets, and spreadsheets | Catches small field changes and merges a whole entry being typed into one step |
+| **Slideshow / Presentation** | Slide decks and click-through demos | One screenshot per slide, no forced shots on slides shown for a long time. No blurring and no red boxes |
+| **Video Meeting / Screen Share** | Recorded calls and shared screens (Teams, Zoom, Meet) | Much less sensitive, so webcam and video movement do not count as steps; analyzes fewer frames. Blurring stays on (names and email addresses), no red boxes |
+| **Fast Clicking** | Recordings with short pauses between actions | Shorter waits, and analyzes more frames per second |
 
 The presets are starting points: if a recording gets too many or too few screenshots, adjust **Sensitivity** and save the result as your own preset.
 
-To save your own, adjust the settings (including **Also blur** patterns), click **Save As...**, and give it a name, for example `Customer portal`. **Delete** removes a saved preset (built-in presets cannot be deleted). Saved presets are stored in your profile and can be used on the command line too:
+To save your own, adjust the settings (including **Also blur** patterns), click **Save as Preset...**, and give it a name, for example `Customer portal`. **Delete Preset** removes a saved preset (built-in presets cannot be deleted). Saved presets are stored in your profile and can be used on the command line too (preset names are not case-sensitive, so `--preset "web console"` works as well):
 
 ```powershell
 py -3 .\screencap.py --list-presets
-py -3 .\screencap.py --preset "Web console"
+py -3 .\screencap.py --preset "Web Console"
 py -3 .\screencap.py --preset "Customer portal" --force    # options you add override the preset
 ```
 

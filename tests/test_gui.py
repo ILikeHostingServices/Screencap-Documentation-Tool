@@ -2,7 +2,7 @@
 #
 # test_gui.py
 # 2026-10-10
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -230,7 +230,10 @@ class GuiTests(unittest.TestCase):
         import version
         opened = []
         self.app.open_url = opened.append
-        self.assertEqual(self.menu_labels(self.app.menubar)[-1], "Help")
+        self.assertEqual(list(self.app.menus), ["File", "View", "Help"])
+        if not self.app.native_menu:      # Windows and Linux: the menu bar is in the window
+            self.assertEqual([b.cget("text") for b in self.app.menu_buttons.values()],
+                             ["File", "View", "Help"])
         labels = self.menu_labels(self.app.help_menu)
         for label in ("Help", "Report a Problem...", "Project on GitHub", "Check for Updates...",
                       "Check for Updates Automatically"):
@@ -240,13 +243,20 @@ class GuiTests(unittest.TestCase):
 
         win = self.app.show_help("Presets")
         self.pump()
-        self.assertIn("General desktop use", win.text.get("1.0", "end"))
+        self.assertIn("General Desktop Use", win.text.get("1.0", "end"))
         win.destroy()
+        import gui_help
+        for name, _ in gui_help.TOPICS:   # topic titles are in title case
+            self.assertTrue(all(w[0].isupper() for w in name.split() if w not in ("a", "and")), name)
         about = self.app.show_about()
         self.pump()
-        self.assertIn(f"v{version.RELEASE}", about.details.get("1.0", "end"))
+        self.assertEqual(about.tool_rows["FFmpeg"], bool(self.app.ffmpeg))
+        self.assertEqual(len(about.tool_rows), len(gui_help.TOOLS))
         about.copy()
-        self.assertIn(version.RELEASE, self.root.clipboard_get())
+        copied = self.root.clipboard_get()
+        self.assertIn(f"v{version.RELEASE}", copied)
+        self.assertEqual(len([line for line in copied.splitlines() if line.startswith("  ")]),
+                         len(gui_help.TOOLS))      # one program per line
         about.destroy()
         self.assertEqual(self.errors, [])
 
@@ -277,6 +287,8 @@ class GuiTests(unittest.TestCase):
         self.assertEqual([d for d, _ in self.dialogs], ["askyesnocancel"])
         self.assertIn("99.0.0", self.dialogs[0][1])
         self.assertEqual(opened, ["https://example.test/release"])
+        self.assertEqual(self.app.update_state, "available")
+        self.assertIn("99.0.0", self.app.lbl_update.cget("text"))
         self.assertTrue(self.app.settings_extra.get("last_update_check"))
         self.assertEqual(self.errors, [])
 
@@ -288,6 +300,8 @@ class GuiTests(unittest.TestCase):
         self.assertEqual([d for d, _ in self.dialogs], ["showinfo"])
         self.assertIn("latest version", self.dialogs[0][1])
         self.assertEqual(opened, [])
+        self.assertEqual(self.app.update_state, "latest")
+        self.assertIn("Up to date", self.app.lbl_update.cget("text"))
 
     def test_themes_switch_and_are_remembered(self):
         import json
@@ -305,6 +319,12 @@ class GuiTests(unittest.TestCase):
             self.assertEqual(saved["theme"], mode)
         self.app.set_theme("dark")
         self.app.show_about().destroy()        # dialogs follow the theme too
+        if not self.app.native_menu:           # the in-window menu bar follows it as well
+            style = self.gui.ttk.Style(self.root)
+            self.assertEqual(str(style.lookup("Menubar.TFrame", "background")),
+                             theme.PALETTES["dark"]["surface"])
+            menu = self.app.menus["View"]
+            self.assertEqual(str(menu.cget("background")), theme.PALETTES["dark"]["surface"])
         self.assertEqual(self.errors, [])
 
     def test_advanced_settings_window_edits_the_same_settings(self):
@@ -312,7 +332,7 @@ class GuiTests(unittest.TestCase):
         self.pump()
         self.assertIs(self.app.open_advanced(), win)          # one window, brought back
         entries = [w for w in self.descendants(win) if isinstance(w, self.gui.ttk.Entry)]
-        self.assertTrue(entries)
+        self.assertEqual(len(entries), 10)   # 8 numbers, blur patterns, image format (a Combobox)
         self.app.v_debounce.set("2.5")
         self.assertEqual(self.app.build_args().debounce, 2.5)
         win.destroy()
