@@ -1,10 +1,10 @@
 # winget.yml
 # 2026-10-10
-# Version: v1.2.1
+# Version: v1.2.2
 #
 # PURPOSE:
 # Publishes a release to the Windows Package Manager (winget), so it can be
-# installed with: winget install ILikeHostingServices.ScreencapDocumentationTool
+# installed with: winget install ILHS.ScreencapDocumentationTool
 #   1. Downloads the release's installer and SHA256SUMS.txt and checks them.
 #   2. Writes the winget manifest (packaging/make_winget_manifests.py).
 #   3. Validates it and tests a real install and uninstall through winget
@@ -67,7 +67,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       TAG: ${{ inputs.release_tag }}
-      PACKAGE_ID: ILikeHostingServices.ScreencapDocumentationTool
+      PACKAGE_ID: ILHS.ScreencapDocumentationTool
     steps:
       - uses: actions/checkout@v5
 

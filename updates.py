@@ -2,7 +2,7 @@
 #
 # updates.py
 # 2026-10-10
-# Version: v1.2.1
+# Version: v1.2.2
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -36,7 +36,7 @@ LATEST_URL = f"{RELEASES_URL}/latest"
 DOCS_URL = f"{REPO_URL}#readme"
 SECURITY_URL = f"{REPO_URL}/security/policy"
 LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
-WINGET_ID = "ILikeHostingServices.ScreencapDocumentationTool"
+WINGET_ID = "ILHS.ScreencapDocumentationTool"
 TIMEOUT = 10
 VERSION_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 

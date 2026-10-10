@@ -2,7 +2,7 @@
 #
 # make_winget_manifests.py
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Writes the Windows Package Manager (winget) manifest for one release: the
@@ -14,7 +14,7 @@
 # Run from the repository root:
 #   python packaging/make_winget_manifests.py --version 1.16.0 \
 #       --sha256-file release/SHA256SUMS.txt --out build/winget
-# Output: build/winget/<version>/ILikeHostingServices.ScreencapDocumentationTool*.yaml
+# Output: build/winget/<version>/ILHS.ScreencapDocumentationTool*.yaml
 
 import argparse
 import datetime
@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = ROOT / "packaging" / "winget"
-PACKAGE_ID = "ILikeHostingServices.ScreencapDocumentationTool"
+PACKAGE_ID = "ILHS.ScreencapDocumentationTool"
 REPO_URL = "https://github.com/ILikeHostingServices/Screencap-Documentation-Tool"
 SETUP_NAME = "Screencap-Documentation-Tool-v{version}-windows-x64-setup.exe"
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
