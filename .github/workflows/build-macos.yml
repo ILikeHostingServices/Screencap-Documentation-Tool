@@ -1,0 +1,46 @@
+# build-macos.yml
+# 2026-10-10
+# Version: v1.0.0
+#
+# PURPOSE:
+# Tests the Homebrew formula (packaging/homebrew/make_formula.py) on a real
+# Mac for every pull request: builds it from this commit's source, installs
+# it with Homebrew, and runs packaging/homebrew/test_formula.sh (command
+# line, default folders, app bundle, GUI window, uninstall). Publishing is
+# done by the tap's own workflow (ILikeHostingServices/homebrew-tap; its
+# files are kept in packaging/homebrew/tap/).
+
+name: macOS build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: macos-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  homebrew:
+    name: Homebrew formula
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Write the formula for this commit
+        id: formula
+        run: |
+          v="$(sed -n 's/^RELEASE = "\(.*\)"/\1/p' version.py)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          git archive --format=tar.gz --prefix="Screencap-Documentation-Tool-$v/" -o "$RUNNER_TEMP/source-$v.tar.gz" HEAD
+          python3 packaging/homebrew/make_formula.py --version "$v" --tarball "$RUNNER_TEMP/source-$v.tar.gz" --out "$RUNNER_TEMP/Formula"
+          cat "$RUNNER_TEMP/Formula/screencap-documentation-tool.rb"
+
+      - name: Install and test with Homebrew
+        run: packaging/homebrew/test_formula.sh "$RUNNER_TEMP/Formula/screencap-documentation-tool.rb" "${{ steps.formula.outputs.version }}"

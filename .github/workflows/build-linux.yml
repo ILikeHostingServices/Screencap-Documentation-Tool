@@ -1,6 +1,6 @@
 # build-linux.yml
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Builds the Linux packages and tests each one on the distributions it is
@@ -226,8 +226,10 @@ jobs:
             suse) zypper --non-interactive remove screencap-documentation-tool ;;
             arch) pacman -R --noconfirm screencap-documentation-tool ;;
           esac
-          ! test -e /usr/bin/screencap
-          ! test -e /usr/share/screencap-documentation-tool
+          # (a bare "! test" would not stop the script under set -e)
+          for f in /usr/bin/screencap /usr/share/screencap-documentation-tool; do
+            if [ -e "$f" ]; then echo "::error::$f is still there after uninstalling"; exit 1; fi
+          done
 
   snap:
     name: Build and test the snap

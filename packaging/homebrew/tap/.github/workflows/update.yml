@@ -1,0 +1,91 @@
+# update.yml
+# 2026-10-10
+# Version: v1.0.0
+#
+# PURPOSE:
+# Keeps Formula/screencap-documentation-tool.rb at the latest release of
+# ILikeHostingServices/Screencap-Documentation-Tool. Every day (or when run
+# by hand) it looks up the latest release; when the formula is older, it
+# writes the new one with the project's own generator at that release,
+# installs and tests it on a real Mac, and commits it. Uses only this
+# repository's own token (no secrets needed).
+
+name: Update formula
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, X.Y.Z (empty = latest release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-formula
+  cancel-in-progress: false
+
+env:
+  PROJECT: ILikeHostingServices/Screencap-Documentation-Tool
+  FORMULA: Formula/screencap-documentation-tool.rb
+  # Versions before this one do not know about Homebrew installs
+  MIN_VERSION: 1.22.0
+
+jobs:
+  update:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Find the version to publish
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          v="${WANTED:-$(gh api "repos/$PROJECT/releases/latest" --jq .tag_name | sed 's/^v//')}"
+          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Not a version: $v"; exit 1; }
+          current="$(sed -n 's|.*/archive/refs/tags/v\([0-9.]*\)\.tar\.gz.*|\1|p' "$FORMULA" 2>/dev/null || true)"
+          oldest="$(printf '%s\n%s\n' "$MIN_VERSION" "$v" | sort -V | head -n1)"
+          if [ "$oldest" != "$MIN_VERSION" ]; then
+            echo "v$v is older than $MIN_VERSION; nothing to publish."; echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "$current" = "$v" ]; then
+            echo "The formula is already at v$v."; echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publishing v$v (formula has: ${current:-none})"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        if: steps.version.outputs.publish == 'true'
+        with:
+          repository: ${{ env.PROJECT }}
+          ref: v${{ steps.version.outputs.version }}
+          path: project
+
+      - name: Write and test the formula
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          v='${{ steps.version.outputs.version }}'
+          python3 project/packaging/homebrew/make_formula.py --version "$v" --out Formula
+          cat "$FORMULA"
+          project/packaging/homebrew/test_formula.sh "$FORMULA" "$v"
+
+      - name: Commit the formula
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          v='${{ steps.version.outputs.version }}'
+          git config user.name 'ILHS-Owner'
+          git config user.email '337515992+ILHS-Owner@users.noreply.github.com'
+          git add "$FORMULA"
+          git commit -m "screencap-documentation-tool $v"
+          git push

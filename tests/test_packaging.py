@@ -85,7 +85,8 @@ class PackageKindTests(unittest.TestCase):
             f"{NAME}_9.0.0-1_all.deb": "https://example.test/deb",
             f"{NAME}-9.0.0-1.noarch.rpm": "https://example.test/rpm",
             f"{NAME}-9.0.0-1-any.pkg.tar.zst": "https://example.test/arch"}}
-        for kind, link in (("deb", "deb"), ("rpm", "rpm"), ("arch", "arch"), ("snap", None)):
+        for kind, link in (("deb", "deb"), ("rpm", "rpm"), ("arch", "arch"), ("snap", None),
+                           ("brew", None)):
             with self.subTest(kind=kind), mock.patch.object(apppaths, "PACKAGE_KIND", kind):
                 self.assertEqual(updates.install_kind(), kind)
                 expected = f"https://example.test/{link}" if link else latest["url"]

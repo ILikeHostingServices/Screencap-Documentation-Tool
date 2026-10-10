@@ -1,4 +1,4 @@
-README.md v1.28.0 (Last Rev: 2026-10-10)
+README.md v1.29.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -42,6 +42,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `install.ps1` | One-step Windows installer used by the Quick Start command. |
 | `install.sh` | One-step Linux and macOS installer used by the Quick Start commands. |
 | `packaging/linux/` | Linux packages: `stage.sh` (the shared install layout), `build_packages.py` (.deb and .rpm with nfpm), the menu entry, and the software center details. |
+| `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
@@ -77,6 +78,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |
 | `.github/workflows/build-windows.yml` | Builds and tests the packaged Windows app on a real Windows machine for every pull request, and attaches it to releases. |
+| `.github/workflows/build-macos.yml` | Installs and tests the Homebrew formula on a real Mac for every pull request. |
 | `.github/workflows/build-linux.yml` | Builds the Linux packages and tests each one on its distributions, attaches them to releases, and updates the AUR and the Snap Store. |
 | `.github/workflows/winget.yml` | Tests installing each release through winget and submits it to the Windows Package Manager catalog. |
 | `source/` | Default folder for your recordings. |
@@ -197,7 +199,21 @@ This installs FFmpeg, Python 3, Tkinter, Tesseract OCR, and Pandoc with your pac
 
 ### macOS
 
-Paste into Terminal as your normal user (no `sudo`):
+**Homebrew (recommended).** With [Homebrew](https://brew.sh) installed:
+
+```bash
+brew install ilikehostingservices/tap/screencap-documentation-tool
+```
+
+This installs the tool with Homebrew's own Python, Tkinter, and FFmpeg and adds the `screencap-gui` and `screencap` commands. To add the app to Launchpad, Spotlight, and the Dock:
+
+```bash
+ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/Screencap Documentation Tool.app" ~/Applications/
+```
+
+Optional extras: `brew install tesseract` (automatic blurring) and `brew install pandoc` (Word export). Update with `brew update && brew upgrade screencap-documentation-tool`. Recordings and output go in `~/Documents/Screencap Documentation Tool` by default. The app is built on your Mac by Homebrew from the published source, so macOS does not block it even though it is not notarized. (Available from v1.22.0, once the `ILikeHostingServices/homebrew-tap` repository is live.)
+
+**Install command.** Or paste this into Terminal as your normal user (no `sudo`):
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.sh)"

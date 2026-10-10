@@ -2,19 +2,20 @@
 #
 # apppaths.py
 # 2026-10-10
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # Where the tool's files live. The same code runs two ways:
 #   - from the Python install (screencap.py and friends in one folder): the
 #     program, its tools/ folder, and the default source/ and output/
 #     folders are all in that folder, as they always have been;
-#   - as the packaged Windows app (PyInstaller), or from a Linux package
-#     (.deb, .rpm, Arch, snap): the program files are in a folder normal
+#   - as the packaged Windows app (PyInstaller), from a Linux package
+#     (.deb, .rpm, Arch, snap), or from Homebrew on macOS: the program files are in a folder normal
 #     users cannot write to (Program Files, /usr/share), so the default
 #     source/ and output/ folders go in the user's Documents folder instead.
-#     Linux packages mark themselves with a package-kind file next to the
-#     program (see packaging/linux/stage.sh).
+#     Linux packages and the Homebrew formula mark themselves with a
+#     package-kind file next to the program (see packaging/linux/stage.sh
+#     and packaging/homebrew/).
 
 import os
 import sys
@@ -65,12 +66,13 @@ def documents_dir():
 
 
 def package_kind():
-    """'deb', 'rpm', 'arch', or 'snap' for a Linux package install, else None."""
+    """'deb', 'rpm', 'arch', 'snap' (Linux packages), or 'brew' (Homebrew),
+    else None."""
     try:
         kind = (APP_DIR / "package-kind").read_text(encoding="ascii").strip()
     except OSError:
         return None
-    return kind if kind in ("deb", "rpm", "arch", "snap") else None
+    return kind if kind in ("deb", "rpm", "arch", "snap", "brew") else None
 
 
 PACKAGE_KIND = package_kind()
