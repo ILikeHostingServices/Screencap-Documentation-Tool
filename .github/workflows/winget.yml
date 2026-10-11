@@ -1,6 +1,6 @@
 # winget.yml
 # 2026-10-10
-# Version: v1.2.2
+# Version: v1.2.3
 #
 # PURPOSE:
 # Publishes a release to the Windows Package Manager (winget), so it can be
@@ -19,7 +19,7 @@
 # by hand (Actions > Publish to winget > Run workflow) for an existing release.
 # The pull request is opened with the WINGET_TOKEN repository secret: a
 # classic personal access token of the ILHS-Owner account with only the
-# public_repo scope (see HANDOFF.md). Without the secret, everything except
+# public_repo scope (see the maintainer notes). Without the secret, everything except
 # the submission still runs.
 
 name: Publish to winget
@@ -161,7 +161,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $v = '${{ steps.release.outputs.version }}'
           if (-not $env:WINGET_TOKEN) {
-            Write-Host '::warning::No WINGET_TOKEN secret, so nothing was submitted (see HANDOFF.md).'
+            Write-Host '::warning::No WINGET_TOKEN secret, so nothing was submitted (see the maintainer notes).'
             exit 0
           }
           # Already listed (or merged earlier): nothing to do

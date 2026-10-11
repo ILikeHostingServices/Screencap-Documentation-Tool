@@ -1,4 +1,4 @@
-README.md v1.31.0 (Last Rev: 2026-10-10)
+README.md v1.32.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -72,8 +72,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `.github/ISSUE_TEMPLATE/` | The forms used to report a problem or suggest an idea on GitHub. |
 | `SECURITY.md` | How to report a security problem privately. |
 | `CODE_SIGNING_POLICY.md` | Code signing status of the Windows programs (not signed), how to check a download, how the programs are built, and the privacy statement. |
-| `HANDOFF.md` | Open tasks that need the repository owner or a machine with full access, and the code signing options for later. |
-| `maintenance/rewrite-history.sh` | One-time script that rewrites the history to the current author name and taskbar ID. See `HANDOFF.md`. |
+| (not here) | Maintainer notes (owner to-do list, accounts, release runbook) are kept in a private repository of the organization. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |

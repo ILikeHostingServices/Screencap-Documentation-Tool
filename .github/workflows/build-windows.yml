@@ -1,6 +1,6 @@
 # build-windows.yml
 # 2026-10-10
-# Version: v1.4.0
+# Version: v1.4.1
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -14,7 +14,7 @@
 #     files are kept as a workflow artifact for 30 days.
 #   - Called by the release workflow with a release tag (or run by hand with
 #     one): builds that tag and attaches the files to its GitHub release.
-# The programs are not code signed yet (see HANDOFF.md).
+# The programs are not code signed yet (see CODE_SIGNING_POLICY.md).
 
 name: Windows build
 
