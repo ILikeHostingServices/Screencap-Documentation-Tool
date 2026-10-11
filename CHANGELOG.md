@@ -1,8 +1,15 @@
-CHANGELOG.md v1.31.0 (Last Rev: 2026-10-11)
+CHANGELOG.md v1.32.0 (Last Rev: 2026-10-11)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.25.1 - Accurate update summary in the Windows installer (2026-10-11)
+
+**Fixed**
+- When updating, the installer's **Ready to Update** page listed "Additional tasks: Create a desktop shortcut" and "Also install Tesseract OCR and Pandoc with winget", because it re-applies the choices made at the last install. It now says what is kept from the current installation (Start Menu and desktop shortcuts, settings and saved presets) and lists only what will really be installed.
+- The "Also install Tesseract OCR and Pandoc with winget" option is now offered, and run, only while one of them is missing, like the FFmpeg option. An update no longer runs winget again for programs that are already installed.
+- The Ready page now also shows the recordings and output folders that will be used.
 
 ## v1.25.0 - ARM support: Raspberry Pi and Windows on ARM (2026-10-11)
 
