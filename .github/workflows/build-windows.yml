@@ -1,10 +1,11 @@
 # build-windows.yml
-# 2026-10-10
-# Version: v1.6.0
+# 2026-10-11
+# Version: v2.0.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
-# on a real Windows machine, tests the built programs, packs them as a
+# for x64 PCs and, natively, for Windows on ARM (arm64), each on a real
+# Windows machine of that kind, tests the built programs, packs them as a
 # portable zip and as an installer (Inno Setup, see packaging/installer.iss),
 # tests installing, updating in place, and uninstalling for one user and
 # for all users and upgrading from v1.16.0 (which used another folder), and
@@ -40,8 +41,14 @@ concurrency:
 
 jobs:
   build:
-    name: Build and test
-    runs-on: windows-latest
+    name: Build and test (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: windows-latest }
+          - { arch: arm64, runner: windows-11-arm }
     timeout-minutes: 40
     permissions:
       contents: read
@@ -58,6 +65,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          architecture: ${{ matrix.arch }}
 
       - name: Read the version
         id: version
@@ -73,7 +81,19 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check --quiet "pyinstaller>=6.10,<7"
           python -m PyInstaller --version
-          choco install ffmpeg -y --no-progress
+          python -c "import platform, tkinter; print('Python', platform.python_version(), platform.machine(), 'Tk', tkinter.TkVersion)"
+          if ('${{ matrix.arch }}' -eq 'arm64') {
+            # A native ARM64 FFmpeg build for the tests
+            $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+            Invoke-WebRequest 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip' -OutFile $zip
+            Expand-Archive $zip (Join-Path $env:RUNNER_TEMP 'ffmpeg')
+            $bin = (Get-ChildItem (Join-Path $env:RUNNER_TEMP 'ffmpeg') -Recurse -Filter ffmpeg.exe | Select-Object -First 1).DirectoryName
+            [Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'Machine') + ";$bin", 'Machine')
+            $bin >> $env:GITHUB_PATH
+            & (Join-Path $bin 'ffmpeg.exe') -hide_banner -version | Select-Object -First 1
+          } else {
+            choco install ffmpeg -y --no-progress
+          }
 
       - name: Build
         run: |
@@ -136,7 +156,7 @@ jobs:
           $v = '${{ steps.version.outputs.version }}'
           New-Item -ItemType Directory -Force release | Out-Null
           Compress-Archive -Path 'dist\Screencap-Documentation-Tool' `
-            -DestinationPath "release\Screencap-Documentation-Tool-v$v-windows-x64-portable.zip"
+            -DestinationPath "release\Screencap-Documentation-Tool-v$v-windows-${{ matrix.arch }}-portable.zip"
 
       - name: Build the installer
         run: |
@@ -147,13 +167,22 @@ jobs:
                     Where-Object { Test-Path $_ } | Select-Object -First 1
           }
           if (-not $iscc) {
-            choco install innosetup -y --no-progress
-            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+            if (Get-Command choco -ErrorAction SilentlyContinue) {
+              choco install innosetup -y --no-progress
+            } else {
+              # (the Windows on ARM machines have no Chocolatey)
+              $is = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
+              Invoke-WebRequest 'https://jrsoftware.org/download.php/is.exe' -OutFile $is
+              Start-Process $is -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait
+            }
+            $iscc = Get-ChildItem "${env:ProgramFiles(x86)}", $env:ProgramFiles -Filter ISCC.exe -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+                    Where-Object { $_.DirectoryName -like '*Inno Setup*' } | Select-Object -First 1 -ExpandProperty FullName
+            if (-not $iscc) { throw 'Inno Setup could not be installed' }
           }
           Write-Host "Inno Setup: $iscc"
-          & $iscc "/DAppVersion=$v" /Qp packaging\installer.iss
+          & $iscc "/DAppVersion=$v" "/DArch=${{ matrix.arch }}" /Qp packaging\installer.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)" }
-          $setup = "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          $setup = "release\Screencap-Documentation-Tool-v$v-windows-${{ matrix.arch }}-setup.exe"
           if (-not (Test-Path $setup)) { throw "Installer not created: $setup" }
           $info = (Get-Item $setup).VersionInfo
           Write-Host "Installer version: $($info.ProductVersion) | $($info.CompanyName)"
@@ -162,7 +191,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $v = '${{ steps.version.outputs.version }}'
-          $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-${{ matrix.arch }}-setup.exe"
           $name = 'Screencap Documentation Tool'
           $appId = 'ILHS.ScreencapDocumentationTool.GUI'
 
@@ -258,6 +287,8 @@ jobs:
           }
 
       - name: Test upgrading from v1.16.0 (installed in another folder)
+        # (v1.16.0 had only an x64 installer)
+        if: matrix.arch == 'x64'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -300,7 +331,7 @@ jobs:
         # Drives the real wizard (fresh install, then setup run again over it)
         # and saves a picture of each page, so the layout and wording can be
         # checked without a Windows PC. Best effort: never fails the build.
-        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        if: matrix.arch == 'x64' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
         continue-on-error: true
         timeout-minutes: 10
         run: |
@@ -400,39 +431,116 @@ jobs:
           else { Write-Host 'Layout check: all installer texts fit their space.' }
 
       - uses: actions/upload-artifact@v7
-        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        if: always() && matrix.arch == 'x64' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
         continue-on-error: true
         with:
           name: installer-pages-v${{ steps.version.outputs.version }}
           path: ${{ runner.temp }}/installer-pages/
           retention-days: 14
 
-      - name: Write checksums
+      - name: Show checksums
+        # SHA256SUMS.txt for all Windows files is written by the attach job
         run: |
-          Get-ChildItem release -File | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object Name | ForEach-Object {
+          Get-ChildItem release -File | Sort-Object Name | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-build-${{ matrix.arch }}-v${{ steps.version.outputs.version }}
+          path: release/
+          retention-days: 30
+
+  arm-emulation:
+    # Windows 11 on ARM also runs the x64 build (through x64 emulation): test
+    # the x64 installer there too, as that is what an ARM PC gets from an
+    # older release or a manual download
+    name: Test the x64 build on Windows on ARM
+    needs: build
+    runs-on: windows-11-arm
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: windows-build-x64-v${{ needs.build.outputs.version }}
+          path: release
+      - name: Install, run, and uninstall the x64 build
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = '${{ needs.build.outputs.version }}'
+          Write-Host "Processor: $env:PROCESSOR_ARCHITECTURE ($env:PROCESSOR_IDENTIFIER)"
+          $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+          Invoke-WebRequest 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip' -OutFile $zip
+          Expand-Archive $zip (Join-Path $env:RUNNER_TEMP 'ffmpeg')
+          $bin = (Get-ChildItem (Join-Path $env:RUNNER_TEMP 'ffmpeg') -Recurse -Filter ffmpeg.exe | Select-Object -First 1).DirectoryName
+          $env:Path = "$bin;$env:Path"
+          $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          $log = Join-Path $env:RUNNER_TEMP 'setup-x64-on-arm.log'
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', '/MERGETASKS=!ffmpeg', "/LOG=`"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 30; throw "The x64 installer failed on ARM ($($p.ExitCode))" }
+          $dir = Join-Path $env:ProgramFiles 'ILHS\Screencap-Documentation-Tool'
+          $cli = Join-Path $dir 'screencap.exe'
+          $out = & $cli --version
+          Write-Host $out
+          if ($out -notmatch [regex]::Escape("v$v")) { throw "Installed version is wrong: $out" }
+          $src = Join-Path $env:RUNNER_TEMP 'src'; $dst = Join-Path $env:RUNNER_TEMP 'out'
+          New-Item -ItemType Directory -Force $src | Out-Null
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=1280x720:r=30:d=12 `
+            -vf "drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:enable='gte(t,4)'" `
+            -c:v libx264 -pix_fmt yuv420p (Join-Path $src 'Demo.mp4')
+          & $cli -s $src -o $dst --export html
+          if ($LASTEXITCODE -ne 0) { throw "screencap.exe failed under emulation ($LASTEXITCODE)" }
+          if (-not (Test-Path (Join-Path $dst 'Demo\steps.md'))) { throw 'No steps were written' }
+          $gui = Start-Process (Join-Path $dir 'Screencap Documentation Tool.exe') -PassThru
+          $title = ''
+          for ($i = 0; $i -lt 60 -and -not $title; $i++) { Start-Sleep -Seconds 1; $gui.Refresh(); $title = $gui.MainWindowTitle }
+          Stop-Process -Id $gui.Id -Force -ErrorAction SilentlyContinue
+          Write-Host "Window title: $title"
+          if ($title -ne "Screencap Documentation Tool v$v") { throw "Unexpected window title: '$title'" }
+          Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          for ($i = 0; $i -lt 60 -and (Test-Path $cli); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $cli) { throw 'Uninstalling left the program behind' }
+          Write-Host 'The x64 build installs, runs, and uninstalls on Windows on ARM.'
+
+  winget-manifest:
+    name: Validate the winget manifest
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: windows-build-*-v${{ needs.build.outputs.version }}
+          path: release
+          merge-multiple: true
+      - name: Write and validate the manifest (x64 and arm64 installers)
+        run: |
+          $v = '${{ needs.build.outputs.version }}'
+          Get-ChildItem release -Filter '*-setup.exe' | Sort-Object Name | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
           } | Set-Content -Path release\SHA256SUMS.txt -Encoding ascii
-          Get-Content release\SHA256SUMS.txt
-          Get-ChildItem release | Format-Table Name, Length -AutoSize | Out-String | Write-Host
-
-      - name: Validate the winget manifest
-        run: |
-          $v = '${{ steps.version.outputs.version }}'
-          python packaging/make_winget_manifests.py --version $v `
-            --installer "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe" --out build\winget
+          python packaging/make_winget_manifests.py --version $v --sha256-file release\SHA256SUMS.txt --out build\winget
+          Get-Content "build\winget\$v\ILHS.ScreencapDocumentationTool.installer.yaml"
+          if (-not (Select-String -Path "build\winget\$v\ILHS.ScreencapDocumentationTool.installer.yaml" -Pattern 'Architecture: arm64' -Quiet)) { throw 'The manifest has no arm64 installer' }
           if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw 'winget is not available on this runner' }
           winget validate --manifest "build\winget\$v" --disable-interactivity
           if ($LASTEXITCODE -ne 0) { throw "winget validate failed ($LASTEXITCODE)" }
 
-      - uses: actions/upload-artifact@v7
-        with:
-          name: windows-build-v${{ steps.version.outputs.version }}
-          path: release/
-          retention-days: 30
-
   attach:
     name: Attach to the release
-    needs: build
+    needs: [build, arm-emulation, winget-manifest]
     if: inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
@@ -440,14 +548,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@v7
         with:
-          name: windows-build-v${{ needs.build.outputs.version }}
+          pattern: windows-build-*-v${{ needs.build.outputs.version }}
           path: release
+          merge-multiple: true
       - name: Upload the files to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          (cd release && rm -f SHA256SUMS.txt && sha256sum -- *.exe *.zip | sort -k2 > SHA256SUMS.txt && cat SHA256SUMS.txt)
           ls -l release
           gh release upload "${{ inputs.release_tag }}" release/* --clobber
           gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[].name'

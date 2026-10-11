@@ -1,8 +1,23 @@
-CHANGELOG.md v1.30.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.31.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.25.0 - ARM support: Raspberry Pi and Windows on ARM (2026-10-11)
+
+**New**
+- **Windows on ARM:** native ARM64 builds, `Screencap-Documentation-Tool-vX.Y.Z-windows-arm64-setup.exe` and `...-windows-arm64-portable.zip`, for Snapdragon and other ARM laptops and tablets. They are built and tested on a real Windows 11 on ARM machine. The x64 files keep working on Windows 11 on ARM through Windows' x64 emulation, and that is tested too. winget (once listed) and **Help > Check for Updates** choose the ARM64 download on ARM PCs, also when the x64 copy is the one installed. Either installer updates a copy installed by the other.
+- **Raspberry Pi and other ARM boards:**
+  - The **snap** is now built for 64-bit ARM as well (`_arm64.snap`), so `sudo snap install screencap-documentation-tool` works on 64-bit Raspberry Pi OS and other arm64 Linux.
+  - The **.deb** works on both 64-bit and 32-bit Raspberry Pi OS (it is not tied to a processor type), and is now tested on Debian 12 and 13 and Ubuntu 24.04 for arm64, and on Debian 12 and 13 for 32-bit ARM (armhf).
+
+**Notes**
+- On Windows on ARM, FFmpeg and Tesseract OCR installed with winget are x64 programs that run under emulation; everything works, a little slower. Captions From Narration is not available there.
+- There is no 32-bit ARM snap: GitHub has no 32-bit ARM machines to test it on, and an untested build is not published. 32-bit Raspberry Pi OS uses the `.deb`.
+
+**Changed**
+- `SHA256SUMS.txt` now lists all Windows files (x64 and arm64).
 
 ## v1.24.1 - Cleaner installer pages (2026-10-11)
 

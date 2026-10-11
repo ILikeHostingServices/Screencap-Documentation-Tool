@@ -1,6 +1,6 @@
 # build-linux.yml
-# 2026-10-10
-# Version: v1.0.2
+# 2026-10-11
+# Version: v1.1.0
 #
 # PURPOSE:
 # Builds the Linux packages and tests each one on the distributions it is
@@ -10,7 +10,11 @@
 #   - .rpm  (same script): Fedora, Rocky Linux 9 (RHEL rebuild, with RPM
 #           Fusion for FFmpeg), openSUSE Tumbleweed
 #   - Arch  (packaging/aur/PKGBUILD.in, built with makepkg): Arch Linux
-#   - snap  (snap/snapcraft.yaml): installed with snapd on Ubuntu
+#   - snap  (snap/snapcraft.yaml): built and installed with snapd on Ubuntu,
+#           for x86_64 (amd64) and 64-bit ARM (arm64)
+#   - ARM: the .deb on arm64 (Debian 12 and 13, Ubuntu 24.04; Raspberry Pi OS
+#           64-bit) and 32-bit ARM, armhf (Debian 12 and 13, emulated;
+#           Raspberry Pi OS 32-bit). Every test runs packaging/linux/test_package.sh
 # Pull requests, pushes to main, and manual runs: build and test only.
 # Called by the release workflow with a release tag (or run by hand with
 # one): also attaches the files and SHA256SUMS-linux.txt to that release,
@@ -156,85 +160,66 @@ jobs:
           name: ${{ matrix.family == 'arch' && 'linux-arch' || 'linux-deb-rpm' }}
           path: pkg
 
-      - name: Install the package (dependencies come from the distribution)
-        shell: bash
-        run: |
-          set -euxo pipefail
-          case "${{ matrix.family }}" in
-            deb)
-              export DEBIAN_FRONTEND=noninteractive
-              apt-get update -qq
-              apt-get install -y -qq ./pkg/*.deb xvfb ;;
-            fedora)
-              dnf install -y ./pkg/*.rpm xorg-x11-server-Xvfb ;;
-            rhel)
-              # FFmpeg is not in RHEL; RPM Fusion has it (needs EPEL and CRB)
-              dnf install -y epel-release dnf-plugins-core
-              dnf config-manager --set-enabled crb
-              dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm"
-              dnf install -y ./pkg/*.rpm xorg-x11-server-Xvfb ;;
-            suse)
-              zypper --non-interactive install --allow-unsigned-rpm ./pkg/*.rpm xorg-x11-server-Xvfb dejavu-fonts ;;
-            arch)
-              pacman -Syu --noconfirm
-              pacman -U --noconfirm ./pkg/*.pkg.tar.zst
-              pacman -S --noconfirm --needed xorg-server-xvfb ;;
-          esac
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
+          path: src
 
-      - name: Test the command line program
+      - name: Install, test, and uninstall the package
         shell: bash
-        run: |
-          set -euxo pipefail
-          out="$(/usr/bin/screencap --version)"
-          echo "$out"
-          grep -q "v$V" <<< "$out"
-          test -f /usr/share/applications/io.github.ILikeHostingServices.ScreencapDocumentationTool.desktop
-          test -f /usr/share/icons/hicolor/256x256/apps/io.github.ILikeHostingServices.ScreencapDocumentationTool.png
-          export HOME=/tmp/home && mkdir -p "$HOME"
-          # A recording with two steps (FFV1 in Matroska: built into every
-          # distribution's FFmpeg, including Fedora's patent-free build)
-          mkdir -p /tmp/src
-          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=white:s=640x360:r=10:d=8 \
-            -vf "drawbox=x=150:y=100:w=300:h=150:color=gray:t=fill:enable='gte(t,3)'" \
-            -c:v ffv1 /tmp/src/Demo.mkv
-          /usr/bin/screencap -s /tmp/src -o /tmp/out
-          test -f /tmp/out/Demo/steps.md
-          ls /tmp/out/Demo
-          [ "$(ls /tmp/out/Demo/*.png | wc -l)" -ge 2 ]
-          # With no folders given, a package install uses ~/Documents
-          /usr/bin/screencap
-          test -d "$HOME/Documents/Screencap Documentation Tool/source"
+        run: bash src/packaging/linux/test_package.sh "${{ matrix.family }}" "$V" pkg
 
-      - name: Test the GUI program starts
-        shell: bash
-        run: |
-          set -euxo pipefail
-          export HOME=/tmp/home
-          Xvfb :99 -screen 0 1400x900x24 >/dev/null 2>&1 &
-          sleep 3
-          title="$(DISPLAY=:99 timeout 90 /usr/bin/screencap-gui --smoke-test)"
-          echo "Window title: $title"
-          [ "$title" = "Screencap Documentation Tool v$V" ]
+  test-arm:
+    # Raspberry Pi OS is Debian with Raspberry Pi additions: the 64-bit
+    # edition is arm64, the 32-bit one armhf. arm64 runs natively on GitHub's
+    # ARM machines; 32-bit ARM runs emulated (QEMU), as GitHub has no such
+    # machines. The .deb is architecture-independent, so the same file is
+    # tested everywhere.
+    name: Test on ${{ matrix.name }}
+    needs: packages
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Debian 13 arm64 (Raspberry Pi OS 64-bit)", runner: ubuntu-24.04-arm, image: "debian:13", platform: linux/arm64 }
+          - { name: "Debian 12 arm64 (Raspberry Pi OS 64-bit, Bookworm)", runner: ubuntu-24.04-arm, image: "debian:12", platform: linux/arm64 }
+          - { name: "Ubuntu 24.04 arm64", runner: ubuntu-24.04-arm, image: "ubuntu:24.04", platform: linux/arm64 }
+          - { name: "Debian 13 armhf (Raspberry Pi OS 32-bit)", runner: ubuntu-latest, image: "debian:13", platform: linux/arm/v7, emulated: true }
+          - { name: "Debian 12 armhf (Raspberry Pi OS 32-bit, Bookworm)", runner: ubuntu-latest, image: "debian:12", platform: linux/arm/v7, emulated: true }
+    env:
+      V: ${{ needs.packages.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
 
-      - name: Test uninstalling
-        shell: bash
+      - uses: actions/download-artifact@v7
+        with:
+          name: linux-deb-rpm
+          path: pkg
+
+      - uses: docker/setup-qemu-action@v3
+        if: matrix.emulated
+        with:
+          platforms: arm
+
+      - name: Install, test, and uninstall the .deb
         run: |
-          set -euxo pipefail
-          case "${{ matrix.family }}" in
-            deb) apt-get remove -y screencap-documentation-tool ;;
-            fedora|rhel) dnf remove -y screencap-documentation-tool ;;
-            suse) zypper --non-interactive remove screencap-documentation-tool ;;
-            arch) pacman -R --noconfirm screencap-documentation-tool ;;
-          esac
-          # (a bare "! test" would not stop the script under set -e)
-          for f in /usr/bin/screencap /usr/share/screencap-documentation-tool; do
-            if [ -e "$f" ]; then echo "::error::$f is still there after uninstalling"; exit 1; fi
-          done
+          docker run --rm --platform "${{ matrix.platform }}" -v "$PWD:/w" -w /w "${{ matrix.image }}" \
+            bash packaging/linux/test_package.sh deb "$V" pkg
 
   snap:
-    name: Build and test the snap
+    name: Build and test the snap (${{ matrix.arch }})
     needs: packages
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
     env:
       V: ${{ needs.packages.outputs.version }}
     steps:
@@ -272,17 +257,17 @@ jobs:
           [ "$title" = "Screencap Documentation Tool v$V" ]
           sudo snap remove screencap-documentation-tool
           mkdir -p release
-          cp "$snap" "release/screencap-documentation-tool_${V}_amd64.snap"
+          cp "$snap" "release/screencap-documentation-tool_${V}_${{ matrix.arch }}.snap"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: linux-snap
+          name: linux-snap-${{ matrix.arch }}
           path: release/
           retention-days: 30
 
   attach:
     name: Attach to the release
-    needs: [packages, test, snap]
+    needs: [packages, test, test-arm, snap]
     if: inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
@@ -353,8 +338,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v7
         with:
-          name: linux-snap
+          pattern: linux-snap-*
           path: release
+          merge-multiple: true
       - name: Check for the Snap Store credentials
         id: creds
         env:
@@ -372,4 +358,11 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         with:
           snap: release/screencap-documentation-tool_${{ needs.packages.outputs.version }}_amd64.snap
+          release: stable
+      - uses: snapcore/action-publish@v1
+        if: steps.creds.outputs.set == 'true'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: release/screencap-documentation-tool_${{ needs.packages.outputs.version }}_arm64.snap
           release: stable

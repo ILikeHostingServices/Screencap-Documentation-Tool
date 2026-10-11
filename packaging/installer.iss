@@ -1,6 +1,6 @@
 ; installer.iss
 ; 2026-10-11
-; Version: v1.3.1
+; Version: v1.4.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
@@ -25,12 +25,22 @@
 ; and settings are never touched by uninstalling.
 ;
 ; Build from the repository root, after the PyInstaller build:
-;   iscc /DAppVersion=1.16.0 packaging\installer.iss
-; Output: release\Screencap-Documentation-Tool-v<version>-windows-x64-setup.exe
+;   iscc /DAppVersion=1.16.0 packaging\installer.iss                (x64 PCs)
+;   iscc /DAppVersion=1.16.0 /DArch=arm64 packaging\installer.iss   (Windows on ARM,
+;        from a PyInstaller build made with ARM64 Python)
+; Output: release\Screencap-Documentation-Tool-v<version>-windows-<x64|arm64>-setup.exe
+; The x64 installer also runs on Windows 11 on ARM (x64 emulation); both use
+; the same AppId, so either one updates a copy installed by the other.
 
 #define AppName "Screencap Documentation Tool"
 #define AppExe "Screencap Documentation Tool.exe"
 #define AppUserModelId "ILHS.ScreencapDocumentationTool.GUI"
+#ifndef Arch
+  #define Arch "x64"
+#endif
+#if Arch != "x64" && Arch != "arm64"
+  #error Arch must be x64 or arm64
+#endif
 #ifndef AppVersion
   #error Pass the version: iscc /DAppVersion=X.Y.Z packaging\installer.iss
 #endif
@@ -58,8 +68,13 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
 UsePreviousPrivileges=no
+#if Arch == "arm64"
+ArchitecturesAllowed=arm64
+ArchitecturesInstallIn64BitMode=arm64
+#else
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+#endif
 LicenseFile=..\LICENSE
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
@@ -68,7 +83,7 @@ WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
 OutputDir=..\release
-OutputBaseFilename=Screencap-Documentation-Tool-v{#AppVersion}-windows-x64-setup
+OutputBaseFilename=Screencap-Documentation-Tool-v{#AppVersion}-windows-{#Arch}-setup
 VersionInfoVersion={#AppVersion}.0
 VersionInfoCompany=ILikeHostingServices
 VersionInfoDescription={#AppName} Setup

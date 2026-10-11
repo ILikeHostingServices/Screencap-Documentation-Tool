@@ -31,5 +31,19 @@ Installers:
   InstallerSha256: {SHA256}
   InstallerSwitches:
     Custom: /CURRENTUSER /MERGETASKS=!ffmpeg
+# arm64 begin (left out for releases without a native Windows on ARM build)
+- Architecture: arm64
+  Scope: machine
+  InstallerUrl: {ARM64_INSTALLER_URL}
+  InstallerSha256: {ARM64_SHA256}
+  InstallerSwitches:
+    Custom: /ALLUSERS /MERGETASKS=!ffmpeg
+- Architecture: arm64
+  Scope: user
+  InstallerUrl: {ARM64_INSTALLER_URL}
+  InstallerSha256: {ARM64_SHA256}
+  InstallerSwitches:
+    Custom: /CURRENTUSER /MERGETASKS=!ffmpeg
+# arm64 end
 ManifestType: installer
 ManifestVersion: 1.10.0

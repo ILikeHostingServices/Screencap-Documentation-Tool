@@ -2,7 +2,7 @@
 #
 # test_updates.py
 # 2026-10-10
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Tests for the update check (updates.py): version comparison, reading a
@@ -91,6 +91,23 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(updates.download_for(latest, "installer"), "https://example.test/setup.exe")
         self.assertEqual(updates.download_for(latest, "portable"), "https://example.test/portable.zip")
         self.assertEqual(updates.download_for(latest, "python"), RELEASE["html_url"])
+
+    def test_windows_on_arm_gets_the_arm64_build_when_there_is_one(self):
+        latest = updates.check_latest(self.base + "/latest", timeout=5)
+        # This test release has only x64 files: ARM PCs get those (emulated)
+        self.assertEqual(updates.download_for(latest, "installer", "arm64"),
+                         "https://example.test/setup.exe")
+        latest["assets"]["Screencap-Documentation-Tool-v9.8.7-windows-arm64-setup.exe"] = \
+            "https://example.test/arm64-setup.exe"
+        latest["assets"]["Screencap-Documentation-Tool-v9.8.7-windows-arm64-portable.zip"] = \
+            "https://example.test/arm64-portable.zip"
+        self.assertEqual(updates.download_for(latest, "installer", "arm64"),
+                         "https://example.test/arm64-setup.exe")
+        self.assertEqual(updates.download_for(latest, "portable", "arm64"),
+                         "https://example.test/arm64-portable.zip")
+        self.assertEqual(updates.download_for(latest, "installer", "x64"),
+                         "https://example.test/setup.exe")
+        self.assertIn(updates.windows_arch(), ("x64", "arm64"))
         notes = updates.release_notes_excerpt(latest["notes"])
         self.assertIn("New", notes)
         self.assertNotIn("**", notes)
