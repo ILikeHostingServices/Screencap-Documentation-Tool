@@ -1,4 +1,4 @@
-README.md v1.32.0 (Last Rev: 2026-10-10)
+README.md v1.33.0 (Last Rev: 2026-10-10)
 
 # Screencap Documentation Tool
 
@@ -154,9 +154,10 @@ The Windows programs are not code signed. See [CODE_SIGNING_POLICY.md](CODE_SIGN
 1. Download `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` and `SHA256SUMS.txt` from the latest release.
 2. Optional but recommended, check the download is intact: in PowerShell, `(Get-FileHash .\Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe).Hash` must match the line for that file in `SHA256SUMS.txt` (ignoring upper and lower case).
 3. Run it. It installs for all users in `C:\Program Files\ILHS\Screencap-Documentation-Tool` (Windows asks for admin rights). Without admin rights, choose **Install for me only** on the first page to install in `%LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool` instead. A copy from v1.16.0 or earlier (in `...\Screencap Documentation Tool`) is moved to the new folder automatically; settings are kept. If FFmpeg is not found it offers to install it with winget, and one tick also installs Tesseract OCR and Pandoc.
-4. Start the app from the Start Menu. To update, run the newer installer: it detects the installed copy and goes straight to **Ready to Update** (no license, folder, or options pages, unless FFmpeg is missing), keeping your desktop shortcut choice. To remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
+   - **Recordings and Output Folders** page: keep the defaults, `source` and `output` inside the install folder (for example `C:\Program Files\ILHS\Screencap-Documentation-Tool\source`; for an all-users install setup makes these two folders writable for every user, since the rest of Program Files is read-only for them), or choose your own folders (setup creates them). The app uses them from its next start; both can be changed later in the app.
+4. Start the app from the Start Menu. To update, run the newer installer: it detects the installed copy and goes straight to **Ready to Update** (no license, folder, or options pages, unless FFmpeg is missing), keeping your desktop shortcut choice and the recordings and output folders chosen before. Updating from v1.23.2 or earlier asks for the folders once. To remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
 
-For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` installs for all users (run it elevated, for example from Intune, SCCM, or PDQ). Add `/CURRENTUSER` for a per-user install without admin rights, `/TASKS=desktopicon` for a desktop shortcut, or `/DIR="D:\Apps\Screencap"` for another folder. Silent uninstall: `"C:\Program Files\ILHS\Screencap-Documentation-Tool\unins000.exe" /VERYSILENT`.
+For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` installs for all users (run it elevated, for example from Intune, SCCM, or PDQ). Add `/CURRENTUSER` for a per-user install without admin rights, `/TASKS=desktopicon` for a desktop shortcut, `/DIR="D:\Apps\Screencap"` for another install folder, or `/SOURCEDIR="D:\Recordings" /OUTPUTDIR="D:\Screenshots"` for the recordings and output folders (without them, a new install uses the defaults and an update keeps the earlier folders). Silent uninstall: `"C:\Program Files\ILHS\Screencap-Documentation-Tool\unins000.exe" /VERYSILENT`.
 
 **Portable zip:**
 
@@ -425,7 +426,7 @@ and confirm that no media, logs, or files containing secrets are listed. Also re
 
 **Update:** **Help > Check for Updates...** in the GUI says whether a newer version is out. For the Python install, paste the same Quick Start command again. It downloads the latest version over the top of the old one. Nothing in `source` or `output` is deleted, and GUI settings are kept.
 
-**Uninstall:** move any recordings or screenshots you want to keep out of the install folder first, because removing the folder deletes them.
+**Uninstall:** move any recordings or screenshots you want to keep out of the install folder first, because removing the folder deletes them. If the Windows installer version is also installed (or you are switching to it), keep `%APPDATA%\ScreencapDocTool`: both versions share those settings and saved presets, so leave it out of the commands below.
 
 ```powershell
 # Windows, just-you install

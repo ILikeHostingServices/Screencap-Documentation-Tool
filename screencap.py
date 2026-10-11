@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-04
-# Version: v1.11.0
+# Version: v1.11.1
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -480,9 +480,9 @@ def parse_args(argv):
     p = argparse.ArgumentParser(
         description="Automatically capture a screenshot of every step in screen "
                     "recordings using FFmpeg scene detection.")
-    p.add_argument("-s", "--source", type=Path, default=apppaths.DATA_DIR / "source",
+    p.add_argument("-s", "--source", type=Path, default=apppaths.SOURCE_DIR,
                    help="Folder containing videos (default: ./source)")
-    p.add_argument("-o", "--output", type=Path, default=apppaths.DATA_DIR / "output",
+    p.add_argument("-o", "--output", type=Path, default=apppaths.OUTPUT_DIR,
                    help="Folder to write screenshots to (default: ./output)")
     p.add_argument("-r", "--recursive", action="store_true",
                    help="Also scan subfolders of the source folder")

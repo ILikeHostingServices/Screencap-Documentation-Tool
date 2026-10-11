@@ -1,6 +1,6 @@
 # build-windows.yml
 # 2026-10-10
-# Version: v1.4.1
+# Version: v1.5.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -173,6 +173,10 @@ jobs:
             $id = $item.ExtendedProperty('System.AppUserModel.ID')
             if ($id -ne $appId) { throw "Shortcut taskbar ID is '$id', expected $appId" }
           }
+          function Get-Folders($scope) {
+            $root = if ($scope -eq 'CURRENTUSER') { 'HKCU:' } else { 'HKLM:' }
+            Get-ItemProperty "$root\Software\ILHS\Screencap Documentation Tool" -ErrorAction SilentlyContinue
+          }
           function Wait-Gone($path) {
             # The uninstaller hands over to a copy of itself, so wait for the files
             for ($i = 0; $i -lt 60 -and (Test-Path $path); $i++) { Start-Sleep -Seconds 1 }
@@ -207,14 +211,40 @@ jobs:
             Write-Host "Apps & Features: $($entry.DisplayName) $($entry.DisplayVersion) by $($entry.Publisher)"
             if (-not (Select-String -Path $log -Pattern 'New installation' -Quiet)) { throw 'A first install was not treated as new' }
 
+            # The default recordings and output folders, recorded for the app
+            $f = Get-Folders $scope
+            if (-not $f) { throw "No folder choice recorded in the registry for $scope" }
+            Write-Host "Folders: $($f.FolderMode) source=$($f.SourceDir) output=$($f.OutputDir) stamp=$($f.FoldersStamp)"
+            if ($f.SourceDir -ne (Join-Path $dir 'source') -or $f.OutputDir -ne (Join-Path $dir 'output') -or $f.FolderMode -ne 'default' -or -not $f.FoldersStamp) {
+              throw 'The default folders were not recorded as expected'
+            }
+            foreach ($sub in 'source', 'output') {
+              if (-not (Test-Path (Join-Path $dir $sub))) { throw "Folder not created: $dir\$sub" }
+            }
+            if ($scope -eq 'ALLUSERS') {
+              # Standard users must be able to write there (Program Files is read-only for them)
+              $usersSid = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-545')
+              foreach ($sub in 'source', 'output') {
+                $ok = (Get-Acl (Join-Path $dir $sub)).Access | Where-Object {
+                  $_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]) -eq $usersSid -and
+                  ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::Modify) -eq [System.Security.AccessControl.FileSystemRights]::Modify }
+                if (-not $ok) { throw "Users cannot modify $dir\$sub" }
+              }
+            }
+
             Write-Host "=== Run setup again for $scope (update mode) ==="
             $log2 = Join-Path $env:RUNNER_TEMP "reinstall-$scope.log"
-            $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$scope", "/LOG=`"$log2`"" -Wait -PassThru
+            # ...and choose other folders this time (as the folder page would)
+            $mine = Join-Path $env:RUNNER_TEMP "folders-$scope"
+            $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$scope", "/LOG=`"$log2`"", "/SOURCEDIR=`"$mine\rec`"", "/OUTPUTDIR=`"$mine\out`"" -Wait -PassThru
             if ($p.ExitCode -ne 0) { Get-Content $log2 -Tail 30; throw "Reinstall failed for $scope ($($p.ExitCode))" }
             if (-not (Select-String -Path $log2 -Pattern ([regex]::Escape("Update mode: v$v is installed in")) -Quiet)) {
               Get-Content $log2 -Tail 30; throw 'Setup did not detect the installed copy'
             }
             Test-Shortcut $desk                     # the desktop shortcut chosen last time is kept
+            $f2 = Get-Folders $scope
+            if ($f2.SourceDir -ne "$mine\rec" -or $f2.OutputDir -ne "$mine\out" -or $f2.FolderMode -ne 'custom') { throw "Chosen folders not recorded: $($f2.SourceDir) $($f2.OutputDir)" }
+            if (-not (Test-Path "$mine\rec") -or -not (Test-Path "$mine\out")) { throw 'Chosen folders were not created' }
 
             Write-Host "=== Uninstall for $scope ==="
             Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
@@ -222,6 +252,8 @@ jobs:
             Wait-Gone (Join-Path $menu "$name.lnk")
             Wait-Gone (Join-Path $desk "$name.lnk")
             Wait-Gone (Split-Path $dir)             # the empty ILHS folder goes too
+            if (Get-Folders $scope) { throw 'The folder choice was left in the registry' }
+            if (-not (Test-Path "$mine\rec")) { throw 'Uninstalling removed a folder the user chose' }
           }
 
       - name: Test upgrading from v1.16.0 (installed in another folder)
