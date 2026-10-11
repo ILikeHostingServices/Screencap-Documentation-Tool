@@ -1,4 +1,4 @@
-CODE_SIGNING_POLICY.md v2.1.1 (Last Rev: 2026-10-10)
+CODE_SIGNING_POLICY.md v2.1.1 (Last Rev: 2026-10-11)
 
 # Code Signing Policy
 

@@ -1,4 +1,4 @@
-README.md v1.34.0 (Last Rev: 2026-10-10)
+README.md v1.34.0 (Last Rev: 2026-10-11)
 
 # Screencap Documentation Tool
 

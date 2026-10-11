@@ -1,4 +1,4 @@
-CHANGELOG.md v1.31.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.31.0 (Last Rev: 2026-10-11)
 
 # Changelog
 
