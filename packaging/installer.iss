@@ -1,6 +1,6 @@
 ; installer.iss
 ; 2026-10-11
-; Version: v1.3.0
+; Version: v1.3.1
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
@@ -80,7 +80,7 @@ CloseApplications=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
-Name: "ffmpeg"; Description: "Install FFmpeg with winget (required; not found on this PC)"; Check: not FfmpegFound
+Name: "ffmpeg"; Description: "Install FFmpeg with winget (required, and not found on this PC)"; Check: not FfmpegFound
 Name: "extras"; Description: "Also install Tesseract OCR (automatic blurring) and Pandoc (Word export) with winget"; Flags: unchecked
 
 [Files]
@@ -157,7 +157,7 @@ begin
   if not Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE,
               ewWaitUntilTerminated, ResultCode) then
   begin
-    Result := 'Could not remove the copy installed earlier in ' + OldDir +
+    Result := 'Setup could not remove the copy installed earlier in ' + OldDir +
               '. Uninstall it from Settings > Apps, then run this setup again.';
     Exit;
   end;
@@ -185,6 +185,7 @@ var
   OldVersion, OldDir: String;
   FolderModePage: TInputOptionWizardPage;
   FolderDirPage: TInputDirWizardPage;
+  DefaultFoldersLabel: TNewStaticText;  { the default paths, under the choices }
   HavePrevFolders: Boolean;          { an earlier install recorded its folders }
   PrevSource, PrevOutput, PrevMode, PrevStamp: String;
   FoldersDecided: Boolean;
@@ -234,18 +235,29 @@ begin
     'Recordings and Output Folders',
     'Where should your recordings and screenshots be kept?',
     'The source folder holds the screen recordings to process. The output folder ' +
-    'gets the screenshots and documents made from them. Both can be changed later ' +
-    'in the app.', True, False);
-  FolderModePage.Add('Use the default folders (source and output in the install folder)');
+    'receives the screenshots and documents made from them. You can change both ' +
+    'later in the app.', True, False);
+  FolderModePage.Add('Use the default folders (recommended)');
   FolderModePage.Add('Choose my own folders');
+  { Two short choices, then the default paths on lines of their own, so long
+    paths never wrap in the middle of a choice }
+  FolderModePage.CheckListBox.Height := ScaleY(46);
+  DefaultFoldersLabel := TNewStaticText.Create(FolderModePage);
+  DefaultFoldersLabel.Parent := FolderModePage.Surface;
+  DefaultFoldersLabel.Left := ScaleX(18);
+  DefaultFoldersLabel.Top := FolderModePage.CheckListBox.Top + FolderModePage.CheckListBox.Height + ScaleY(10);
+  DefaultFoldersLabel.Width := FolderModePage.SurfaceWidth - ScaleX(18);
+  DefaultFoldersLabel.AutoSize := False;
+  DefaultFoldersLabel.WordWrap := True;
+  DefaultFoldersLabel.Height := ScaleY(80);
   if HavePrevFolders and (PrevMode = 'custom') then
     FolderModePage.SelectedValueIndex := 1
   else
     FolderModePage.SelectedValueIndex := 0;
 
   FolderDirPage := CreateInputDirPage(FolderModePage.ID,
-    'Choose Folders', 'Pick the source and output folders.',
-    'Setup creates the folders if they do not exist yet. Files already in them are kept.',
+    'Choose Folders', 'Where should the source and output folders be?',
+    'Setup creates any folder that does not exist yet. Files already in a folder are kept.',
     False, '');
   FolderDirPage.Add('Source folder (screen recordings):');
   FolderDirPage.Add('Output folder (screenshots and documents):');
@@ -385,29 +397,47 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 var
   Action: String;
+  Reinstall: Boolean;
 begin
   if CurPageID = FolderModePage.ID then
-    FolderModePage.CheckListBox.ItemCaption[0] := 'Use the default folders: ' +
-      DefaultFolder('source') + ' and ' + DefaultFolder('output');
+    DefaultFoldersLabel.Caption := 'The default folders are:' + #13#10 +
+      'Source:  ' + DefaultFolder('source') + #13#10 +
+      'Output:  ' + DefaultFolder('output');
   if not UpdateMode then
     Exit;
-  if CompareText(OldVersion, '{#AppVersion}') = 0 then
-    Action := 'reinstall v{#AppVersion} of {#AppName}'
+  Reinstall := CompareText(OldVersion, '{#AppVersion}') = 0;
+  if Reinstall then
+    Action := 'reinstall {#AppName} v{#AppVersion}'
   else if OldVersion <> '' then
     Action := 'update {#AppName} from v' + OldVersion + ' to v{#AppVersion}'
   else
     Action := 'update {#AppName} to v{#AppVersion}';
   if CurPageID = wpReady then
   begin
-    WizardForm.PageNameLabel.Caption := 'Ready to Update';
+    if Reinstall then
+    begin
+      WizardForm.PageNameLabel.Caption := 'Ready to Reinstall';
+      WizardForm.NextButton.Caption := 'Reinstall';
+    end
+    else
+    begin
+      WizardForm.PageNameLabel.Caption := 'Ready to Update';
+      WizardForm.NextButton.Caption := 'Update';
+    end;
     WizardForm.PageDescriptionLabel.Caption := 'Setup is ready to ' + Action + '.';
     WizardForm.ReadyLabel.Caption := '{#AppName} is already installed in ' + OldDir +
-      '. Click Update to replace it with this version. Your recordings, output, ' +
-      'settings, and presets are kept.';
-    WizardForm.NextButton.Caption := 'Update';
+      '. Click ' + WizardForm.NextButton.Caption + ' to replace it with this version. ' +
+      'Your recordings, output, settings, and presets are kept.';
   end
   else if CurPageID = wpFinished then
-    WizardForm.FinishedLabel.Caption := '{#AppName} has been updated to v{#AppVersion}.';
+  begin
+    if Reinstall then
+      WizardForm.FinishedLabel.Caption := '{#AppName} v{#AppVersion} has been reinstalled.'
+    else
+      WizardForm.FinishedLabel.Caption := '{#AppName} has been updated to v{#AppVersion}.';
+    WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10#13#10 +
+      'Click Finish to close Setup.';
+  end;
 end;
 
 { The shared ILHS folder, once empty. [UninstallDelete] does this too, but

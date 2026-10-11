@@ -1,8 +1,16 @@
-CHANGELOG.md v1.29.0 (Last Rev: 2026-10-10)
+CHANGELOG.md v1.30.0 (Last Rev: 2026-10-10)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.24.1 - Cleaner installer pages (2026-10-11)
+
+**Fixed**
+- **Recordings and Output Folders** page in the Windows installer: the two choices are now short ("Use the default folders (recommended)" and "Choose my own folders"), and the default folders are listed underneath on lines of their own, instead of long paths wrapping in the middle of the first choice.
+- Clearer wording on the installer's folder pages, the options page ("required, and not found on this PC"), and the error shown when an older copy cannot be removed.
+- Running setup over the same version now says **Ready to Reinstall** with a **Reinstall** button, instead of "update"; the last page ends with "Click Finish to close Setup."
+- The Windows build now drives the real installer and saves a screenshot of every page, so its layout and wording are checked on each change.
 
 ## v1.24.0 - Choose the recordings and output folders in the Windows installer (2026-10-11)
 
