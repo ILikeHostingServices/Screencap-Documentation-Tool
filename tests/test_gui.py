@@ -2,7 +2,7 @@
 #
 # test_gui.py
 # 2026-10-10
-# Version: v1.4.0
+# Version: v1.5.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -336,6 +336,26 @@ class GuiTests(unittest.TestCase):
         self.app.v_debounce.set("2.5")
         self.assertEqual(self.app.build_args().debounce, 2.5)
         win.destroy()
+        self.assertEqual(self.errors, [])
+
+    def test_installer_folders_are_applied_once(self):
+        import apppaths
+        chosen = apppaths.InstallerFolders(self.tmp / "rec", self.tmp / "out", "20261011120000")
+        with mock.patch.object(apppaths, "INSTALLER_FOLDERS", chosen):
+            self.app.v_source.set(str(self.tmp / "old-source"))
+            self.app.save_settings()
+            self.app.load_settings()                 # first start after the install
+            self.assertEqual(self.app.v_source.get(), str(chosen.source))
+            self.assertEqual(self.app.v_output.get(), str(chosen.output))
+            self.assertTrue(chosen.source.is_dir())
+            self.app.v_source.set(str(self.tmp / "picked-in-app"))
+            self.app.save_settings()
+            self.app.load_settings()                 # later starts keep the app's choice
+            self.assertEqual(self.app.v_source.get(), str(self.tmp / "picked-in-app"))
+        silent = apppaths.InstallerFolders(self.tmp / "rec2", self.tmp / "out2", "")
+        with mock.patch.object(apppaths, "INSTALLER_FOLDERS", silent):
+            self.app.load_settings()                 # a silent update never overrides
+            self.assertEqual(self.app.v_source.get(), str(self.tmp / "picked-in-app"))
         self.assertEqual(self.errors, [])
 
     def descendants(self, widget):

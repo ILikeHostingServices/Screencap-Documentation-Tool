@@ -1,6 +1,6 @@
 # build-linux.yml
 # 2026-10-10
-# Version: v1.0.1
+# Version: v1.0.2
 #
 # PURPOSE:
 # Builds the Linux packages and tests each one on the distributions it is
@@ -15,7 +15,7 @@
 # Called by the release workflow with a release tag (or run by hand with
 # one): also attaches the files and SHA256SUMS-linux.txt to that release,
 # then publishes to the AUR and the Snap Store when their secrets are set
-# (AUR_SSH_PRIVATE_KEY, SNAPCRAFT_STORE_CREDENTIALS; see HANDOFF.md).
+# (AUR_SSH_PRIVATE_KEY, SNAPCRAFT_STORE_CREDENTIALS; see the maintainer notes).
 
 name: Linux build
 
@@ -321,7 +321,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${AUR_SSH_PRIVATE_KEY:-}" ]; then
-            echo "::warning::No AUR_SSH_PRIVATE_KEY secret, so the AUR was not updated (see HANDOFF.md)."
+            echo "::warning::No AUR_SSH_PRIVATE_KEY secret, so the AUR was not updated (see the maintainer notes)."
             exit 0
           fi
           pacman -Syu --noconfirm --needed base-devel git openssh
@@ -361,7 +361,7 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: |
           if [ -z "${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
-            echo "::warning::No SNAPCRAFT_STORE_CREDENTIALS secret, so the Snap Store was not updated (see HANDOFF.md)."
+            echo "::warning::No SNAPCRAFT_STORE_CREDENTIALS secret, so the Snap Store was not updated (see the maintainer notes)."
             echo "set=false" >> "$GITHUB_OUTPUT"
           else
             echo "set=true" >> "$GITHUB_OUTPUT"

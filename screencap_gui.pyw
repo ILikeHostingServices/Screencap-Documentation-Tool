@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-10-10
-# Version: v2.1.0
+# Version: v2.2.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -46,7 +46,7 @@ import theme  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "2.1.0"   # this file; the release version is in version.py
+GUI_VERSION = "2.2.0"   # this file; the release version is in version.py
 ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
@@ -758,8 +758,28 @@ class App:
 
     def load_settings(self):
         data = self.read_settings_file()
-        if not data:
+        if data:
+            self.apply_saved_settings(data)
+        self.apply_installer_folders()
+
+    def apply_installer_folders(self):
+        """Folders picked in the Windows installer replace the saved ones once,
+        right after that install; changes made in the app afterwards stay."""
+        chosen = apppaths.INSTALLER_FOLDERS
+        if not chosen or not chosen.stamp or \
+                self.settings_extra.get("installer_folders") == chosen.stamp:
             return
+        self.v_source.set(str(chosen.source))
+        self.v_output.set(str(chosen.output))
+        self.settings_extra["installer_folders"] = chosen.stamp
+        for folder in (chosen.source, chosen.output):
+            try:
+                folder.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
+        self.save_settings()
+
+    def apply_saved_settings(self, data):
         for key, var in self.setting_vars().items():
             if key in data:
                 try:
@@ -770,7 +790,8 @@ class App:
         # canonical(): names saved before v1.23.0 were in sentence case
         self.v_profile.set(presets.canonical(self.v_profile.get()) or presets.DEFAULT)
         self.settings_extra = {k: data[k] for k in ("check_updates", "last_update_check",
-                                                    "skip_version") if k in data}
+                                                    "skip_version", "installer_folders")
+                               if k in data}
         self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))
         if self.v_theme.get() not in theme.MODES:
             self.v_theme.set("system")

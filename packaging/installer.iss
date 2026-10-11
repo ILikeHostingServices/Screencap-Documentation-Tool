@@ -1,6 +1,6 @@
 ; installer.iss
-; 2026-10-10
-; Version: v1.2.0
+; 2026-10-11
+; Version: v1.3.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
@@ -11,11 +11,18 @@
 ; A copy installed earlier in another folder (versions before 1.19.0 used
 ; ...\Screencap Documentation Tool) is removed first. When a copy is already
 ; installed, setup runs as an update: it skips the license, folder, and
-; (when FFmpeg is found) options pages, and says which version it updates. Adds a Start Menu shortcut
-; with the app's taskbar identity, an optional desktop shortcut, and an
-; uninstaller; and can install FFmpeg (required) and, optionally, Tesseract
-; OCR and Pandoc with winget. Recordings, output, and settings are never
-; touched by uninstalling.
+; (when FFmpeg is found) options pages, and says which version it updates.
+; A page asks where recordings (source) and screenshots (output) should go:
+; the defaults are the source and output folders inside the install folder
+; (for an all-users install they are made writable for all users), or any
+; folders the user picks. The choice is stored under
+; HKLM or HKCU\Software\ILHS\Screencap Documentation Tool, where the app
+; reads it (apppaths.py). Silent installs take /SOURCEDIR="..." and
+; /OUTPUTDIR="..."; an update keeps the folders chosen before.
+; Adds a Start Menu shortcut with the app's taskbar identity, an optional
+; desktop shortcut, and an uninstaller; and can install FFmpeg (required)
+; and, optionally, Tesseract OCR and Pandoc with winget. Recordings, output,
+; and settings are never touched by uninstalling.
 ;
 ; Build from the repository root, after the PyInstaller build:
 ;   iscc /DAppVersion=1.16.0 packaging\installer.iss
@@ -78,6 +85,26 @@ Name: "extras"; Description: "Also install Tesseract OCR (automatic blurring) an
 
 [Files]
 Source: "..\dist\Screencap-Documentation-Tool\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Dirs]
+; The recordings and output folders. Inside the install folder (the
+; defaults) an empty one is removed on uninstall; folders the user picked
+; elsewhere are never removed. Files in them are never deleted.
+Name: "{code:GetSourceDir}"; Permissions: users-modify; Check: FoldersInApp and IsAdminInstallMode
+Name: "{code:GetOutputDir}"; Permissions: users-modify; Check: FoldersInApp and IsAdminInstallMode
+Name: "{code:GetSourceDir}"; Check: FoldersInApp and not IsAdminInstallMode
+Name: "{code:GetOutputDir}"; Check: FoldersInApp and not IsAdminInstallMode
+Name: "{code:GetSourceDir}"; Flags: uninsneveruninstall; Check: not FoldersInApp
+Name: "{code:GetOutputDir}"; Flags: uninsneveruninstall; Check: not FoldersInApp
+
+[Registry]
+; HKA: HKLM for an all-users install, HKCU for "only for me"
+Root: HKA; Subkey: "Software\ILHS"; Flags: uninsdeletekeyifempty
+Root: HKA; Subkey: "Software\ILHS\Screencap Documentation Tool"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\ILHS\Screencap Documentation Tool"; ValueType: string; ValueName: "SourceDir"; ValueData: "{code:GetSourceDir}"
+Root: HKA; Subkey: "Software\ILHS\Screencap Documentation Tool"; ValueType: string; ValueName: "OutputDir"; ValueData: "{code:GetOutputDir}"
+Root: HKA; Subkey: "Software\ILHS\Screencap Documentation Tool"; ValueType: string; ValueName: "FolderMode"; ValueData: "{code:GetFolderMode}"
+Root: HKA; Subkey: "Software\ILHS\Screencap Documentation Tool"; ValueType: string; ValueName: "FoldersStamp"; ValueData: "{code:GetFoldersStamp}"
 
 [UninstallDelete]
 ; The shared ILHS folder, once no other app from this organization is in it
@@ -150,9 +177,26 @@ begin
     Result := RemoveOldCopy(HKLM, WizardDirValue);
 end;
 
+const
+  FoldersKey = 'Software\ILHS\Screencap Documentation Tool';
+
 var
   UpdateMode: Boolean;     { a copy is already installed: this run updates it }
   OldVersion, OldDir: String;
+  FolderModePage: TInputOptionWizardPage;
+  FolderDirPage: TInputDirWizardPage;
+  HavePrevFolders: Boolean;          { an earlier install recorded its folders }
+  PrevSource, PrevOutput, PrevMode, PrevStamp: String;
+  FoldersDecided: Boolean;
+  FinalSource, FinalOutput, FinalMode, FinalStamp: String;
+
+function FoldersRoot: Integer;
+begin
+  if IsAdminInstallMode then
+    Result := HKLM
+  else
+    Result := HKCU;
+end;
 
 function FindInstalled(RootKey: Integer): Boolean;
 begin
@@ -177,6 +221,139 @@ begin
     Log('Update mode: v' + OldVersion + ' is installed in ' + OldDir)
   else
     Log('New installation');
+
+  HavePrevFolders := RegQueryStringValue(FoldersRoot, FoldersKey, 'SourceDir', PrevSource) and
+                     RegQueryStringValue(FoldersRoot, FoldersKey, 'OutputDir', PrevOutput) and
+                     (PrevSource <> '') and (PrevOutput <> '');
+  if not RegQueryStringValue(FoldersRoot, FoldersKey, 'FolderMode', PrevMode) then
+    PrevMode := '';
+  if not RegQueryStringValue(FoldersRoot, FoldersKey, 'FoldersStamp', PrevStamp) then
+    PrevStamp := '';
+
+  FolderModePage := CreateInputOptionPage(wpSelectDir,
+    'Recordings and Output Folders',
+    'Where should your recordings and screenshots be kept?',
+    'The source folder holds the screen recordings to process. The output folder ' +
+    'gets the screenshots and documents made from them. Both can be changed later ' +
+    'in the app.', True, False);
+  FolderModePage.Add('Use the default folders (source and output in the install folder)');
+  FolderModePage.Add('Choose my own folders');
+  if HavePrevFolders and (PrevMode = 'custom') then
+    FolderModePage.SelectedValueIndex := 1
+  else
+    FolderModePage.SelectedValueIndex := 0;
+
+  FolderDirPage := CreateInputDirPage(FolderModePage.ID,
+    'Choose Folders', 'Pick the source and output folders.',
+    'Setup creates the folders if they do not exist yet. Files already in them are kept.',
+    False, '');
+  FolderDirPage.Add('Source folder (screen recordings):');
+  FolderDirPage.Add('Output folder (screenshots and documents):');
+  if HavePrevFolders then
+  begin
+    FolderDirPage.Values[0] := PrevSource;
+    FolderDirPage.Values[1] := PrevOutput;
+  end
+  else
+  begin
+    FolderDirPage.Values[0] := ExpandConstant('{userdocs}\Screencap Documentation Tool\source');
+    FolderDirPage.Values[1] := ExpandConstant('{userdocs}\Screencap Documentation Tool\output');
+  end;
+end;
+
+function DefaultFolder(const Name: String): String;
+begin
+  Result := AddBackslash(WizardDirValue) + Name;
+end;
+
+{ The folders to record, decided once when they are first needed:
+  /SOURCEDIR and /OUTPUTDIR win; an update keeps the earlier choice; else the
+  page's choice (silent: the defaults). The stamp changes only when the
+  folders were chosen in this run, so the app applies a choice once. An update
+  from a version without this page, run silently (for example by winget),
+  records the folders with an empty stamp: the app keeps its own settings. }
+procedure DecideFolders;
+var
+  ParamSource, ParamOutput: String;
+  Chosen: Boolean;
+begin
+  if FoldersDecided then
+    Exit;
+  FoldersDecided := True;
+  ParamSource := ExpandConstant('{param:SOURCEDIR|}');
+  ParamOutput := ExpandConstant('{param:OUTPUTDIR|}');
+  Chosen := True;
+  if (ParamSource <> '') or (ParamOutput <> '') then
+  begin
+    FinalMode := 'custom';
+    FinalSource := ParamSource;
+    FinalOutput := ParamOutput;
+    if FinalSource = '' then FinalSource := DefaultFolder('source');
+    if FinalOutput = '' then FinalOutput := DefaultFolder('output');
+  end
+  else if UpdateMode and HavePrevFolders then
+  begin
+    FinalMode := PrevMode;
+    FinalSource := PrevSource;
+    FinalOutput := PrevOutput;
+    Chosen := False;
+  end
+  else if (not WizardSilent) and (FolderModePage.SelectedValueIndex = 1) then
+  begin
+    FinalMode := 'custom';
+    FinalSource := RemoveBackslashUnlessRoot(FolderDirPage.Values[0]);
+    FinalOutput := RemoveBackslashUnlessRoot(FolderDirPage.Values[1]);
+  end
+  else
+  begin
+    FinalMode := 'default';
+    FinalSource := DefaultFolder('source');
+    FinalOutput := DefaultFolder('output');
+    Chosen := not (UpdateMode and WizardSilent);
+  end;
+  if Chosen then
+    FinalStamp := GetDateTimeString('yyyymmddhhnnss', #0, #0)
+  else if UpdateMode and HavePrevFolders then
+    FinalStamp := PrevStamp
+  else
+    FinalStamp := '';
+  Log('Folders (' + FinalMode + '): source ' + FinalSource + ', output ' + FinalOutput +
+      ', stamp "' + FinalStamp + '"');
+end;
+
+function GetSourceDir(Param: String): String;
+begin
+  DecideFolders;
+  Result := FinalSource;
+end;
+
+function GetOutputDir(Param: String): String;
+begin
+  DecideFolders;
+  Result := FinalOutput;
+end;
+
+function GetFolderMode(Param: String): String;
+begin
+  DecideFolders;
+  Result := FinalMode;
+end;
+
+function GetFoldersStamp(Param: String): String;
+begin
+  DecideFolders;
+  Result := FinalStamp;
+end;
+
+{ True when both folders are inside the install folder (the defaults) }
+function FoldersInApp: Boolean;
+var
+  App: String;
+begin
+  DecideFolders;
+  App := Lowercase(AddBackslash(WizardDirValue));
+  Result := (Pos(App, Lowercase(AddBackslash(FinalSource))) = 1) and
+            (Pos(App, Lowercase(AddBackslash(FinalOutput))) = 1);
 end;
 
 { An update keeps the license (already accepted), the folder (always the
@@ -184,14 +361,34 @@ end;
   shown when FFmpeg is missing, so it can be installed. }
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  Result := UpdateMode and ((PageID = wpLicense) or (PageID = wpSelectDir) or
-            ((PageID = wpSelectTasks) and FfmpegFound));
+  if PageID = FolderModePage.ID then
+    { asked again only when an earlier version never recorded the folders }
+    Result := UpdateMode and HavePrevFolders
+  else if PageID = FolderDirPage.ID then
+    Result := (UpdateMode and HavePrevFolders) or (FolderModePage.SelectedValueIndex = 0)
+  else
+    Result := UpdateMode and ((PageID = wpLicense) or (PageID = wpSelectDir) or
+              ((PageID = wpSelectTasks) and FfmpegFound));
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = FolderDirPage.ID) and
+     ((Trim(FolderDirPage.Values[0]) = '') or (Trim(FolderDirPage.Values[1]) = '')) then
+  begin
+    MsgBox('Choose both a source folder and an output folder.', mbError, MB_OK);
+    Result := False;
+  end;
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
 var
   Action: String;
 begin
+  if CurPageID = FolderModePage.ID then
+    FolderModePage.CheckListBox.ItemCaption[0] := 'Use the default folders: ' +
+      DefaultFolder('source') + ' and ' + DefaultFolder('output');
   if not UpdateMode then
     Exit;
   if CompareText(OldVersion, '{#AppVersion}') = 0 then
