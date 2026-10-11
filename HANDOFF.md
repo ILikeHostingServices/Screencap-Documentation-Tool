@@ -1,4 +1,4 @@
-HANDOFF.md v1.14.0 (Last Rev: 2026-10-10)
+HANDOFF.md v1.15.0 (Last Rev: 2026-10-10)
 
 # Handoff
 
@@ -38,29 +38,33 @@ It can push only to its own working branch (`claude/...`), open and (see above) 
 
 Everything that needs the owner (an account, a key, an approval, or a setting), in one place. Details for each are in the numbered items below. Tell the cloud session when a step is done; it runs the publishing and checks the result.
 
-| # | Platform | What to do | Why | Where |
-| --- | --- | --- | --- | --- |
-| A1 | Windows (winget) | Close the first pull request (https://github.com/microsoft/winget-pkgs/pull/450166, old ID `ILikeHostingServices.ScreencapDocumentationTool`, never merged, so nothing to retire). On the new pull request for `ILHS.ScreencapDocumentationTool` (opened by the v1.23.2 release), accept Microsoft's contributor license agreement, signed in as `ILHS-Owner`: comment `@microsoft-github-policy-service agree company="ILikeHostingServices"`. It is signed once per GitHub account and covers every later pull request | Microsoft does not review or merge until the submitter accepts | https://github.com/microsoft/winget-pkgs/pulls?q=is%3Apr+ILHS.ScreencapDocumentationTool |
-| A2 | Windows (winget) | Answer moderator questions on that pull request, if any (the cloud session can draft the replies) | New packages are reviewed by hand | Same pull request |
-| A3 | Windows (winget) | Renew the `WINGET_TOKEN` secret before it expires (created 2026-10-10, one year): new classic token, `public_repo` scope only, then replace the secret | Without it, releases stop reaching winget (they still publish) | https://github.com/settings/tokens, repository **Settings > Secrets and variables > Actions** |
-| B1 | Linux (AUR) | **Blocked (2026-10-10):** AUR registration is paused by the Arch team (wave of automated sign-ups). Try again when it reopens; watch the Arch news feed or the aur-general list. Nothing breaks meanwhile: the Arch package is attached to every release | Arch users install from the AUR | https://aur.archlinux.org/register, https://archlinux.org/news/ |
-| B2 | Linux (AUR) | After B1: make an SSH key just for publishing (item 4), add the public half to the AUR account, the private half as the `AUR_SSH_PRIVATE_KEY` secret, then delete both files | Lets the release workflow push the PKGBUILD | AUR **My Account**; repository secrets |
-| B3 | Linux (Snap Store) | ~~Create an Ubuntu One account and register the name~~ Done 2026-10-10: account `ilhs-owner2026`, name `screencap-documentation-tool` registered | | |
-| B4 | Linux (Snap Store) | In WSL Ubuntu: install snapcraft and export a login token (exact commands in item 4), then add it as the `SNAPCRAFT_STORE_CREDENTIALS` secret; renew before it expires (2027-10-10) | Lets the release workflow upload snaps | Repository secrets |
-| C1 | macOS (Homebrew) | ~~Create the public repository `ILikeHostingServices/homebrew-tap`~~ Done 2026-10-10 (created as `Homebrew-Tap`; GitHub names ignore case, so `brew tap ilikehostingservices/tap` finds it) | | |
-| C2 | macOS (Homebrew) | ~~Workflow permissions: Read and write~~ Done 2026-10-10: the tap workflow committed the v1.22.0 formula | | |
-| C3 | macOS (Homebrew) | ~~Give the Claude GitHub app access to it~~ Done 2026-10-10; the cloud session pushed the tap files the same day | | |
-| C4 | macOS (Apple) | **Shelved (2026-10-10, cost):** no Apple Developer Program membership for now. Homebrew needs none. Revisit later: see item 6 | | |
-| D1 | GitHub | Optional: ask GitHub Support to drop the old pull request refs (item 1) | Old commit names stay visible there until then | https://support.github.com |
-| D2 | All | When a secret is added or renewed, tell the cloud session; it runs the publish (Linux build or tap update with the newest release) and checks the result | | |
+**Left to do (2026-10-11):** B4 (Snap Store token), then B1 and B2 once the AUR reopens registration. A2 only if a winget moderator asks something. Everything else is done or shelved.
+
+**Quick links:** [winget pull request](https://github.com/microsoft/winget-pkgs/pull/450356) · [Repository secrets](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/settings/secrets/actions) · [New secret](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/settings/secrets/actions/new) · [Releases](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) · [Actions](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/actions) · [Homebrew tap](https://github.com/ILikeHostingServices/homebrew-tap) · [Snapcraft dashboard](https://snapcraft.io/snaps) · [AUR registration](https://aur.archlinux.org/register)
+
+| # | Platform | Status | What to do | Why | Link |
+| --- | --- | --- | --- | --- | --- |
+| A1 | Windows (winget) | Done 2026-10-11 | First pull request (old ID `ILikeHostingServices.ScreencapDocumentationTool`) closed unmerged; the contributor license agreement was accepted on the new one for `ILHS.ScreencapDocumentationTool` (`@microsoft-github-policy-service agree company="ILikeHostingServices"`). Signed once per GitHub account; it covers every later pull request | Microsoft does not review or merge until the submitter accepts | [Pull request #450356](https://github.com/microsoft/winget-pkgs/pull/450356) |
+| A2 | Windows (winget) | Waiting on Microsoft | Answer moderator questions on that pull request, if any (the cloud session can draft the replies). A new package is reviewed by hand, which can take several days; later versions are submitted automatically | New packages are reviewed by hand | [Pull request #450356](https://github.com/microsoft/winget-pkgs/pull/450356) |
+| A3 | Windows (winget) | Before 2027-10-10 | Renew the `WINGET_TOKEN` secret: new classic token, `public_repo` scope only, then replace the secret | Without it, releases stop reaching winget (they still publish) | [Tokens](https://github.com/settings/tokens) · [Secrets](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/settings/secrets/actions) |
+| B1 | Linux (AUR) | **Blocked** | AUR registration is paused by the Arch team (a wave of automated sign-ups). Try again when it reopens. Nothing breaks meanwhile: the Arch package is attached to every release | Arch users install from the AUR | [Register](https://aur.archlinux.org/register) · [Arch news](https://archlinux.org/news/) · [aur-general list](https://lists.archlinux.org/mailman3/lists/aur-general.lists.archlinux.org/) |
+| B2 | Linux (AUR) | After B1 | Make an SSH key just for publishing (item 4), add the public half to the AUR account, the private half as the `AUR_SSH_PRIVATE_KEY` secret, then delete both files | Lets the release workflow push the PKGBUILD | [AUR account](https://aur.archlinux.org/account/) · [New secret](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/settings/secrets/actions/new) |
+| B3 | Linux (Snap Store) | Done 2026-10-10 | Ubuntu One account `ilhs-owner2026`; name `screencap-documentation-tool` registered | | [Snapcraft dashboard](https://snapcraft.io/snaps) |
+| B4 | Linux (Snap Store) | **Next** | Token exported 2026-10-11. Copy it to the clipboard, save it as the `SNAPCRAFT_STORE_CREDENTIALS` secret, delete the files (exact commands in item 4), then tell the cloud session. Renew before 2027-10-10 | Lets the release workflow upload snaps | [New secret](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/settings/secrets/actions/new) |
+| C1 | macOS (Homebrew) | Done 2026-10-10 | Tap repository created (as `Homebrew-Tap`; GitHub names ignore case, so `brew tap ilikehostingservices/tap` finds it) | | [Homebrew tap](https://github.com/ILikeHostingServices/homebrew-tap) |
+| C2 | macOS (Homebrew) | Done 2026-10-10 | Workflow permissions set to Read and write; the tap publishes each new release itself | | [Tap workflow runs](https://github.com/ILikeHostingServices/homebrew-tap/actions) |
+| C3 | macOS (Homebrew) | Done 2026-10-10 | Claude GitHub app given access; tap files pushed | | |
+| C4 | macOS (Apple) | **Shelved** (cost) | No Apple Developer Program membership for now; Homebrew needs none. When to revisit and what it adds: item 6 | | [Apple Developer Program](https://developer.apple.com/programs/) |
+| D1 | GitHub | Optional | Ask GitHub Support to drop the old pull request refs (item 1) | Old commit names stay visible there until then | [GitHub Support](https://support.github.com) |
+| D2 | All | Ongoing | When a secret is added or renewed, tell the cloud session; it runs the publish and checks the result | | |
 
 **Secrets and tokens kept for publishing** (all in this repository's **Settings > Secrets and variables > Actions**; none are ever written into files):
 
 | Secret | Holds | Scope | Expires | If it leaks |
 | --- | --- | --- | --- | --- |
-| `WINGET_TOKEN` | Classic personal access token of `ILHS-Owner` | `public_repo` only | 2027-10-10 | Revoke it at https://github.com/settings/tokens and make a new one |
+| `WINGET_TOKEN` | Classic personal access token of `ILHS-Owner` | `public_repo` only | 2027-10-10 | Revoke it at [GitHub tokens](https://github.com/settings/tokens) and make a new one |
 | `AUR_SSH_PRIVATE_KEY` | SSH private key used only for the AUR | Push to this AUR package | Never (rotate yearly) | Remove the public key from the AUR account, make a new pair |
-| `SNAPCRAFT_STORE_CREDENTIALS` | Snapcraft login export | Upload and release this snap only | The date given to `--expires` | Revoke it in the Snapcraft dashboard, export a new one |
+| `SNAPCRAFT_STORE_CREDENTIALS` | Snapcraft login export | Upload and release this snap only | The date given to `--expires` | Revoke it in the [Snapcraft dashboard](https://snapcraft.io/snaps), export a new one |
 
 ## Open Items
 
@@ -102,7 +106,7 @@ Signing does not remove SmartScreen warnings instantly: reputation builds per ce
 - **Goal:** `winget install ILHS.ScreencapDocumentationTool` works for anyone. winget installs FFmpeg with it (a dependency in the manifest).
 - **How it works:** `.github/workflows/winget.yml` downloads the release's installer, writes the manifest from `packaging/winget/` (`packaging/make_winget_manifests.py`), validates it, tests installing and uninstalling through winget, then opens a pull request on `microsoft/winget-pkgs` with Microsoft's `wingetcreate` tool. `release.yml` runs it after each new release; it can also be run by hand for an existing release.
 - **Credential:** the `WINGET_TOKEN` repository secret, a classic personal access token of `ILHS-Owner` with only the `public_repo` scope (created 2026-10-10 with a one-year expiry). The submission uses a fork of `microsoft/winget-pkgs` under the `ILHS-Owner` account. Least-privilege alternative for later: a separate bot account outside the organization. When the token expires, create a new one the same way and replace the secret; without it, releases still publish and only the winget submission is skipped (with a warning).
-- **Owner, once:** on the first pull request on `microsoft/winget-pkgs`, the Microsoft contributor license agreement bot asks the submitting account (`ILHS-Owner`) to accept the agreement by replying in a comment. Moderators review a new package by hand, which can take days; later versions are usually merged after the automatic checks.
+- **Owner, once (done 2026-10-11 on [pull request #450356](https://github.com/microsoft/winget-pkgs/pull/450356)):** on the first pull request on `microsoft/winget-pkgs`, the Microsoft contributor license agreement bot asks the submitting account (`ILHS-Owner`) to accept the agreement by replying in a comment. Moderators review a new package by hand, which can take days; later versions are usually merged after the automatic checks.
 - **After it is listed:** add the winget command to the README's Windows install section (cloud session).
 
 ### 4. Linux Package Stores
@@ -127,7 +131,16 @@ Every release gets `.deb`, `.rpm`, Arch, and snap packages attached automaticall
      --expires=2027-10-10 ~/snap-creds.txt
    ```
    It asks for the Ubuntu One email, password, and two-factor code of the account that owns the name (`ilhs-owner2026`). The token can only upload and release this one snap.
-4. Copy it to the Windows clipboard with `clip.exe < ~/snap-creds.txt`, add it as the repository secret `SNAPCRAFT_STORE_CREDENTIALS` (**Settings > Secrets and variables > Actions > New repository secret**, paste, save), then delete the file: `shred -u ~/snap-creds.txt`. It expires on the date given; renew it the same way.
+4. Save it as a secret and delete the file. Run these **one at a time, as your normal user** (not after `sudo su`: the root shell cannot find `clip.exe`, and its home is `/root`):
+   ```bash
+   clip.exe < ~/snap-creds.txt          # copies the token to the Windows clipboard
+   ```
+   Open [New repository secret](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/settings/secrets/actions/new), name `SNAPCRAFT_STORE_CREDENTIALS`, paste, **Add secret**. Then delete the file (snapcraft makes it read-only, which is why `shred` alone says "Permission denied"):
+   ```bash
+   chmod u+w ~/snap-creds.txt && shred -u ~/snap-creds.txt
+   sudo rm -f /root/snap-creds.txt      # only if it was also exported from a root shell
+   ```
+   It expires on the date given; renew it the same way.
    - `sudo` in WSL asks for the Linux user's password (set when the distribution was first started), not the Windows one. If it is forgotten, reset it from PowerShell: `wsl -u root passwd <linux user name>`.
 5. As with the AUR, the next release (or a manual run of the Linux build with a release tag) publishes to the `stable` channel. The snap uses strict confinement with the `home`, `removable-media`, and `network` interfaces, which the store approves automatically.
 
