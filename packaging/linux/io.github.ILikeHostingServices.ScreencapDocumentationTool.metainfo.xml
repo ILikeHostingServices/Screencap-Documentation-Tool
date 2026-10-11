@@ -36,6 +36,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.24.1" date="2026-10-11">
+      <description>
+        <p>Windows installer wording and layout fixes (no Linux changes).</p>
+      </description>
+    </release>
     <release version="1.24.0" date="2026-10-11">
       <description>
         <p>The Windows installer can set the recordings and output folders; the snap is published to the Snap Store.</p>

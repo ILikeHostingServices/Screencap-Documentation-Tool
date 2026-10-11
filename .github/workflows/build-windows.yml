@@ -1,6 +1,6 @@
 # build-windows.yml
 # 2026-10-10
-# Version: v1.5.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -295,6 +295,117 @@ jobs:
             Start-Process (Join-Path $case.New 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
             for ($i = 0; $i -lt 60 -and (Test-Path $case.New); $i++) { Start-Sleep -Seconds 1 }
           }
+
+      - name: Screenshot every installer page
+        # Drives the real wizard (fresh install, then setup run again over it)
+        # and saves a picture of each page, so the layout and wording can be
+        # checked without a Windows PC. Best effort: never fails the build.
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing, Microsoft.VisualBasic, UIAutomationClient, UIAutomationTypes
+          $v = '${{ steps.version.outputs.version }}'
+          $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
+          $shots = Join-Path $env:RUNNER_TEMP 'installer-pages'
+          New-Item -ItemType Directory -Force $shots | Out-Null
+          $title = "Setup - Screencap Documentation Tool v$v"
+          $script:n = 0
+          function Shot($name) {
+            Start-Sleep -Milliseconds 1500
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $script:n++
+            $bmp.Save((Join-Path $shots ('{0:D2}-{1}.png' -f $script:n, $name)))
+            Write-Host "Saved $name"
+            Dump-Page $name
+          }
+          # Every visible control on the page with its text and size, and a
+          # warning when the text needs more room than the control has (what
+          # a person would see as cut-off or squeezed text)
+          $font = New-Object System.Drawing.Font('Segoe UI', 9)
+          $script:clipped = 0
+          function Dump-Page($name) {
+            $root = [System.Windows.Automation.AutomationElement]::RootElement
+            $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $title)
+            $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $cond)
+            if (-not $win) { Write-Host "  (window not found for the layout dump)"; return }
+            $w = $win.Current.BoundingRectangle
+            Write-Host "=== Page: $name (window $([int]$w.Width) x $([int]$w.Height))"
+            foreach ($e in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              $c = $e.Current
+              if ($c.IsOffscreen -or -not $c.Name) { continue }
+              $r = $c.BoundingRectangle
+              if ($r.Width -le 0 -or $r.Height -le 0) { continue }
+              $type = $c.ControlType.ProgrammaticName -replace '^ControlType\.', ''
+              # Only text a person reads (not the names of scroll bar parts and the like)
+              $readable = $type -in 'Pane', 'Text', 'ListItem', 'RadioButton', 'CheckBox', 'Button' -and
+                          $c.Name -notmatch ' by (small|large) amount$'
+              $flags = [System.Windows.Forms.TextFormatFlags]::WordBreak
+              $avail = [int]$r.Width; if ($type -in 'RadioButton', 'CheckBox', 'ListItem') { $avail -= 20 }
+              $need = [System.Windows.Forms.TextRenderer]::MeasureText($c.Name, $font, (New-Object System.Drawing.Size($avail, 0)), $flags)
+              $mark = ''
+              if ($readable -and $need.Height -gt ($r.Height + 3)) { $mark = "  <<< TEXT DOES NOT FIT (needs $($need.Height) px of height, has $([int]$r.Height))"; $script:clipped++ }
+              $text = ($c.Name -replace "`r?`n", ' | ')
+              Write-Host ("  {0,-12} x={1,4} y={2,4} w={3,4} h={4,3}  {5}{6}" -f $type, [int]($r.X - $w.X), [int]($r.Y - $w.Y), [int]$r.Width, [int]$r.Height, $text, $mark)
+            }
+          }
+          function Send($keys) {
+            [Microsoft.VisualBasic.Interaction]::AppActivate($title)
+            Start-Sleep -Milliseconds 300
+            [System.Windows.Forms.SendKeys]::SendWait($keys)
+          }
+          function Wait-Window {
+            for ($i = 0; $i -lt 40; $i++) {
+              try { [Microsoft.VisualBasic.Interaction]::AppActivate($title); return } catch { Start-Sleep -Milliseconds 500 }
+            }
+            throw "The setup window did not appear"
+          }
+
+          # Fresh install for all users (FFmpeg left out: winget would slow the run)
+          $p = Start-Process $setup -ArgumentList '/ALLUSERS', '/MERGETASKS="!ffmpeg"' -PassThru
+          Wait-Window
+          Shot 'license'
+          Send '%a'; Start-Sleep -Milliseconds 300; Send '{ENTER}'
+          Shot 'install-folder'
+          Send '{ENTER}'
+          Shot 'recordings-and-output-folders'
+          Send '{DOWN}'
+          Shot 'recordings-and-output-folders-own'
+          Send '{ENTER}'
+          Shot 'choose-folders'
+          Send '{ENTER}'
+          Shot 'options'
+          Send '{ENTER}'
+          Shot 'ready'
+          Send '{ENTER}'
+          Start-Sleep -Seconds 15
+          Shot 'finished'
+          Send ' '; Send '{ENTER}'       # untick "Start", then Finish
+          $p.WaitForExit(60000) | Out-Null
+
+          # Setup again over the installed copy (update mode)
+          $p = Start-Process $setup -ArgumentList '/ALLUSERS' -PassThru
+          Wait-Window
+          Shot 'update-ready'
+          Send '{ENTER}'
+          Start-Sleep -Seconds 15
+          Shot 'update-finished'
+          Send ' '; Send '{ENTER}'
+          $p.WaitForExit(60000) | Out-Null
+          Get-ChildItem $shots | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+          if ($script:clipped) { Write-Host "::error::$($script:clipped) installer text(s) do not fit their space (see the layout dump above)" }
+          else { Write-Host 'Layout check: all installer texts fit their space.' }
+
+      - uses: actions/upload-artifact@v7
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        continue-on-error: true
+        with:
+          name: installer-pages-v${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/installer-pages/
+          retention-days: 14
 
       - name: Write checksums
         run: |
