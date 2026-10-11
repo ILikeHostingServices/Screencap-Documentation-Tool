@@ -305,7 +305,7 @@ jobs:
         timeout-minutes: 10
         run: |
           $ErrorActionPreference = 'Stop'
-          Add-Type -AssemblyName System.Windows.Forms, System.Drawing, Microsoft.VisualBasic
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing, Microsoft.VisualBasic, UIAutomationClient, UIAutomationTypes
           $v = '${{ steps.version.outputs.version }}'
           $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
           $shots = Join-Path $env:RUNNER_TEMP 'installer-pages'
@@ -320,6 +320,34 @@ jobs:
             $script:n++
             $bmp.Save((Join-Path $shots ('{0:D2}-{1}.png' -f $script:n, $name)))
             Write-Host "Saved $name"
+            Dump-Page $name
+          }
+          # Every visible control on the page with its text and size, and a
+          # warning when the text needs more room than the control has (what
+          # a person would see as cut-off or squeezed text)
+          $font = New-Object System.Drawing.Font('Segoe UI', 9)
+          $script:clipped = 0
+          function Dump-Page($name) {
+            $root = [System.Windows.Automation.AutomationElement]::RootElement
+            $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $title)
+            $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $cond)
+            if (-not $win) { Write-Host "  (window not found for the layout dump)"; return }
+            $w = $win.Current.BoundingRectangle
+            Write-Host "=== Page: $name (window $([int]$w.Width) x $([int]$w.Height))"
+            foreach ($e in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              $c = $e.Current
+              if ($c.IsOffscreen -or -not $c.Name) { continue }
+              $r = $c.BoundingRectangle
+              if ($r.Width -le 0 -or $r.Height -le 0) { continue }
+              $type = $c.ControlType.ProgrammaticName -replace '^ControlType\.', ''
+              $flags = [System.Windows.Forms.TextFormatFlags]::WordBreak
+              $avail = [int]$r.Width; if ($type -in 'RadioButton', 'CheckBox', 'ListItem') { $avail -= 20 }
+              $need = [System.Windows.Forms.TextRenderer]::MeasureText($c.Name, $font, (New-Object System.Drawing.Size($avail, 0)), $flags)
+              $mark = ''
+              if ($need.Height -gt ($r.Height + 3)) { $mark = "  <<< TEXT DOES NOT FIT (needs $($need.Height) px of height, has $([int]$r.Height))"; $script:clipped++ }
+              $text = ($c.Name -replace "`r?`n", ' | ')
+              Write-Host ("  {0,-12} x={1,4} y={2,4} w={3,4} h={4,3}  {5}{6}" -f $type, [int]($r.X - $w.X), [int]($r.Y - $w.Y), [int]$r.Width, [int]$r.Height, $text, $mark)
+            }
           }
           function Send($keys) {
             [Microsoft.VisualBasic.Interaction]::AppActivate($title)
@@ -365,6 +393,7 @@ jobs:
           Send ' '; Send '{ENTER}'
           $p.WaitForExit(60000) | Out-Null
           Get-ChildItem $shots | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+          if ($script:clipped) { Write-Host "::warning::$($script:clipped) installer text(s) may not fit their space (see the layout dump above)" }
 
       - uses: actions/upload-artifact@v7
         if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
