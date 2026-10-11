@@ -10,7 +10,8 @@ Every release of the Screencap Documentation Tool, newest first. Each version is
 - **Recordings and Output Folders** page in the Windows installer: the two choices are now short ("Use the default folders (recommended)" and "Choose my own folders"), and the default folders are listed underneath on lines of their own, instead of long paths wrapping in the middle of the first choice.
 - Clearer wording on the installer's folder pages, the options page ("required, and not found on this PC"), and the error shown when an older copy cannot be removed.
 - Running setup over the same version now says **Ready to Reinstall** with a **Reinstall** button, instead of "update"; the last page ends with "Click Finish to close Setup."
-- The Windows build now drives the real installer and saves a screenshot of every page, so its layout and wording are checked on each change.
+- The text on the **Ready to Update** page was cut off after two lines; it is shorter now and fits.
+- The Windows build now drives the real installer and saves a screenshot of every page, and checks that every text on every page fits its space, so layout problems are caught on each change.
 
 ## v1.24.0 - Choose the recordings and output folders in the Windows installer (2026-10-11)
 

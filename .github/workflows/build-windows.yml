@@ -340,11 +340,14 @@ jobs:
               $r = $c.BoundingRectangle
               if ($r.Width -le 0 -or $r.Height -le 0) { continue }
               $type = $c.ControlType.ProgrammaticName -replace '^ControlType\.', ''
+              # Only text a person reads (not the names of scroll bar parts and the like)
+              $readable = $type -in 'Pane', 'Text', 'ListItem', 'RadioButton', 'CheckBox', 'Button' -and
+                          $c.Name -notmatch ' by (small|large) amount$'
               $flags = [System.Windows.Forms.TextFormatFlags]::WordBreak
               $avail = [int]$r.Width; if ($type -in 'RadioButton', 'CheckBox', 'ListItem') { $avail -= 20 }
               $need = [System.Windows.Forms.TextRenderer]::MeasureText($c.Name, $font, (New-Object System.Drawing.Size($avail, 0)), $flags)
               $mark = ''
-              if ($need.Height -gt ($r.Height + 3)) { $mark = "  <<< TEXT DOES NOT FIT (needs $($need.Height) px of height, has $([int]$r.Height))"; $script:clipped++ }
+              if ($readable -and $need.Height -gt ($r.Height + 3)) { $mark = "  <<< TEXT DOES NOT FIT (needs $($need.Height) px of height, has $([int]$r.Height))"; $script:clipped++ }
               $text = ($c.Name -replace "`r?`n", ' | ')
               Write-Host ("  {0,-12} x={1,4} y={2,4} w={3,4} h={4,3}  {5}{6}" -f $type, [int]($r.X - $w.X), [int]($r.Y - $w.Y), [int]$r.Width, [int]$r.Height, $text, $mark)
             }
@@ -393,7 +396,8 @@ jobs:
           Send ' '; Send '{ENTER}'
           $p.WaitForExit(60000) | Out-Null
           Get-ChildItem $shots | Format-Table Name, Length -AutoSize | Out-String | Write-Host
-          if ($script:clipped) { Write-Host "::warning::$($script:clipped) installer text(s) may not fit their space (see the layout dump above)" }
+          if ($script:clipped) { Write-Host "::error::$($script:clipped) installer text(s) do not fit their space (see the layout dump above)" }
+          else { Write-Host 'Layout check: all installer texts fit their space.' }
 
       - uses: actions/upload-artifact@v7
         if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')

@@ -425,9 +425,11 @@ begin
       WizardForm.NextButton.Caption := 'Update';
     end;
     WizardForm.PageDescriptionLabel.Caption := 'Setup is ready to ' + Action + '.';
-    WizardForm.ReadyLabel.Caption := '{#AppName} is already installed in ' + OldDir +
-      '. Click ' + WizardForm.NextButton.Caption + ' to replace it with this version. ' +
-      'Your recordings, output, settings, and presets are kept.';
+    { Two lines at most: the label has no room for a third (checked by the
+      layout dump in build-windows.yml). The folder is in the memo below. }
+    WizardForm.ReadyLabel.Caption := 'Click ' + WizardForm.NextButton.Caption +
+      ' to replace the installed copy with this version. Your recordings, output, ' +
+      'settings, and presets are kept.';
   end
   else if CurPageID = wpFinished then
   begin
