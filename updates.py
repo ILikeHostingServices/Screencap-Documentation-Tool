@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # updates.py
-# 2026-10-10
-# Version: v1.2.2
+# 2026-10-11
+# Version: v1.3.0
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -119,14 +119,40 @@ def check_latest(url=LATEST_API, timeout=TIMEOUT):
     }
 
 
-def download_for(latest, kind=None):
-    """The best download link for this kind of install."""
+def windows_arch():
+    """'arm64' on Windows on ARM (also when this copy is the x64 build running
+    under emulation), else 'x64'."""
+    if os.name != "nt":
+        return "x64"
+    try:
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.windll.kernel32
+        process, native = wintypes.USHORT(), wintypes.USHORT()
+        if kernel32.IsWow64Process2(kernel32.GetCurrentProcess(), ctypes.byref(process),
+                                    ctypes.byref(native)):
+            return "arm64" if native.value == 0xAA64 else "x64"   # IMAGE_FILE_MACHINE_ARM64
+    except (AttributeError, OSError):
+        pass                       # Windows 10 before 1709 has no IsWow64Process2
+    return "arm64" if "ARM64" in (os.environ.get("PROCESSOR_ARCHITECTURE", "") +
+                                  os.environ.get("PROCESSOR_ARCHITEW6432", "")).upper() else "x64"
+
+
+def download_for(latest, kind=None, arch=None):
+    """The best download link for this kind of install (and, on Windows, for
+    this PC's processor: the ARM64 build on Windows on ARM when the release
+    has one, otherwise the x64 build, which ARM PCs run under emulation)."""
     kind = kind or install_kind()
-    suffix = {"installer": "-windows-x64-setup.exe",
-              "portable": "-windows-x64-portable.zip",
-              "deb": "_all.deb", "rpm": ".noarch.rpm",
-              "arch": "-any.pkg.tar.zst"}.get(kind)
-    if suffix:
+    windows = {"installer": "-windows-{}-setup.exe", "portable": "-windows-{}-portable.zip"}
+    if kind in windows:
+        arch = arch or windows_arch()
+        suffixes = [windows[kind].format(a) for a in dict.fromkeys((arch, "x64"))]
+    else:
+        suffixes = [{"deb": "_all.deb", "rpm": ".noarch.rpm",
+                     "arch": "-any.pkg.tar.zst"}.get(kind)]
+    for suffix in suffixes:
+        if not suffix:
+            continue
         for name, link in latest["assets"].items():
             if name.endswith(suffix) and link:
                 return link

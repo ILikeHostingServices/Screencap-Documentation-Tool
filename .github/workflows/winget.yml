@@ -1,11 +1,12 @@
 # winget.yml
 # 2026-10-10
-# Version: v1.2.3
+# Version: v1.2.4
 #
 # PURPOSE:
 # Publishes a release to the Windows Package Manager (winget), so it can be
 # installed with: winget install ILHS.ScreencapDocumentationTool
-#   1. Downloads the release's installer and SHA256SUMS.txt and checks them.
+#   1. Downloads the release's x64 installer and SHA256SUMS.txt and checks them
+#      (the arm64 installer, when the release has one, is listed from SHA256SUMS.txt).
 #   2. Writes the winget manifest (packaging/make_winget_manifests.py).
 #   3. Validates it and tests a real install and uninstall through winget
 #      (best effort: when winget itself stalls on the test machine, the

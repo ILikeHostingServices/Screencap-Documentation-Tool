@@ -1,4 +1,4 @@
-README.md v1.33.0 (Last Rev: 2026-10-10)
+README.md v1.34.0 (Last Rev: 2026-10-11)
 
 # Screencap Documentation Tool
 
@@ -149,6 +149,8 @@ Each release also has a packaged Windows app on the [Releases page](https://gith
 
 The Windows programs are not code signed. See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) for how to check a download and how the programs are built.
 
+**Which download:** files ending in `-windows-x64-...` are for ordinary PCs (Intel and AMD). From v1.25.0 there are also `-windows-arm64-...` files for **Windows on ARM** (for example Snapdragon laptops and Surface Pro with ARM): they run natively and are faster there. The x64 files also work on Windows 11 on ARM, through Windows' built-in x64 emulation. winget and **Help > Check for Updates** pick the right one by themselves. On Windows on ARM, FFmpeg and Tesseract OCR from winget are x64 programs that run emulated (they work, a little slower), and **Captions From Narration** is not available.
+
 **Installer (recommended):**
 
 1. Download `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` and `SHA256SUMS.txt` from the latest release.
@@ -185,9 +187,10 @@ Differences from the Python install:
 | RHEL, Rocky Linux, AlmaLinux 9 | FFmpeg comes from RPM Fusion: `sudo dnf install epel-release && sudo dnf config-manager --set-enabled crb && sudo dnf install https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm`, then `sudo dnf install ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm` |
 | openSUSE Tumbleweed | `sudo zypper install --allow-unsigned-rpm ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm` (for H.264 recordings, FFmpeg from [Packman](https://en.opensuse.org/Additional_package_repositories#Packman)) |
 | Arch Linux, Manjaro, EndeavourOS | From the AUR: `yay -S screencap-documentation-tool` (or any AUR helper), or download `screencap-documentation-tool-X.Y.Z-1-any.pkg.tar.zst` and `sudo pacman -U` it |
-| Any distribution with snapd | `sudo snap install screencap-documentation-tool` once it is in the Snap Store, or download the `.snap` and `sudo snap install --dangerous ./screencap-documentation-tool_X.Y.Z_amd64.snap`. The snap brings its own FFmpeg, Tesseract, and Pandoc and can use your home folder and removable drives. Command line: `screencap-documentation-tool.cli` |
+| Raspberry Pi OS (64-bit and 32-bit), and other ARM boards running Debian or Ubuntu | The same `.deb` as for Debian: it is not tied to a processor type, and the Pi's own Python, Tkinter, and FFmpeg are used. `sudo apt install ./screencap-documentation-tool_X.Y.Z-1_all.deb`. A Raspberry Pi 4 or 5 is recommended; processing is slower than on a PC |
+| Any distribution with snapd | `sudo snap install screencap-documentation-tool` from the [Snap Store](https://snapcraft.io/screencap-documentation-tool) (x86_64 and 64-bit ARM, including 64-bit Raspberry Pi OS), or download the `.snap` for your processor (`_amd64` or `_arm64`) and `sudo snap install --dangerous ./screencap-documentation-tool_X.Y.Z_amd64.snap`. The snap brings its own FFmpeg, Tesseract, and Pandoc and can use your home folder and removable drives. Command line: `screencap-documentation-tool.cli`. On 32-bit Raspberry Pi OS use the `.deb` |
 
-Every package is installed and tested on its distributions for every change (see `.github/workflows/build-linux.yml`), and `SHA256SUMS-linux.txt` on each release lists their checksums. Tesseract OCR and Pandoc are recommended extras (the `.deb` installs them by default; otherwise add them with your package manager). Remove a package the usual way, for example `sudo apt remove screencap-documentation-tool`.
+Every package is installed and tested on its distributions for every change (see `.github/workflows/build-linux.yml`), including on 64-bit ARM (Debian 12 and 13, Ubuntu 24.04, as on 64-bit Raspberry Pi OS) and 32-bit ARM (Debian 12 and 13 armhf, as on 32-bit Raspberry Pi OS), and `SHA256SUMS-linux.txt` on each release lists their checksums. Tesseract OCR and Pandoc are recommended extras (the `.deb` installs them by default; otherwise add them with your package manager). Remove a package the usual way, for example `sudo apt remove screencap-documentation-tool`.
 
 **Install command.** Or paste this into a terminal (works on Debian/Ubuntu, Fedora, and Arch based distributions):
 
@@ -464,7 +467,7 @@ winget uninstall --id Python.Python.3.12 --scope user
 
 Every push and pull request runs the **Tests** workflow on real Windows and Linux machines in GitHub Actions: code checks, the full test suite (detection, duplicates, highlight, crop, blurring, export to HTML/Word/PDF, presets, VLC), and a GUI test that drives the real window. FFmpeg, Tesseract, Pandoc, and VLC are installed first, and the run fails if any test was skipped, so a missing tool can never hide a problem.
 
-The **Windows build** workflow builds the packaged Windows app on a real Windows machine for every pull request and checks it: the command line program's version and Windows file details, that it processes and exports a recording, that the default folders appear in Documents, and that the GUI program opens its window. It then builds the installer and tests installing, running, and uninstalling it, for one user and for all users. Releases get the tested files attached automatically.
+The **Windows build** workflow builds the packaged Windows app for x64 and for Windows on ARM, each on a real Windows machine of that kind, for every pull request and checks it: the command line program's version and Windows file details, that it processes and exports a recording, that the default folders appear in Documents, and that the GUI program opens its window. It then builds the installer and tests installing, running, and uninstalling it, for one user and for all users, also installs and runs the x64 build on Windows on ARM (emulated), drives the installer's pages and checks that every text fits, and validates the winget manifest. Releases get the tested files attached automatically.
 
 The **Installers** workflow runs the one-step installers on clean Windows (just-you and everyone), Linux, and macOS machines, then checks the installed tool: version, Start Menu shortcut and taskbar identity, write access for all users after a system-wide install, processing and exporting a recording, and that running the installer again (an update) keeps your files. It runs when an installer changes, every Monday (winget, apt, and Homebrew change on their own), and on demand from **Actions > Installers > Run workflow**.
 

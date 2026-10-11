@@ -1,4 +1,4 @@
-CODE_SIGNING_POLICY.md v2.1.0 (Last Rev: 2026-10-10)
+CODE_SIGNING_POLICY.md v2.1.1 (Last Rev: 2026-10-11)
 
 # Code Signing Policy
 
@@ -16,7 +16,7 @@ The result must match the line for that file in `SHA256SUMS.txt` (ignoring upper
 
 ## How The Programs Are Built
 
-- `Screencap Documentation Tool.exe` (the GUI) and `screencap.exe` (the command line), in the portable zip and the installer, and the installer `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` itself.
+- `Screencap Documentation Tool.exe` (the GUI) and `screencap.exe` (the command line), in the portable zip and the installer, and the installers `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` and (from v1.25.0, for Windows on ARM) `...-windows-arm64-setup.exe` themselves.
 - They are built only by the `Windows build` GitHub Actions workflow (`.github/workflows/build-windows.yml`) on GitHub's own Windows machines, from the source code in this repository at a release tag on `main`, and tested before they are attached. Nothing is built on a personal PC.
 - Every change reaches `main` through a pull request whose automated tests must pass. All accounts with write access use two-factor authentication, which the organization requires.
 - FFmpeg, Tesseract OCR, Pandoc, and VLC are separate programs from their own publishers; they are not included.
