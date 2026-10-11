@@ -1,6 +1,6 @@
 # build-windows.yml
 # 2026-10-11
-# Version: v2.0.0
+# Version: v2.0.1
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -381,6 +381,13 @@ jobs:
               if ($readable -and $need.Height -gt ($r.Height + 3)) { $mark = "  <<< TEXT DOES NOT FIT (needs $($need.Height) px of height, has $([int]$r.Height))"; $script:clipped++ }
               $text = ($c.Name -replace "`r?`n", ' | ')
               Write-Host ("  {0,-12} x={1,4} y={2,4} w={3,4} h={4,3}  {5}{6}" -f $type, [int]($r.X - $w.X), [int]($r.Y - $w.Y), [int]$r.Width, [int]$r.Height, $text, $mark)
+              if ($type -eq 'Document') {
+                # The summary box's own text (the Ready page memo, the license)
+                try {
+                  $doc = $e.GetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern).DocumentRange.GetText(1500)
+                  foreach ($line in ($doc -split "`r?`n")) { if ($line.Trim()) { Write-Host "      | $line" } }
+                } catch { }
+              }
             }
           }
           function Send($keys) {
@@ -396,7 +403,7 @@ jobs:
           }
 
           # Fresh install for all users (FFmpeg left out: winget would slow the run)
-          $p = Start-Process $setup -ArgumentList '/ALLUSERS', '/MERGETASKS="!ffmpeg"' -PassThru
+          $p = Start-Process $setup -ArgumentList '/ALLUSERS', '/MERGETASKS="desktopicon,!ffmpeg"' -PassThru
           Wait-Window
           Shot 'license'
           Send '%a'; Start-Sleep -Milliseconds 300; Send '{ENTER}'

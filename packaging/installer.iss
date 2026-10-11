@@ -1,6 +1,6 @@
 ; installer.iss
 ; 2026-10-11
-; Version: v1.4.0
+; Version: v1.5.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
@@ -96,7 +96,8 @@ CloseApplications=yes
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 Name: "ffmpeg"; Description: "Install FFmpeg with winget (required, and not found on this PC)"; Check: not FfmpegFound
-Name: "extras"; Description: "Also install Tesseract OCR (automatic blurring) and Pandoc (Word export) with winget"; Flags: unchecked
+; Offered only while one of them is missing, so an update never runs winget again for nothing
+Name: "extras"; Description: "Also install Tesseract OCR (automatic blurring) and Pandoc (Word export) with winget"; Flags: unchecked; Check: not ExtrasFound
 
 [Files]
 Source: "..\dist\Screencap-Documentation-Tool\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -144,6 +145,28 @@ function FfmpegFound: Boolean;
 begin
   Result := (FileSearch('ffmpeg.exe', GetEnv('PATH')) <> '') or
             FileExists(AddBackslash(WizardDirValue) + 'tools\ffmpeg\bin\ffmpeg.exe');
+end;
+
+{ Where the app itself looks for them (redact.py and export.py): the PATH,
+  then the folders their installers use }
+function TesseractFound: Boolean;
+begin
+  Result := (FileSearch('tesseract.exe', GetEnv('PATH')) <> '') or
+            FileExists(ExpandConstant('{commonpf64}\Tesseract-OCR\tesseract.exe')) or
+            FileExists(ExpandConstant('{commonpf32}\Tesseract-OCR\tesseract.exe')) or
+            FileExists(ExpandConstant('{localappdata}\Programs\Tesseract-OCR\tesseract.exe'));
+end;
+
+function PandocFound: Boolean;
+begin
+  Result := (FileSearch('pandoc.exe', GetEnv('PATH')) <> '') or
+            FileExists(ExpandConstant('{localappdata}\Pandoc\pandoc.exe')) or
+            FileExists(ExpandConstant('{commonpf64}\Pandoc\pandoc.exe'));
+end;
+
+function ExtrasFound: Boolean;
+begin
+  Result := TesseractFound and PandocFound;
 end;
 
 const
@@ -455,6 +478,42 @@ begin
     WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10#13#10 +
       'Click Finish to close Setup.';
   end;
+end;
+
+{ The Ready page summary. On an update the options page is skipped and the
+  choices made last time are applied again, so say what is kept rather than
+  "Create a desktop shortcut", and list only what will really be installed. }
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo,
+  MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
+var
+  Winget: String;
+begin
+  { Worked out afresh here and again when installing, in case the user goes
+    back and picks other folders }
+  FoldersDecided := False;
+  Result := MemoDirInfo + NewLine + NewLine +
+    'Recordings and output folders:' + NewLine +
+    Space + 'Source: ' + GetSourceDir('') + NewLine +
+    Space + 'Output: ' + GetOutputDir('');
+  FoldersDecided := False;
+  if not UpdateMode then
+  begin
+    if MemoTasksInfo <> '' then
+      Result := Result + NewLine + NewLine + MemoTasksInfo;
+    Exit;
+  end;
+  Result := Result + NewLine + NewLine + 'Kept from the current installation:' + NewLine +
+    Space + 'Start Menu shortcut';
+  if WizardIsTaskSelected('desktopicon') then
+    Result := Result + NewLine + Space + 'Desktop shortcut';
+  Result := Result + NewLine + Space + 'Settings and saved presets';
+  Winget := '';
+  if WizardIsTaskSelected('ffmpeg') then
+    Winget := Winget + NewLine + Space + 'FFmpeg (not found on this PC)';
+  if WizardIsTaskSelected('extras') then
+    Winget := Winget + NewLine + Space + 'Tesseract OCR and Pandoc (not both found on this PC)';
+  if Winget <> '' then
+    Result := Result + NewLine + NewLine + 'Also installed with winget:' + Winget;
 end;
 
 { The shared ILHS folder, once empty. [UninstallDelete] does this too, but
