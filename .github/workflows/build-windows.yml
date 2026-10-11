@@ -223,10 +223,11 @@ jobs:
             }
             if ($scope -eq 'ALLUSERS') {
               # Standard users must be able to write there (Program Files is read-only for them)
-              $usersSid = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-545')
               foreach ($sub in 'source', 'output') {
-                $ok = (Get-Acl (Join-Path $dir $sub)).Access | Where-Object {
-                  $_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]) -eq $usersSid -and
+                # Read the rules as SIDs: some entries (app capabilities) have no name to translate
+                $rules = (Get-Acl (Join-Path $dir $sub)).GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])
+                $ok = $rules | Where-Object {
+                  $_.IdentityReference.Value -eq 'S-1-5-32-545' -and $_.AccessControlType -eq 'Allow' -and
                   ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::Modify) -eq [System.Security.AccessControl.FileSystemRights]::Modify }
                 if (-not $ok) { throw "Users cannot modify $dir\$sub" }
               }
