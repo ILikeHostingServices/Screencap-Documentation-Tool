@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 #
 # export.py
-# 2026-10-02
-# Version: v1.0.1
+# 2026-10-12
+# Version: v1.3.0
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
 # self-contained HTML file (images embedded), a Word .docx (via Pandoc), or
 # a PDF (printed by a headless Microsoft Edge, Google Chrome, or Chromium).
-# Each document starts with a header block: title, version, date, author.
+# Each document starts with a header block: title, version, date, author,
+# and optionally a company logo. Word exports can use a Word template (a
+# "reference document": its fonts, colors, margins, and page header and
+# footer are applied).
 #
 # Exports use the blurred screenshots. The unblurred set can be exported on
 # request; those files get "UNREDACTED" in the name and a warning inside.
@@ -24,12 +27,17 @@ import tempfile
 import time
 from pathlib import Path
 
+import clips
 import stepdoc
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 EXPORT_DIR = "export"
 FORMATS = ("html", "docx", "pdf")
 TOOL_NAME = "Screencap Documentation Tool"
+LOGO_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+              ".gif": "image/gif", ".svg": "image/svg+xml"}
+LOGO_HEIGHT = 56          # px in HTML and PDF
+LOGO_WORD_WIDTH = "1.6in"
 
 PANDOC_MISSING_HELP = (
     "Pandoc was not found, so Word export is unavailable. Install it with:\n"
@@ -114,33 +122,86 @@ def image_path(out_dir, step, unredacted):
     return path
 
 
+def check_logo(logo):
+    """The logo as a Path, or None. Raises RuntimeError for a missing file or
+    a picture type that the documents cannot show."""
+    if not logo:
+        return None
+    logo = Path(logo)
+    if not logo.is_file():
+        raise RuntimeError(f"The logo {logo} was not found. Choose it again under "
+                           "Logo and Template, or clear it.")
+    if logo.suffix.lower() not in LOGO_TYPES:
+        raise RuntimeError(f"The logo must be a PNG, JPG, GIF, or SVG picture, not {logo.name}.")
+    return logo
+
+
+def check_template(template):
+    if not template:
+        return None
+    template = Path(template)
+    if not template.is_file():
+        raise RuntimeError(f"The Word template {template} was not found. Choose it again "
+                           "under Logo and Template, or clear it.")
+    if template.suffix.lower() != ".docx":
+        raise RuntimeError(f"The Word template must be a .docx file, not {template.name}.")
+    return template
+
+
+def create_template(dest, pandoc=None):
+    """Write Pandoc's default Word template to dest, to edit in Word (change
+    the styles, add a logo to the page header) and then use for exports."""
+    pandoc = pandoc or find_pandoc()
+    if not pandoc:
+        raise RuntimeError(PANDOC_MISSING_HELP)
+    dest = Path(dest)
+    with tempfile.TemporaryDirectory(prefix="screencap_template_") as tmp:
+        tmp_file = Path(tmp) / "template.docx"
+        _run([pandoc, "-o", str(tmp_file), "--print-default-data-file", "reference.docx"],
+             "Pandoc")
+        shutil.copyfile(tmp_file, dest)
+    return dest
+
+
 def warning_text():
     return ("UNREDACTED COPY: these screenshots are not blurred and may show passwords, "
             "keys, or internal addresses. Do not publish or share this document.")
 
 
-def build_html(out_dir, doc, unredacted=False, embed=True):
+def build_html(out_dir, doc, unredacted=False, embed=True, logo=None):
     meta = metadata(doc)
     e = html.escape
+    logo = check_logo(logo)
     parts = [
         "<!DOCTYPE html>", '<html lang="en">', "<head>", '<meta charset="utf-8">',
         f"<title>{e(meta['title'])}</title>",
         "<style>",
         "body{font-family:Segoe UI,Arial,Helvetica,sans-serif;color:#1b1b1b;max-width:960px;"
         "margin:24px auto;padding:0 16px;line-height:1.45}",
-        "header{border-bottom:2px solid #2563eb;margin-bottom:24px;padding-bottom:8px}",
+        "header{border-bottom:2px solid #2563eb;margin-bottom:24px;padding-bottom:8px;"
+        "display:flex;align-items:center;gap:20px}",
+        f"header img.logo{{max-height:{LOGO_HEIGHT}px;max-width:240px;border:0}}",
         "h1{margin:0 0 8px}.meta{color:#555;font-size:0.95em}",
         ".warn{background:#fdecea;border:1px solid #e53935;color:#8e1b17;padding:10px;"
         "margin:12px 0;font-weight:bold}",
         "section.step{margin:0 0 28px;page-break-inside:avoid;break-inside:avoid}",
         "h2{font-size:1.15em;margin:0 0 8px}.time{color:#777;font-weight:normal;font-size:0.85em}",
         "img{max-width:100%;border:1px solid #ccc}",
+        "img.clip{display:block;margin-top:8px}",
         "p.caption{margin:8px 0 0;white-space:pre-wrap}",
         "footer{color:#888;font-size:0.8em;border-top:1px solid #ddd;margin-top:32px;padding-top:8px}",
         "</style>", "</head>", "<body>", "<header>",
+    ]
+    if logo:
+        mime = LOGO_TYPES[logo.suffix.lower()]
+        data = base64.b64encode(logo.read_bytes()).decode("ascii")
+        parts.append(f'<img class="logo" src="data:{mime};base64,{data}" alt="Logo">')
+    parts += [
+        "<div>",
         f"<h1>{e(meta['title'])}</h1>",
         f'<div class="meta">Version {e(meta["version"])} &middot; {e(meta["date"])}'
         + (f" &middot; {e(meta['author'])}" if meta["author"] else "") + "</div>",
+        "</div>",
         "</header>",
     ]
     if unredacted:
@@ -154,7 +215,12 @@ def build_html(out_dir, doc, unredacted=False, embed=True):
             src = img.as_uri()
         parts += ['<section class="step">',
                   f'<h2>Step {i} <span class="time">({stepdoc.fmt_ts(step["time"])})</span></h2>',
-                  f'<img src="{src}" alt="Step {i}">']
+                  f'<img src="{src}" alt="{e(stepdoc.alt_text(step, i), quote=True)}">']
+        clip = clips.clip_path(out_dir, step)
+        if clip:
+            gif = (f"data:image/gif;base64,{base64.b64encode(clip.read_bytes()).decode('ascii')}"
+                   if embed else clip.as_uri())
+            parts.append(f'<img class="clip" src="{gif}" alt="Animated clip of step {i}">')
         caption = (step.get("caption") or "").strip()
         if caption:
             parts.append(f'<p class="caption">{e(caption)}</p>')
@@ -164,24 +230,43 @@ def build_html(out_dir, doc, unredacted=False, embed=True):
     return "\n".join(parts)
 
 
-def build_markdown(out_dir, doc, unredacted=False):
-    """Pandoc Markdown with a metadata block, for the Word export."""
+def build_markdown(out_dir, doc, unredacted=False, logo=None):
+    """Pandoc Markdown with a metadata block, for the Word export. With a
+    logo, the title block is written in the document itself (with Word's
+    Title, Subtitle, Author, and Date styles) so the logo can go above it."""
     meta = metadata(doc)
+    logo = check_logo(logo)
 
     def yaml(value):
         return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
-    lines = ["---", f"title: {yaml(meta['title'])}",
-             f"subtitle: {yaml('Version ' + meta['version'])}",
-             f"date: {yaml(meta['date'])}"]
-    if meta["author"]:
-        lines.append(f"author: {yaml(meta['author'])}")
-    lines += ["---", ""]
+    def styled(style, text):
+        return [f'::: {{custom-style="{style}"}}', md_escape(text), ":::", ""]
+
+    if logo:
+        lines = ["---", f"title-meta: {yaml(meta['title'])}", "---", "",
+                 f"![]({logo.as_posix()}){{width={LOGO_WORD_WIDTH}}}", ""]
+        lines += styled("Title", meta["title"])
+        lines += styled("Subtitle", "Version " + meta["version"])
+        if meta["author"]:
+            lines += styled("Author", meta["author"])
+        lines += styled("Date", meta["date"])
+    else:
+        lines = ["---", f"title: {yaml(meta['title'])}",
+                 f"subtitle: {yaml('Version ' + meta['version'])}",
+                 f"date: {yaml(meta['date'])}"]
+        if meta["author"]:
+            lines.append(f"author: {yaml(meta['author'])}")
+        lines += ["---", ""]
     if unredacted:
         lines += [f"**{warning_text()}**", ""]
     for i, step in enumerate(doc["steps"], 1):
         img = image_path(out_dir, step, unredacted).as_posix()
-        lines += [f"## Step {i}", "", f"![]({img}){{width=100%}}", ""]
+        alt = stepdoc.markdown_alt(stepdoc.alt_text(step, i))
+        lines += [f"## Step {i}", "", f"![{alt}]({img}){{width=100%}}", ""]
+        clip = clips.clip_path(out_dir, step)
+        if clip:
+            lines += [f"![Animated clip of step {i}]({clip.as_posix()}){{width=100%}}", ""]
         caption = (step.get("caption") or "").strip()
         if caption:
             lines += [caption, ""]
@@ -192,9 +277,19 @@ def build_markdown(out_dir, doc, unredacted=False):
 # Export
 # ---------------------------------------------------------------------------
 
-def export(out_dir, doc, fmt, unredacted=False, pandoc=None, browser=None):
-    """Write one export and return its path."""
+def md_escape(text):
+    """Text that Markdown shows exactly as typed."""
+    return re.sub(r"([\\`*_{}\[\]()#+\-.!<>|~^$])", r"\\\1", text)
+
+
+def export(out_dir, doc, fmt, unredacted=False, pandoc=None, browser=None, logo=None,
+           template=None):
+    """Write one export and return its path. logo: a picture shown at the top
+    of the document. template: a Word .docx whose styles, margins, and page
+    header and footer are used for the Word export."""
     out_dir = Path(out_dir)
+    logo = check_logo(logo)
+    template = check_template(template) if fmt == "docx" else None
     if unredacted and not (out_dir / stepdoc.UNREDACTED_DIR).is_dir():
         raise RuntimeError("There are no unblurred screenshots for this recording "
                            "(blurring is off, so the normal export already shows everything).")
@@ -204,23 +299,27 @@ def export(out_dir, doc, fmt, unredacted=False, pandoc=None, browser=None):
     dest = dest_dir / f"{stem}.{fmt}"
 
     if fmt == "html":
-        dest.write_text(build_html(out_dir, doc, unredacted), encoding="utf-8")
+        dest.write_text(build_html(out_dir, doc, unredacted, logo=logo), encoding="utf-8")
     elif fmt == "docx":
         pandoc = pandoc or find_pandoc()
         if not pandoc:
             raise RuntimeError(PANDOC_MISSING_HELP)
         with tempfile.TemporaryDirectory(prefix="screencap_export_") as tmp:
             md = Path(tmp) / "steps.md"
-            md.write_text(build_markdown(out_dir, doc, unredacted), encoding="utf-8")
-            _run([pandoc, str(md), "-f", "markdown", "-o", str(dest),
-                  f"--resource-path={out_dir}"], "Pandoc")
+            md.write_text(build_markdown(out_dir, doc, unredacted, logo=logo), encoding="utf-8")
+            # no implicit figures: the alt text would also be printed as a caption
+            cmd = [pandoc, str(md), "-f", "markdown-implicit_figures", "-o", str(dest),
+                   f"--resource-path={out_dir}"]
+            if template:
+                cmd.append(f"--reference-doc={template}")
+            _run(cmd, "Pandoc")
     elif fmt == "pdf":
         browser = browser or find_browser()
         if not browser:
             raise RuntimeError(BROWSER_MISSING_HELP)
         with tempfile.TemporaryDirectory(prefix="screencap_export_") as tmp:
             page = Path(tmp) / "steps.html"
-            page.write_text(build_html(out_dir, doc, unredacted), encoding="utf-8")
+            page.write_text(build_html(out_dir, doc, unredacted, logo=logo), encoding="utf-8")
             if dest.exists():
                 dest.unlink()
             cmd = [browser, "--headless=new", "--disable-gpu", "--no-first-run",

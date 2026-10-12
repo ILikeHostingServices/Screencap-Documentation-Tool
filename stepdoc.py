@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # stepdoc.py
-# 2026-10-02
-# Version: v1.3.0
+# 2026-10-12
+# Version: v1.7.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -14,6 +14,8 @@
 #   step_NNN_<time>.<ext>            rendered screenshots used by steps.md
 #                                    (sensitive areas blurred when redaction is on)
 #   unredacted/step_NNN_<time>.<ext> the same screenshots without blurring
+#   overlays/shapes_<hash>.pam       drawn arrows and markers (annotate.py)
+#   clips/clip_<time>.gif            animated clips of chosen steps (clips.py)
 #   steps.json                       the step document (source of truth)
 #   steps.md                         generated from steps.json
 #   steps-unredacted.md              same, using the unredacted screenshots
@@ -26,6 +28,8 @@ import subprocess
 import time
 from pathlib import Path
 
+import annotate
+import clips
 import imaging
 import redact
 
@@ -73,6 +77,7 @@ def new_document(video_name, duration, width, height, ext, settings, tool_versio
         "steps": [],
         "deleted_steps": [],
         "highlight": True,
+        "zoom": False,
         "crop": None,
         "redact": True,
         "redact_patterns": [],
@@ -207,6 +212,63 @@ def clamp_rect(rect, width, height, minimum=16):
 
 BLUR_BLOCK = 12   # pixelation block size before blurring (makes text unreadable)
 
+ZOOM_MAX = 2.5        # largest magnification of the zoomed inset
+ZOOM_MIN = 1.4        # below this the change is big enough to read without one
+ZOOM_SHARE = 0.4      # the inset takes at most this share of the width and height
+ZOOM_CONTEXT = 0.14   # the inset shows at least this share of the width and height
+
+
+def zoom_inset(step, doc):
+    """Where the zoomed inset of a step goes, or None when it has none.
+    Returns dict(src=[x, y, w, h] area magnified, size=[w, h], at=[x, y],
+    border=px), all in original-frame pixels. The inset sits in the corner
+    of the visible area (the crop, or the whole frame) that keeps it
+    farthest from what changed, so it never covers the change itself."""
+    box = step.get("change_box")
+    width, height = doc.get("width"), doc.get("height")
+    if not box or not width or not height or not effective(step, doc, "zoom", default=False):
+        return None
+    ax, ay, aw, ah = effective_crop(step, doc) or [0, 0, width, height]
+    bx, by, bw, bh = box
+    # the change plus a margin, and at least ZOOM_CONTEXT of the visible
+    # area so what is around a small change (a checkbox's label) shows too
+    margin = max(8, round(0.15 * max(bw, bh)))
+    sw = min(aw, max(bw + 2 * margin, round(ZOOM_CONTEXT * aw)))
+    sh = min(ah, max(bh + 2 * margin, round(ZOOM_CONTEXT * ah)))
+    x0 = max(ax, min(round(bx + bw / 2 - sw / 2), ax + aw - sw))
+    y0 = max(ay, min(round(by + bh / 2 - sh / 2), ay + ah - sh))
+    if sw < 8 or sh < 8:
+        return None
+    factor = min(ZOOM_MAX, ZOOM_SHARE * aw / sw, ZOOM_SHARE * ah / sh)
+    if factor < ZOOM_MIN:
+        return None
+    border = max(3, round(width / 320))
+    zw, zh = round(sw * factor / 2) * 2, round(sh * factor / 2) * 2
+    ow, oh = zw + 2 * border, zh + 2 * border
+    gap = max(8, round(aw / 60))
+    corners = [(ax + gap, ay + gap), (ax + aw - gap - ow, ay + gap),
+               (ax + gap, ay + ah - gap - oh), (ax + aw - gap - ow, ay + ah - gap - oh)]
+
+    def overlap(cx, cy):
+        w = max(0, min(cx + ow, bx + bw) - max(cx, bx))
+        h = max(0, min(cy + oh, by + bh) - max(cy, by))
+        return w * h
+
+    centre = (bx + bw / 2, by + bh / 2)
+    cx, cy = min(corners, key=lambda c: (overlap(*c), -((c[0] + ow / 2 - centre[0]) ** 2 +
+                                                         (c[1] + oh / 2 - centre[1]) ** 2)))
+    return {"src": [x0, y0, sw, sh], "size": [zw, zh], "at": [max(ax, cx), max(ay, cy)],
+            "border": border}
+
+
+def zoom_graph(inset):
+    """Filter graph that adds the inset on top of the frame passed in."""
+    (x, y, w, h), (zw, zh), (px, py) = inset["src"], inset["size"], inset["at"]
+    t = inset["border"]
+    return (f"split[zbase][zsrc];[zsrc]crop={w}:{h}:{x}:{y},scale={zw}:{zh}:flags=lanczos,"
+            f"pad={zw + 2 * t}:{zh + 2 * t}:{t}:{t}:color={HIGHLIGHT_COLOR}[zoom];"
+            f"[zbase][zoom]overlay={px}:{py}:format=auto")
+
 
 def redaction_boxes(step, doc):
     """Boxes to blur for a step: detected ones not switched off, plus boxes
@@ -235,11 +297,13 @@ def blur_graph(boxes):
     return ";".join(graph)
 
 
-def build_filter(step, doc, redacted=True):
+def build_filter(step, doc, redacted=True, work_dir=None):
     """FFmpeg filter graph that turns an original frame into the finished
     screenshot, or None when the original is used as-is. The GUI preview uses
     the same graph, so what you see is what gets saved. All coordinates are
-    in original-frame pixels. redacted=False gives the unblurred copy."""
+    in original-frame pixels. redacted=False gives the unblurred copy.
+    work_dir (the output folder) holds the drawn arrows and markers; without
+    it annotations are left out."""
     parts = []
     blur = blur_graph(redaction_boxes(step, doc)) if redacted else ""
     box = step.get("change_box")
@@ -247,14 +311,33 @@ def build_filter(step, doc, redacted=True):
         x, y, w, h = box
         thick = max(3, round((doc.get("width") or 1280) / 320))
         parts.append(f"drawbox=x={x}:y={y}:w={w}:h={h}:color={HIGHLIGHT_COLOR}@1:t={thick}")
+    # blur first, so the highlight box is drawn on top, unblurred
+    graph = blur + ("," if blur and parts else "") + ",".join(parts)
+    parts = []
+    inset = zoom_inset(step, doc)
+    if inset:   # magnifies the blurred picture, so nothing hidden is shown
+        graph = (graph + "," if graph else "") + zoom_graph(inset)
+    if work_dir is not None:
+        # annotations on top of everything else, so nothing hides them
+        shapes, texts = annotate.filters(step, doc.get("width"), doc.get("height"), work_dir)
+        if shapes:
+            graph = (f"{graph or 'null'}[shot];movie={annotate.filter_path(shapes)}[ann];"
+                     "[shot][ann]overlay=0:0:format=auto")
+        parts += texts
     crop = effective_crop(step, doc)
     if crop:   # always last, so everything above uses original coordinates
         x, y, w, h = crop
         parts.append(f"crop={w}:{h}:{x}:{y}")
-    chain = ",".join(parts)
-    if blur:   # blur first, so the highlight box is drawn on top, unblurred
-        return blur + ("," + chain if chain else "")
-    return chain or None
+    if parts:
+        graph += ("," if graph else "") + ",".join(parts)
+    return graph or None
+
+
+def overlays_in_use(doc):
+    """Names of the annotation images the current steps use."""
+    return {annotate.overlay_name(doc.get("width"), doc.get("height"),
+                                  annotate.step_annotations(step))
+            for step in doc["steps"]} - {None}
 
 
 def ensure_frame_size(out_dir, doc, ffmpeg):
@@ -286,9 +369,10 @@ def ensure_change_boxes(out_dir, doc, ffmpeg):
             thumb(i - 1), thumb(i), doc["width"], doc["height"])
 
 
-def render_image(ffmpeg, src, dest, step, doc, run, redacted=True):
-    """Produce one screenshot from its original."""
-    vf = build_filter(step, doc, redacted)
+def render_image(ffmpeg, src, dest, step, doc, run, redacted=True, work_dir=None):
+    """Produce one screenshot from its original. work_dir is the output
+    folder, which holds the annotation images."""
+    vf = build_filter(step, doc, redacted, work_dir)
     if not vf:
         shutil.copyfile(src, dest)
         return
@@ -306,6 +390,12 @@ def run_quiet(cmd):
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                           stdin=subprocess.DEVNULL, creationflags=NO_WINDOW,
                           text=True, encoding="utf-8", errors="replace")
+
+
+def change_boxes_wanted(doc):
+    """The red box and the zoomed inset both need to know what changed."""
+    return (doc.get("highlight", True) or doc.get("zoom", False) or
+            any(s.get("highlight") or s.get("zoom") for s in doc["steps"]))
 
 
 def redaction_wanted(doc):
@@ -341,8 +431,10 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
     out_dir = Path(out_dir)
     ext = doc.get("format", "png")
     keep = set()
-    if doc.get("highlight", True) or any(s.get("highlight") for s in doc["steps"]):
+    if change_boxes_wanted(doc):
         ensure_change_boxes(out_dir, doc, ffmpeg)
+    if any(annotate.step_annotations(s) for s in doc["steps"]):
+        ensure_frame_size(out_dir, doc, ffmpeg)
     redacting = redaction_wanted(doc)
     if redacting:
         ensure_redactions(out_dir, doc, ffmpeg, tesseract, progress, cancel)
@@ -359,9 +451,10 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
         if not src.is_file():
             raise RuntimeError(f"Original image missing: {src}")
         name = rendered_name(i, step, ext)
-        render_image(ffmpeg, src, out_dir / name, step, doc, run_quiet)
+        render_image(ffmpeg, src, out_dir / name, step, doc, run_quiet, work_dir=out_dir)
         if redacting:
-            render_image(ffmpeg, src, unredacted / name, step, doc, run_quiet, redacted=False)
+            render_image(ffmpeg, src, unredacted / name, step, doc, run_quiet, redacted=False,
+                         work_dir=out_dir)
         step["file"] = name
         keep.add(name)
     for folder in (out_dir, unredacted):
@@ -369,6 +462,9 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
             if stale.is_file() and stale.suffix.lower() in (".png", ".jpg") and \
                     (stale.name not in keep or (folder == unredacted and not redacting)):
                 stale.unlink()
+    annotate.remove_stale_overlays(out_dir, overlays_in_use(doc))
+    clips.render_clips(out_dir, doc, ffmpeg, run_quiet, effective_crop, redaction_boxes,
+                       blur_graph, progress)
     if not redacting:
         if unredacted.is_dir() and not any(unredacted.iterdir()):
             unredacted.rmdir()
@@ -379,8 +475,32 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
 
 
 # ---------------------------------------------------------------------------
-# Markdown
+# Alt text and Markdown
 # ---------------------------------------------------------------------------
+
+ALT_MAX = 250   # characters; screen readers read all of it, so keep it short
+
+
+def alt_text(step, index):
+    """Alternative text for a step's screenshot, read by screen readers and
+    shown when a picture cannot be: the step number, its caption, and the
+    text of any labels drawn on it, on one line."""
+    caption = " ".join((step.get("caption") or "").split())
+    labels = [" ".join(a["text"].split()) for a in annotate.step_annotations(step)
+              if a["kind"] == "text"]
+    text = f"Step {index}: {caption}" if caption else f"Screenshot of step {index}"
+    if labels:
+        text += (" " if text.endswith((".", "!", "?", ":")) else ". ") + \
+            "Labels on the screenshot: " + "; ".join(f'"{t}"' for t in labels)
+    if len(text) > ALT_MAX:
+        text = text[:ALT_MAX - 3].rstrip() + "..."
+    return text
+
+
+def markdown_alt(text):
+    """Alt text that is safe inside ![...] in Markdown."""
+    return text.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+
 
 def markdown(doc, unredacted=False):
     steps = doc["steps"]
@@ -419,7 +539,9 @@ def markdown(doc, unredacted=False):
         if details:
             lines += ["_" + ", ".join(details) + "._", ""]
         image = f"{UNREDACTED_DIR}/{step['file']}" if unredacted else step["file"]
-        lines += [f"![Step {i}]({image})", ""]
+        lines += [f"![{markdown_alt(alt_text(step, i))}]({image})", ""]
+        if step.get("clip_file") and clips.wanted(step):
+            lines += [f"![Animated clip of step {i}]({step['clip_file']})", ""]
         caption = (step.get("caption") or "").strip()
         lines += [caption if caption else "_Notes:_", ""]
     return "\n".join(lines)

@@ -1,6 +1,6 @@
 # snapcraft.yaml
-# 2026-10-11
-# Version: v1.1.0
+# 2026-10-12
+# Version: v1.1.1
 #
 # PURPOSE:
 # Snap package for the Snap Store (Ubuntu and any distribution with snapd).
@@ -15,10 +15,10 @@ name: screencap-documentation-tool
 title: Screencap Documentation Tool
 summary: Turn screen recordings into step-by-step screenshot documentation
 description: |
-  Finds every step in a screen recording with FFmpeg scene detection and
-  saves a screenshot of each one. Review the steps, add captions, crop, blur
-  sensitive information, and export to HTML or Word. Everything runs locally,
-  with no telemetry.
+  A free Steps Recorder replacement. Finds every step in a screen recording
+  with FFmpeg scene detection and saves a screenshot of each one. Review the
+  steps, add captions, arrows, and labels, crop, blur sensitive information,
+  and export to HTML or Word. Everything runs locally, with no telemetry.
 
   Recordings and output go in Documents/Screencap Documentation Tool in your
   home folder by default; any folder in your home or on a removable drive
@@ -88,3 +88,4 @@ parts:
       - tesseract-ocr-eng
       - pandoc
       - xdg-utils
+      - fonts-dejavu-core   # text and numbers on annotations

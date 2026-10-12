@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # version.py
-# 2026-10-11
-# Version: v1.25.1
+# 2026-10-12
+# Version: v1.30.0
 #
 # PURPOSE:
 # The release version of the Screencap Documentation Tool as a whole. It
@@ -14,6 +14,6 @@
 # Bump RELEASE, RELEASE_DATE, and the header above in the same commit that a
 # release tag will point at (see "Releases And Versions" in README.md).
 
-RELEASE = "1.25.1"
-RELEASE_DATE = "2026-10-11"
+RELEASE = "1.30.0"
+RELEASE_DATE = "2026-10-12"
 APP_NAME = "Screencap Documentation Tool"

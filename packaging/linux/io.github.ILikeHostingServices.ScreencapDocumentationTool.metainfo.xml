@@ -12,14 +12,16 @@
   <description>
     <p>
       Screencap Documentation Tool finds every step in a screen recording with FFmpeg scene
-      detection and saves a screenshot of each one. Built with system administrators in mind,
-      and useful for anyone who writes how-to guides.
+      detection and saves a screenshot of each one: a free Steps Recorder replacement that also
+      runs on Linux. Built with system administrators in mind, and useful for anyone who writes
+      how-to guides.
     </p>
     <ul>
       <li>Presets for installers, the desktop, web consoles, terminals, remote desktops, and more</li>
       <li>Review the steps: reorder, delete, crop, and write a caption for each one</li>
+      <li>Arrows, numbered markers, text labels, a zoomed inset, and animated GIF clips</li>
       <li>Blur passwords, keys, and addresses automatically, with an unblurred copy kept</li>
-      <li>Export to HTML, Word, or PDF</li>
+      <li>Export to HTML, Word, or PDF, with your logo and Word template and alt text on every picture</li>
       <li>Light and dark themes; everything runs locally, with no telemetry</li>
     </ul>
   </description>
@@ -36,6 +38,31 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.30.0" date="2026-10-12">
+      <description>
+        <p>Animated GIF clips of single steps.</p>
+      </description>
+    </release>
+    <release version="1.29.0" date="2026-10-12">
+      <description>
+        <p>Alt text on every screenshot in steps.md and exported documents.</p>
+      </description>
+    </release>
+    <release version="1.28.0" date="2026-10-12">
+      <description>
+        <p>Company logo and Word template for exported documents.</p>
+      </description>
+    </release>
+    <release version="1.27.0" date="2026-10-12">
+      <description>
+        <p>Zoomed inset that shows small changes up close.</p>
+      </description>
+    </release>
+    <release version="1.26.0" date="2026-10-12">
+      <description>
+        <p>Annotations: draw arrows, numbered markers, and text labels on screenshots.</p>
+      </description>
+    </release>
     <release version="1.25.1" date="2026-10-11">
       <description>
         <p>Windows installer summary fixes (no Linux changes).</p>

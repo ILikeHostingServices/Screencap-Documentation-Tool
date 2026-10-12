@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-10-04
-# Version: v1.11.1
+# 2026-10-12
+# Version: v1.12.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -39,7 +39,7 @@ import version  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -288,7 +288,7 @@ def settings_snapshot(args):
     return {k: getattr(args, k) for k in
             ("threshold", "debounce", "capture_point", "settle", "lead",
              "max_wait", "min_gap", "analyze_fps", "analyze_width", "format",
-             "no_dedup", "dedup_threshold", "no_highlight", "crop", "no_redact")}
+             "no_dedup", "dedup_threshold", "no_highlight", "zoom", "crop", "no_redact")}
 
 
 def clear_previous_output(out_dir):
@@ -349,6 +349,7 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     doc = stepdoc.new_document(video.name, duration, width, height, args.format,
                                settings_snapshot(args), VERSION)
     doc["highlight"] = not args.no_highlight
+    doc["zoom"] = bool(args.zoom)
     doc["source_path"] = str(video.resolve())   # lets the GUI open it in VLC
     if args.crop:
         doc["crop"] = stepdoc.clamp_rect(args.crop, width, height)
@@ -427,7 +428,8 @@ def export_video(out_dir, args):
     failed = 0
     for fmt in args.export:
         try:
-            dest = export.export(out_dir, doc, fmt, pandoc=args.pandoc, browser=args.browser)
+            dest = export.export(out_dir, doc, fmt, pandoc=args.pandoc, browser=args.browser,
+                                 logo=args.logo, template=args.word_template)
             log.info("  Exported %s", dest)
         except Exception as exc:
             failed += 1
@@ -549,11 +551,21 @@ def parse_args(argv):
     p.add_argument("--doc-author", help="Author shown in exported documents")
     p.add_argument("--doc-version", help="Version shown in exported documents "
                                           "(default: v1.0.0)")
+    p.add_argument("--logo", help="Picture (PNG, JPG, GIF, or SVG) shown at the top of "
+                                  "exported documents")
+    p.add_argument("--word-template", metavar="DOCX",
+                   help="Word document whose styles, margins, and page header and footer "
+                        "are used for docx exports (see --create-word-template)")
+    p.add_argument("--create-word-template", metavar="DOCX",
+                   help="Save the standard Word template to DOCX to edit in Word, then exit")
     p.add_argument("--pandoc", help="Path to pandoc (needed for docx export)")
     p.add_argument("--browser", help="Path to Microsoft Edge, Google Chrome, or "
                                      "Chromium (needed for pdf export)")
     p.add_argument("--no-highlight", action="store_true",
                    help="Do not draw a red box around what changed in each step")
+    p.add_argument("--zoom", action="store_true",
+                   help="Add a zoomed inset of what changed when it is small (it can also "
+                        "be switched on later in the GUI's step editor)")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",
                    help="Screenshot image format (default: png)")
     p.add_argument("--force", action="store_true",
@@ -638,6 +650,15 @@ def setup_logging(output, verbose):
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.create_word_template:
+        try:
+            dest = export.create_template(args.create_word_template, pandoc=args.pandoc)
+        except (RuntimeError, OSError) as exc:
+            print(f"Could not create the Word template: {exc}", file=sys.stderr)
+            return EXIT_SETUP_ERROR
+        print(f"Saved the standard Word template to {dest}. Open it in Word, change its "
+              "styles and page header, save it, and use it with --word-template.")
+        return 0
     source = args.source.expanduser().resolve()
     output = args.output.expanduser().resolve()
     setup_logging(output, args.verbose)

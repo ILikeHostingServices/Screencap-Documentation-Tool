@@ -1,10 +1,12 @@
-README.md v1.34.0 (Last Rev: 2026-10-11)
+README.md v1.36.0 (Last Rev: 2026-10-12)
 
 # Screencap Documentation Tool
 
 ## Overview
 
-Record your screen while you install or configure a program, drop the recording in a folder, and this tool pulls out a screenshot of every step for you. No more scrubbing through video to find the right frames.
+**A free Steps Recorder replacement for Windows, Linux, and macOS.** Record your screen while you install or configure a program, drop the recording in a folder, and this tool pulls out a screenshot of every step for you. No more scrubbing through video to find the right frames.
+
+Microsoft deprecated Windows' built-in Steps Recorder (`psr.exe`) in 2023: it gets no more updates and is to be removed in a future Windows release. This tool does the same job and more: full resolution screenshots, captions, arrows and labels, automatic blurring of passwords and keys, and finished HTML, Word, or PDF documents. See [Coming From Steps Recorder](#coming-from-steps-recorder).
 
 For each recording you get:
 
@@ -15,13 +17,33 @@ For each recording you get:
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps.
+- Annotations: draw arrows, numbered markers, and text labels on any screenshot to point readers at the right button.
+- An optional zoomed inset that shows a small change (a ticked checkbox, a short field) up close in a corner of the screenshot.
+- Animated GIF clips of single steps, for actions a still picture cannot show well, such as dragging or a menu that opens on hover.
+- Accessible documents: every screenshot gets alt text (the step number, its caption, and any labels drawn on it), so screen readers can describe it.
 - A clean GUI with light and dark themes that can follow the system setting.
 - Saved presets: built-in settings for installer wizards, general desktop use, web consoles, terminals, remote desktops, forms, slideshows, video meetings, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
 - Optional **Captions From Narration**: if you talk while you record, what you said becomes the first-draft caption of each step. Speech recognition runs offline on your PC.
-- One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header. Every original frame is kept, so nothing you do in the editor is permanent.
+- One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header, and optionally your company logo and Word template. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring and [Pandoc](https://pandoc.org/) for Word export. PDF export uses Microsoft Edge (included with Windows 11) or Google Chrome/Chromium. All are free and open source, and the installers set them up for you.
+
+### Coming From Steps Recorder
+
+Steps Recorder watched your mouse and keyboard and took a small screenshot at every click. This tool works from a screen recording instead, which you make with any recorder (see [Recording Tips For Best Results](#recording-tips-for-best-results)), and finds the steps itself.
+
+| Steps Recorder | Screencap Documentation Tool |
+| --- | --- |
+| Start Record, do the task, Stop Record | Record the task with Snipping Tool, OBS Studio, or another recorder, then click **Process All** |
+| A compressed screenshot at every click | A full resolution screenshot of every step, taken when the screen settles; duplicates are removed |
+| A green outline around what was clicked | A red box around what changed, an optional zoomed inset, and arrows, numbers, and labels you add |
+| Auto-written text ("User left click on Next") | Your own captions, or a first draft from what you said while recording ([Captions From Narration](#captions-from-narration)) |
+| Comments | Captions and text labels on the screenshot |
+| Saved as a `.zip` holding an `.mht` web archive, best viewed in Internet Explorer | HTML (one self-contained file), Word, or PDF with your logo and Word template, plus `steps.md` |
+| Everything on screen was recorded, passwords and keys included | Passwords, keys, tokens, and addresses are blurred automatically (an unblurred copy is kept separately) |
+| Windows only | Windows 11 (x64 and ARM), Linux (including Raspberry Pi), and macOS |
+| A short animation was not possible | An animated GIF clip of any step |
 
 ### How It Finds The Steps
 
@@ -64,6 +86,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `whisper_worker.py` | Runs the speech recognition (faster-whisper) in the optional `whisper-env` Python environment. |
 | `whisper-env/` | Optional. Created by the installer's speech recognition option (`-WithWhisper` or `SCREENCAP_WITH_WHISPER=1`). Not in git. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
+| `clips.py` | Animated GIF clips of single steps, made with FFmpeg from the original recording. |
+| `annotate.py` | Annotations (arrows, numbered markers, text labels): draws them and gives FFmpeg the filters that put them on the screenshot. |
 | `tests/` | Automated tests, including a GUI test that drives the real window. See [Automated Testing](#automated-testing). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
@@ -305,18 +329,35 @@ Select a processed recording in the **Recordings** list and the **Steps** tab sh
 | **Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
 | **Crop** menu | **Crop All Steps** or **Crop This Step Only**: drag a rectangle on the picture around the area to keep (Esc cancels). **No Crop on This Step** leaves the selected step uncropped even when the recording has a crop. **Clear All Crops** removes every crop. |
 | **Blur** menu | **Add Blur Box**: drag a rectangle around anything else to blur. **Un-blur / Re-blur**: click a blur box on the picture; a detected box is switched off (gray outline) or back on, a hand-drawn box is removed. **Blur This Step** switches blurring for the selected step only. **Re-scan All Steps for Sensitive Text** detects sensitive text again on every step and saves, for example after installing Tesseract (hand-drawn boxes are kept). |
-| **Highlight this step** | Turn the red "what changed" box on or off for the selected step only. This overrides the recording-wide setting. |
-| **Whole recording: Blur sensitive info / Highlight changes** (top right) | Turn blurring or the red box on or off for the whole recording. |
-| **Caption** | The text shown under the step in `steps.md` and in exports, replacing the `_Notes:_` placeholder. |
+| **Annotate** menu | **Add Arrow**: drag from where the arrow starts to what it points at. **Add Number**: click to place a numbered marker (1, 2, 3, ... in the order you add them). **Add Text Label**: click where the label goes and type its text. **Edit or Remove**: click an annotation to change its text or number, or to remove it (an empty label or the number 0 removes it). **Clear Annotations on This Step** removes them all. Annotations are drawn on top of everything else, including the blur, so they never reveal what is blurred. |
+| **Highlight** menu | **Red Box on This Step** turns the red "what changed" box on or off for the selected step only. **Zoomed Inset on This Step** does the same for the zoomed inset. Both override the recording-wide setting. **Animated Clip of This Step (GIF)** adds a short animation of the step (see below). |
+| **Whole recording: Blur sensitive info / Highlight changes / Zoomed inset** (top right) | Turn blurring, the red box, or the zoomed inset on or off for the whole recording. The **zoomed inset** is a magnified copy (up to 2.5 times) of a small change, such as a ticked checkbox or a short field, placed in the corner of the screenshot farthest from it, so it stays readable when the document shows the screenshot small. Steps where the change is already big enough to read, or where nothing changed, get no inset. It is made from the blurred screenshot, so it never shows anything that is blurred. |
+| **Caption** | The text shown under the step in `steps.md` and in exports, replacing the `_Notes:_` placeholder. It is also the screenshot's alt text (with the step number and the text of any labels), which screen readers read aloud. |
 | **Document title / Version / Author** | The header of exported documents. The title defaults to the recording's name and the version to `v1.0.0`; the date is the day you export. |
-| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. |
+| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. **Logo and Template...** chooses a company logo and a Word template used for every export (see [Logo And Word Template](#logo-and-word-template)). |
 | **Open** menu | Open the screenshot, `steps.md`, the recording's output folder, or the exports folder. |
 | **Play in VLC** | Open the original recording in VLC 3 seconds before the selected step's screen appeared, so you can watch the click or keystroke that led to it. Needs [VLC](https://www.videolan.org/) and the recording still in its source folder. |
 | **Captions From Narration** | Fill the empty captions from what was said in the recording (see [Captions From Narration](#captions-from-narration)). |
 | **Save Changes** | Re-render the screenshots from the originals and regenerate `steps.md` and `steps.json`. |
 | **Discard** | Go back to the last saved version. |
 
-On **Original frame**, dashed outlines show what will be applied: blue for the crop, red for the "what changed" box, yellow for detected sensitive text (gray when switched off), and orange for hand-drawn blur boxes. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
+On **Original frame**, dashed outlines show what will be applied: blue for the crop, red for the "what changed" box, yellow for detected sensitive text (gray when switched off), and orange for hand-drawn blur boxes. Annotations are shown as red outlines there, and finished on **Screenshot**. Annotation sizes follow the recording's resolution, so they look the same in a 1080p and a 4K recording. Their text uses a bold system font (Segoe UI on Windows, Arial on macOS, DejaVu Sans or another sans-serif font on Linux); set `SCREENCAP_FONT` to the path of a `.ttf` file to use a different one. The drawn arrows and markers are kept in an `overlays` folder next to the screenshots. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
+
+#### Animated Clips
+
+For a step a still picture cannot show well, such as dragging something, a menu that opens on hover, or a slider, tick **Highlight > Animated Clip of This Step (GIF)** and click **Save Changes**. The clip runs from just before the screen changes until the next screen has settled (at most 6 seconds), at 10 frames per second and up to 960 pixels wide. It goes in `clips/` and appears under the step's screenshot in `steps.md` and in HTML and Word exports (Word plays animated GIFs; PDF shows the first frame). **Open > Open Animated Clip** opens it.
+
+Clips are made from the original recording, so it must still be in its source folder when you save. They are cropped like the screenshot and blurred with the blur boxes of this step and the next one. The clip also shows the moments in between, so before sharing, play the clip of any screen with sensitive information. The red box, the zoomed inset, and annotations are not drawn on clips.
+
+#### Logo And Word Template
+
+Click **Logo and Template...** in the Export box to make exports look like your own documents. Both are remembered and used for every export until you clear them.
+
+- **Logo**: a PNG, JPG, GIF, or SVG picture shown at the top of HTML, PDF, and Word exports, next to (HTML, PDF) or above (Word) the title.
+- **Word template**: a Word document whose look is copied into Word exports: the fonts, colors, and spacing of its styles (Title, Heading 2 for the step headings, Normal for captions), its margins and page size, and its page header and footer. Word's own templates (`.dotx`) are not used directly; save a `.docx` instead.
+- **Create Starter Template...** saves the standard template (it needs Pandoc). Open it in Word, change its styles (right-click a style in the Styles gallery, then **Modify**) and add your logo or a confidentiality note to the page header or footer, save it, and choose it as the Word template. Leave the text in it alone: only its styles, page layout, header, and footer are used.
+
+On the command line, use `--logo`, `--word-template`, and `--create-word-template` (see [Command Line Reference](#command-line-reference)).
 
 Nothing is written until you click **Save Changes**. If you switch recordings, start processing, or close the window with unsaved changes, the GUI asks whether to save them first.
 
@@ -359,7 +400,7 @@ The defaults are tuned for typical setup wizards. If a recording gives you too m
 | Too many near-duplicate screenshots (hover effects, small redraws) | Sensitivity **Low**, or raise **Merge changes within** to 2 | `--threshold 0.015` and/or `--debounce 2` |
 | Missing steps (a checkbox or small text change not caught) | Sensitivity **High**, or set **Analyze width** to 0 | `--threshold 0.002` and/or `--analyze-width 0` |
 | A screenshot you wanted was removed as a duplicate | Click **Restore Deleted** in the Steps tab, or lower **Duplicate if differs by (%)** (for example to 0.005), or untick **Remove duplicate screenshots** | `--dedup-threshold 0.005`, or `--no-dedup` |
-| The red box is in the wrong place or not useful | Untick **Highlight this step** for that step in the Steps tab, or untick **Highlight what changed in each step** before processing | `--no-highlight` |
+| The red box is in the wrong place or not useful | Untick **Highlight > Red Box on This Step** for that step in the Steps tab, or untick **Highlight what changed in each step** before processing | `--no-highlight` |
 | Screenshots show a half-drawn window | **Screenshot taken**: Finished state, or raise **Settle after change** | `--capture-point end`, or raise `--settle` |
 
 After changing settings, reprocess with **Reprocess videos that are already done** ticked (command line: `--force`).
@@ -395,7 +436,7 @@ If you talk while you record ("now I accept the license and click Next"), the to
 **Use it** in either of two ways:
 
 - Tick **Captions from narration** in Detection Settings before processing. The Videos list shows **Transcribing** after the screenshots are saved.
-- For a recording that is already processed, open it in the Steps tab and click **Captions From Narration**. Review the captions, then click **Save Changes**.
+- For a recording that is already processed, open it in the Steps tab and click **Captions From Narration** (next to **Caption**). Review the captions, then click **Save Changes**.
 
 How it works:
 
@@ -525,6 +566,9 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--dedup-threshold` | `0.01` | Two screenshots are duplicates when at most this percent of the picture differs. The default only matches virtually identical screens, so small changes such as a ticked checkbox are kept. Removed duplicates are kept as deleted steps and can be restored in the Steps tab. |
 | `--export` | none | After processing, export each recording: any of `html`, `docx`, `pdf`, comma separated (for example `--export html,pdf`). Recordings that were already processed are exported too, so this also works for re-exporting. |
 | `--doc-author`, `--doc-version` | none, `v1.0.0` | Author and version in the header of exported documents (saved for next time). |
+| `--logo` | none | A picture (PNG, JPG, GIF, or SVG) shown at the top of exported documents. |
+| `--word-template` | none | A Word `.docx` whose styles, margins, and page header and footer are used for Word exports. |
+| `--create-word-template FILE` | | Save the standard Word template to `FILE` to edit in Word, then exit. Needs Pandoc. |
 | `--pandoc`, `--browser` | auto | Explicit paths to Pandoc (Word export) and to Edge, Chrome, or Chromium (PDF export). |
 | `--no-redact` | off | Do not blur sensitive information, and do not create the `unredacted/` copy. |
 | `--redact-pattern` | none | Extra text to blur, as a case-insensitive regular expression. Repeat for several. |
@@ -534,6 +578,7 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--whisper-python` | auto | Explicit path to a Python that has faster-whisper installed. The default is the installer's `whisper-env` folder. |
 | `--crop` | none | Crop every screenshot to `X:Y:W:H` (pixels of the recording), for example `0:0:1920:1080` for the left monitor of a dual-screen recording. Width and height are rounded down to even numbers. Originals stay uncropped, and the crop can be changed in the Steps tab. |
 | `--no-highlight` | off | Do not draw the red "what changed" box. It can still be switched on later in the Steps tab, because the changed area is always worked out and saved. |
+| `--zoom` | off | Add a zoomed inset of what changed when the change is small. It can also be switched on or off later in the Steps tab. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
 | `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |
 | `--dry-run` | off | Lists the steps that would be captured without saving anything. |

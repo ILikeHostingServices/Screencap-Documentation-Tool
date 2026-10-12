@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_help.py
-# 2026-10-10
-# Version: v1.1.0
+# 2026-10-12
+# Version: v1.2.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -58,11 +58,13 @@ In the Steps tab:
 - Caption: type what the reader should do in this step.
 - Crop menu: drag a rectangle on the picture to keep only part of the screen, for all steps or just this one.
 - Blur menu: add a blur box, or click a blurred area to switch it off or back on.
-- Highlight: the red box shows what changed since the previous step. Switch it off for the whole recording (top right) or for one step (Highlight this step).
+- Highlight menu: the red box shows what changed since the previous step, and the zoomed inset shows a small change up close in a corner. Animated Clip of This Step adds a short GIF of the step when you save. Switch either on or off for the whole recording (top right) or for one step (Highlight menu).
+- Annotate menu: draw arrows, numbered markers, and text labels on the screenshot. Edit or Remove changes or removes one.
 - Screenshot / Original frame compares the edited picture with the untouched capture.
 - Open menu: the screenshot, steps.md, or the output and export folders.
+- Export: HTML, Word, or PDF. Logo and Template chooses a company logo and a Word template (its styles and page header and footer) for every export.
 - Save Changes re-renders the screenshots and steps.md from the originals. Discard Changes goes back to the last save.
-- Play in VLC opens the recording just before the selected step."""),
+- Play in VLC opens the recording just before the selected step. Captions From Narration (next to Caption) fills empty captions from what you said."""),
     ("Blurring Sensitive Information", """\
 With Tesseract OCR installed, the tool reads the text in each screenshot and blurs passwords, keys, IP addresses, and email addresses automatically. An unblurred copy of every screenshot is kept in the unredacted folder, so nothing is lost.
 

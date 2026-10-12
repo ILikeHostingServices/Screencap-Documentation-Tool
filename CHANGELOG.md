@@ -1,8 +1,66 @@
-CHANGELOG.md v1.32.0 (Last Rev: 2026-10-11)
+CHANGELOG.md v1.33.1 (Last Rev: 2026-10-12)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.30.0 - Animated clips of single steps (2026-10-12)
+
+**New**
+- **Animated GIF clips:** for steps a still picture cannot show well (dragging, a menu that opens on hover, a slider), tick **Highlight > Animated Clip of This Step (GIF)** in the Steps tab and save. The clip runs from just before the screen changes until the next screen has settled (at most 6 seconds) and appears under the step's screenshot in `steps.md` and in HTML and Word exports. **Open > Open Animated Clip** opens it.
+- Clips are made from the original recording, cropped like the screenshot and blurred with the blur boxes of the step and the next one. They are only made again when something they depend on changes, so reordering steps does not redo them.
+
+**Changed**
+- The README, the Snap Store and winget descriptions, and the Linux software center listing now describe the tool as a free replacement for Windows Steps Recorder (`psr.exe`), which Microsoft deprecated in 2023, with a comparison table under "Coming From Steps Recorder" in the README.
+
+**Fixed**
+- The Steps tab could stop with "int() argument must be a string..." when the window was resized on Linux systems whose Tk returns option values as objects (seen on Debian 12 and Raspberry Pi OS). This affected the toolbars that wrap onto more rows, added in v1.26.0.
+
+**Notes**
+- PDF exports show a clip's first frame. Before sharing, play the clip of any screen with sensitive information: it also shows the moments between the two screenshots.
+
+## v1.29.0 - Alt text on every screenshot (2026-10-12)
+
+**New**
+- Every screenshot now has **alt text** in `steps.md` and in HTML, PDF, and Word exports: the step number, its caption, and the text of any labels drawn on it (for example "Step 3: Click Next. Labels on the screenshot: "Next""). Screen readers read it aloud, and it is shown when a picture cannot be. This helps documents meet accessibility requirements such as Section 508 and WCAG.
+- Steps without a caption get "Screenshot of step N", so no picture is left without a description.
+
+**Notes**
+- In Word, the alt text is stored as the picture's description (right-click the picture > **View Alt Text**) and is not printed a second time as a caption.
+
+## v1.28.0 - Company logo and Word template for exports (2026-10-12)
+
+**New**
+- **Logo and Template...** in the Steps tab's Export box: choose a **company logo** (PNG, JPG, GIF, or SVG) that goes at the top of HTML, PDF, and Word exports, and a **Word template** whose styles (fonts, colors, spacing), margins, and page header and footer are used for Word exports. Both are remembered for every export until cleared.
+- **Create Starter Template...** saves the standard Word template to edit in Word: change its styles, put your logo or a confidentiality note in the page header or footer, save it, and choose it.
+- Command line: `--logo`, `--word-template`, and `--create-word-template FILE`.
+
+**Notes**
+- With a logo, the title block of a Word export is written with Word's Title, Subtitle, Author, and Date styles below the logo, so a template's styling of those applies too.
+
+## v1.27.0 - Zoomed inset of small changes (2026-10-12)
+
+**New**
+- **Zoomed inset:** a magnified copy (up to 2.5 times) of a small change, such as a ticked checkbox or a short field, in the corner of the screenshot farthest from it. It stays readable when a document shows the screenshot small. Switch it on for the whole recording with **Zoomed inset** (top right of the Steps tab), for one step in the new **Highlight** menu, or with `--zoom` on the command line. Steps where the change is already big enough to read get no inset.
+- The inset is made from the blurred screenshot, so it never shows anything that is blurred, and it stays inside the crop. Annotations are drawn on top of it.
+
+**Changed**
+- Steps tab: **Highlight this step** is now **Highlight > Red Box on This Step**, next to the new **Zoomed Inset on This Step**, and **Captions From Narration** moved next to **Caption**. With the shorter "removed" note above the step list, this leaves more room for the picture, which matters most on laptops with display scaling.
+
+## v1.26.0 - Annotations: arrows, numbered markers, and text labels (2026-10-12)
+
+**New**
+- **Annotate** menu in the Steps tab: draw **arrows**, **numbered markers** (1, 2, 3, ...), and **text labels** on any screenshot, so readers see exactly which button to click or which field to fill in. Drag to draw an arrow; click to place a number or a label. **Edit or Remove** changes a label's text or a marker's number, or removes it, and **Clear Annotations on This Step** removes them all.
+- Annotations are red with a thin white edge, so they stand out on light and dark screens, and their size follows the recording's resolution.
+- They are drawn on top of everything else, including blurred areas, so they never uncover what is blurred, and they follow the crop. The original frames are never changed: annotations can be edited or removed at any time.
+- Exports (HTML, Word, PDF) and `steps.md` show the annotated screenshots.
+
+**Notes**
+- Label text and marker numbers use a bold font already on your system (Segoe UI on Windows, Arial on macOS, DejaVu Sans or another sans-serif font on Linux). Set `SCREENCAP_FONT` to a `.ttf` file to use another one.
+- The Linux .deb now recommends `fonts-dejavu-core`, and the snap includes DejaVu Sans.
+
+**Fixed**
+- In the Steps tab, the toolbar above the picture and the buttons below it no longer cut off **Highlight this step** and **Discard** when the window is not wide enough; they wrap onto a second row.
 
 ## v1.25.1 - Accurate update summary in the Windows installer (2026-10-11)
 
