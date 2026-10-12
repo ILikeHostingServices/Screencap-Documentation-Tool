@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-12
-# Version: v2.4.0
+# Version: v2.4.1
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -49,6 +49,7 @@ class FlowBar(ttk.Frame):
         self.items = []
         self.gap, self.row_gap = gap, row_gap
         self._last = None
+        self._height = None
         self.bind("<Configure>", lambda e: self.layout())
 
     def add(self, widget, gap=None, right=False):
@@ -83,7 +84,8 @@ class FlowBar(ttk.Frame):
         for widget, wx, wy, h in spots:
             widget.place(in_=self, x=wx, y=wy + (max(rows[wy]) - h) // 2)
         height = y + row_h
-        if int(self.cget("height") or 0) != height:
+        if height != self._height:     # cget("height") is a Tcl object on some Tk builds
+            self._height = height
             self.configure(height=height)
 
 

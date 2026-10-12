@@ -1,4 +1,4 @@
-CHANGELOG.md v1.33.0 (Last Rev: 2026-10-12)
+CHANGELOG.md v1.33.1 (Last Rev: 2026-10-12)
 
 # Changelog
 
@@ -12,6 +12,9 @@ Every release of the Screencap Documentation Tool, newest first. Each version is
 
 **Changed**
 - The README, the Snap Store and winget descriptions, and the Linux software center listing now describe the tool as a free replacement for Windows Steps Recorder (`psr.exe`), which Microsoft deprecated in 2023, with a comparison table under "Coming From Steps Recorder" in the README.
+
+**Fixed**
+- The Steps tab could stop with "int() argument must be a string..." when the window was resized on Linux systems whose Tk returns option values as objects (seen on Debian 12 and Raspberry Pi OS). This affected the toolbars that wrap onto more rows, added in v1.26.0.
 
 **Notes**
 - PDF exports show a clip's first frame. Before sharing, play the clip of any screen with sensitive information: it also shows the moments between the two screenshots.
