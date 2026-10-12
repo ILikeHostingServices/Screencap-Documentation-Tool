@@ -4,6 +4,15 @@ CHANGELOG.md v1.33.0 (Last Rev: 2026-10-12)
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
+## v1.29.0 - Alt text on every screenshot (2026-10-12)
+
+**New**
+- Every screenshot now has **alt text** in `steps.md` and in HTML, PDF, and Word exports: the step number, its caption, and the text of any labels drawn on it (for example "Step 3: Click Next. Labels on the screenshot: "Next""). Screen readers read it aloud, and it is shown when a picture cannot be. This helps documents meet accessibility requirements such as Section 508 and WCAG.
+- Steps without a caption get "Screenshot of step N", so no picture is left without a description.
+
+**Notes**
+- In Word, the alt text is stored as the picture's description (right-click the picture > **View Alt Text**) and is not printed a second time as a caption.
+
 ## v1.28.0 - Company logo and Word template for exports (2026-10-12)
 
 **New**

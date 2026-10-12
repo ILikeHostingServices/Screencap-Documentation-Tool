@@ -2,7 +2,7 @@
 #
 # export.py
 # 2026-10-12
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
@@ -213,7 +213,7 @@ def build_html(out_dir, doc, unredacted=False, embed=True, logo=None):
             src = img.as_uri()
         parts += ['<section class="step">',
                   f'<h2>Step {i} <span class="time">({stepdoc.fmt_ts(step["time"])})</span></h2>',
-                  f'<img src="{src}" alt="Step {i}">']
+                  f'<img src="{src}" alt="{e(stepdoc.alt_text(step, i), quote=True)}">']
         caption = (step.get("caption") or "").strip()
         if caption:
             parts.append(f'<p class="caption">{e(caption)}</p>')
@@ -255,7 +255,8 @@ def build_markdown(out_dir, doc, unredacted=False, logo=None):
         lines += [f"**{warning_text()}**", ""]
     for i, step in enumerate(doc["steps"], 1):
         img = image_path(out_dir, step, unredacted).as_posix()
-        lines += [f"## Step {i}", "", f"![]({img}){{width=100%}}", ""]
+        alt = stepdoc.markdown_alt(stepdoc.alt_text(step, i))
+        lines += [f"## Step {i}", "", f"![{alt}]({img}){{width=100%}}", ""]
         caption = (step.get("caption") or "").strip()
         if caption:
             lines += [caption, ""]
@@ -296,7 +297,8 @@ def export(out_dir, doc, fmt, unredacted=False, pandoc=None, browser=None, logo=
         with tempfile.TemporaryDirectory(prefix="screencap_export_") as tmp:
             md = Path(tmp) / "steps.md"
             md.write_text(build_markdown(out_dir, doc, unredacted, logo=logo), encoding="utf-8")
-            cmd = [pandoc, str(md), "-f", "markdown", "-o", str(dest),
+            # no implicit figures: the alt text would also be printed as a caption
+            cmd = [pandoc, str(md), "-f", "markdown-implicit_figures", "-o", str(dest),
                    f"--resource-path={out_dir}"]
             if template:
                 cmd.append(f"--reference-doc={template}")

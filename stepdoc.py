@@ -2,7 +2,7 @@
 #
 # stepdoc.py
 # 2026-10-12
-# Version: v1.4.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -471,8 +471,32 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
 
 
 # ---------------------------------------------------------------------------
-# Markdown
+# Alt text and Markdown
 # ---------------------------------------------------------------------------
+
+ALT_MAX = 250   # characters; screen readers read all of it, so keep it short
+
+
+def alt_text(step, index):
+    """Alternative text for a step's screenshot, read by screen readers and
+    shown when a picture cannot be: the step number, its caption, and the
+    text of any labels drawn on it, on one line."""
+    caption = " ".join((step.get("caption") or "").split())
+    labels = [" ".join(a["text"].split()) for a in annotate.step_annotations(step)
+              if a["kind"] == "text"]
+    text = f"Step {index}: {caption}" if caption else f"Screenshot of step {index}"
+    if labels:
+        text += (" " if text.endswith((".", "!", "?", ":")) else ". ") + \
+            "Labels on the screenshot: " + "; ".join(f'"{t}"' for t in labels)
+    if len(text) > ALT_MAX:
+        text = text[:ALT_MAX - 3].rstrip() + "..."
+    return text
+
+
+def markdown_alt(text):
+    """Alt text that is safe inside ![...] in Markdown."""
+    return text.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+
 
 def markdown(doc, unredacted=False):
     steps = doc["steps"]
@@ -511,7 +535,7 @@ def markdown(doc, unredacted=False):
         if details:
             lines += ["_" + ", ".join(details) + "._", ""]
         image = f"{UNREDACTED_DIR}/{step['file']}" if unredacted else step["file"]
-        lines += [f"![Step {i}]({image})", ""]
+        lines += [f"![{markdown_alt(alt_text(step, i))}]({image})", ""]
         caption = (step.get("caption") or "").strip()
         lines += [caption if caption else "_Notes:_", ""]
     return "\n".join(lines)

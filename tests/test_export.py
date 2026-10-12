@@ -5,10 +5,10 @@
 # Version: v1.0.0
 #
 # PURPOSE:
-# Tests for the company logo and the Word template in exports: the logo
-# at the top of HTML, Word, and PDF documents, a Word template's styles
-# carried into Word exports, the starter template, and clear errors for a
-# missing or unsupported file.
+# Tests for exports: alt text on every screenshot (steps.md, HTML, Word),
+# the company logo at the top of HTML, Word, and PDF documents, a Word
+# template's styles carried into Word exports, the starter template, and
+# clear errors for a missing or unsupported file.
 #
 # Run from the repository root:
 #   python -m unittest discover -s tests -v
@@ -103,6 +103,37 @@ class BrandingTests(unittest.TestCase):
         plain = export.export(self.folder, self.doc(), "docx")
         with zipfile.ZipFile(plain) as docx:
             self.assertNotIn(MARKER_FONT, docx.read("word/styles.xml").decode("utf-8"))
+
+    def test_alt_text_describes_each_screenshot(self):
+        step = {"caption": "  Click   Next\nto continue.", "annotations": [
+            {"kind": "text", "at": [1, 1], "text": "Next [button]"},
+            {"kind": "arrow", "from": [0, 0], "to": [50, 50]}]}
+        self.assertEqual(stepdoc.alt_text(step, 3), 'Step 3: Click Next to continue. Labels on '
+                         'the screenshot: "Next [button]"')
+        self.assertEqual(stepdoc.alt_text({"caption": ""}, 1), "Screenshot of step 1")
+        self.assertLessEqual(len(stepdoc.alt_text({"caption": "x" * 900}, 1)), stepdoc.ALT_MAX)
+        self.assertEqual(stepdoc.markdown_alt("a [b] \\ c"), "a \\[b\\] \\\\ c")
+
+        doc = self.doc()
+        doc["steps"][0]["caption"] = 'Open "Setup" & <accept>'
+        page = export.build_html(self.folder, doc)
+        self.assertIn('alt="Step 1: Open &quot;Setup&quot; &amp; &lt;accept&gt;"', page)
+        stepdoc.save(self.folder, doc)
+        md = (self.folder / stepdoc.INDEX_NAME).read_text(encoding="utf-8")
+        self.assertIn('![Step 1: Open "Setup" & <accept>](', md)
+        self.assertIn(f"![Screenshot of step 2]({doc['steps'][1]['file']})", md)
+
+    @unittest.skipUnless(export.find_pandoc(), "Pandoc is not installed")
+    def test_word_pictures_have_alt_text_and_no_extra_caption(self):
+        doc = self.doc()
+        doc["steps"][0]["caption"] = "Accept the license agreement"
+        dest = export.export(self.folder, doc, "docx")
+        with zipfile.ZipFile(dest) as docx:
+            body = docx.read("word/document.xml").decode("utf-8")
+        self.assertIn('descr="Step 1: Accept the license agreement"', body)
+        visible = re.findall(r"<w:t[^>]*>([^<]*)</w:t>", body)
+        self.assertEqual(sum("Accept the license" in t for t in visible), 1,
+                         "the caption is printed once, not again as a figure caption")
 
     def test_command_line_options(self):
         out = self.tmp / "cli"

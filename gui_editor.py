@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-12
-# Version: v2.1.0
+# Version: v2.3.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
