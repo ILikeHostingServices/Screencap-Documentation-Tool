@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # stepdoc.py
-# 2026-10-02
-# Version: v1.3.0
+# 2026-10-12
+# Version: v1.4.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -14,6 +14,7 @@
 #   step_NNN_<time>.<ext>            rendered screenshots used by steps.md
 #                                    (sensitive areas blurred when redaction is on)
 #   unredacted/step_NNN_<time>.<ext> the same screenshots without blurring
+#   overlays/shapes_<hash>.pam       drawn arrows and markers (annotate.py)
 #   steps.json                       the step document (source of truth)
 #   steps.md                         generated from steps.json
 #   steps-unredacted.md              same, using the unredacted screenshots
@@ -26,6 +27,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import annotate
 import imaging
 import redact
 
@@ -235,11 +237,13 @@ def blur_graph(boxes):
     return ";".join(graph)
 
 
-def build_filter(step, doc, redacted=True):
+def build_filter(step, doc, redacted=True, work_dir=None):
     """FFmpeg filter graph that turns an original frame into the finished
     screenshot, or None when the original is used as-is. The GUI preview uses
     the same graph, so what you see is what gets saved. All coordinates are
-    in original-frame pixels. redacted=False gives the unblurred copy."""
+    in original-frame pixels. redacted=False gives the unblurred copy.
+    work_dir (the output folder) holds the drawn arrows and markers; without
+    it annotations are left out."""
     parts = []
     blur = blur_graph(redaction_boxes(step, doc)) if redacted else ""
     box = step.get("change_box")
@@ -247,14 +251,30 @@ def build_filter(step, doc, redacted=True):
         x, y, w, h = box
         thick = max(3, round((doc.get("width") or 1280) / 320))
         parts.append(f"drawbox=x={x}:y={y}:w={w}:h={h}:color={HIGHLIGHT_COLOR}@1:t={thick}")
+    # blur first, so the highlight box is drawn on top, unblurred
+    graph = blur + ("," if blur and parts else "") + ",".join(parts)
+    parts = []
+    if work_dir is not None:
+        # annotations on top of everything else, so nothing hides them
+        shapes, texts = annotate.filters(step, doc.get("width"), doc.get("height"), work_dir)
+        if shapes:
+            graph = (f"{graph or 'null'}[shot];movie={annotate.filter_path(shapes)}[ann];"
+                     "[shot][ann]overlay=0:0:format=auto")
+        parts += texts
     crop = effective_crop(step, doc)
     if crop:   # always last, so everything above uses original coordinates
         x, y, w, h = crop
         parts.append(f"crop={w}:{h}:{x}:{y}")
-    chain = ",".join(parts)
-    if blur:   # blur first, so the highlight box is drawn on top, unblurred
-        return blur + ("," + chain if chain else "")
-    return chain or None
+    if parts:
+        graph += ("," if graph else "") + ",".join(parts)
+    return graph or None
+
+
+def overlays_in_use(doc):
+    """Names of the annotation images the current steps use."""
+    return {annotate.overlay_name(doc.get("width"), doc.get("height"),
+                                  annotate.step_annotations(step))
+            for step in doc["steps"]} - {None}
 
 
 def ensure_frame_size(out_dir, doc, ffmpeg):
@@ -286,9 +306,10 @@ def ensure_change_boxes(out_dir, doc, ffmpeg):
             thumb(i - 1), thumb(i), doc["width"], doc["height"])
 
 
-def render_image(ffmpeg, src, dest, step, doc, run, redacted=True):
-    """Produce one screenshot from its original."""
-    vf = build_filter(step, doc, redacted)
+def render_image(ffmpeg, src, dest, step, doc, run, redacted=True, work_dir=None):
+    """Produce one screenshot from its original. work_dir is the output
+    folder, which holds the annotation images."""
+    vf = build_filter(step, doc, redacted, work_dir)
     if not vf:
         shutil.copyfile(src, dest)
         return
@@ -343,6 +364,8 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
     keep = set()
     if doc.get("highlight", True) or any(s.get("highlight") for s in doc["steps"]):
         ensure_change_boxes(out_dir, doc, ffmpeg)
+    if any(annotate.step_annotations(s) for s in doc["steps"]):
+        ensure_frame_size(out_dir, doc, ffmpeg)
     redacting = redaction_wanted(doc)
     if redacting:
         ensure_redactions(out_dir, doc, ffmpeg, tesseract, progress, cancel)
@@ -359,9 +382,10 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
         if not src.is_file():
             raise RuntimeError(f"Original image missing: {src}")
         name = rendered_name(i, step, ext)
-        render_image(ffmpeg, src, out_dir / name, step, doc, run_quiet)
+        render_image(ffmpeg, src, out_dir / name, step, doc, run_quiet, work_dir=out_dir)
         if redacting:
-            render_image(ffmpeg, src, unredacted / name, step, doc, run_quiet, redacted=False)
+            render_image(ffmpeg, src, unredacted / name, step, doc, run_quiet, redacted=False,
+                         work_dir=out_dir)
         step["file"] = name
         keep.add(name)
     for folder in (out_dir, unredacted):
@@ -369,6 +393,7 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
             if stale.is_file() and stale.suffix.lower() in (".png", ".jpg") and \
                     (stale.name not in keep or (folder == unredacted and not redacting)):
                 stale.unlink()
+    annotate.remove_stale_overlays(out_dir, overlays_in_use(doc))
     if not redacting:
         if unredacted.is_dir() and not any(unredacted.iterdir()):
             unredacted.rmdir()

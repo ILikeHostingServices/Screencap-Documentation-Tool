@@ -1,8 +1,23 @@
-CHANGELOG.md v1.32.0 (Last Rev: 2026-10-11)
+CHANGELOG.md v1.33.0 (Last Rev: 2026-10-12)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.26.0 - Annotations: arrows, numbered markers, and text labels (2026-10-12)
+
+**New**
+- **Annotate** menu in the Steps tab: draw **arrows**, **numbered markers** (1, 2, 3, ...), and **text labels** on any screenshot, so readers see exactly which button to click or which field to fill in. Drag to draw an arrow; click to place a number or a label. **Edit or Remove** changes a label's text or a marker's number, or removes it, and **Clear Annotations on This Step** removes them all.
+- Annotations are red with a thin white edge, so they stand out on light and dark screens, and their size follows the recording's resolution.
+- They are drawn on top of everything else, including blurred areas, so they never uncover what is blurred, and they follow the crop. The original frames are never changed: annotations can be edited or removed at any time.
+- Exports (HTML, Word, PDF) and `steps.md` show the annotated screenshots.
+
+**Notes**
+- Label text and marker numbers use a bold font already on your system (Segoe UI on Windows, Arial on macOS, DejaVu Sans or another sans-serif font on Linux). Set `SCREENCAP_FONT` to a `.ttf` file to use another one.
+- The Linux .deb now recommends `fonts-dejavu-core`, and the snap includes DejaVu Sans.
+
+**Fixed**
+- In the Steps tab, the toolbar above the picture and the buttons below it no longer cut off **Highlight this step** and **Discard** when the window is not wide enough; they wrap onto a second row.
 
 ## v1.25.1 - Accurate update summary in the Windows installer (2026-10-11)
 

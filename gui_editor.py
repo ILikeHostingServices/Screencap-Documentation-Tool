@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_editor.py
-# 2026-10-10
-# Version: v2.0.0
+# 2026-10-12
+# Version: v2.1.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -12,7 +12,8 @@
 # off for the whole recording or for a single step, screenshots can be
 # cropped by dragging a rectangle on the original frame, and sensitive areas
 # can be blurred (detected automatically, or drawn by hand) with an
-# unblurred copy kept alongside. Finished steps export to HTML, Word, or PDF,
+# unblurred copy kept alongside. Arrows, numbered markers, and text labels
+# can be drawn on each screenshot. Finished steps export to HTML, Word, or PDF,
 # Play in VLC opens the recording just before the selected step, and
 # Captions From Narration fills empty captions from what was said.
 
@@ -21,13 +22,62 @@ import threading
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, simpledialog, ttk
 
+import annotate
 import export
 import player
 import redact
 import stepdoc
 import transcribe
+
+
+ANNOTATION_COLOR = "#E53935"
+
+
+class FlowBar(ttk.Frame):
+    """A row of widgets that wraps onto more rows when the window is too
+    narrow for all of them, instead of cutting the last ones off. Widgets
+    must be created with the bar as their parent, then added in order."""
+
+    def __init__(self, parent, gap=6, row_gap=6, **kw):
+        super().__init__(parent, **kw)
+        self.items = []
+        self.gap, self.row_gap = gap, row_gap
+        self._last = None
+        self.bind("<Configure>", lambda e: self.layout())
+
+    def add(self, widget, gap=None):
+        self.items.append((widget, self.gap if gap is None else gap))
+        return widget
+
+    def layout(self):
+        width = self.winfo_width()
+        if width <= 1:
+            return
+        x = y = row_h = 0
+        spots = []
+        for widget, gap in self.items:
+            w, h = widget.winfo_reqwidth(), widget.winfo_reqheight()
+            if x and x + gap + w > width:
+                x, y, row_h = 0, y + row_h + self.row_gap, 0
+            elif x:
+                x += gap
+            spots.append((widget, x, y, h))
+            x += w
+            row_h = max(row_h, h)
+        rows = {}
+        for widget, wx, wy, h in spots:       # center each widget in its row
+            rows.setdefault(wy, []).append(h)
+        layout = (width, tuple((wx, wy) for _, wx, wy, _ in spots))
+        if layout == self._last:
+            return
+        self._last = layout
+        for widget, wx, wy, h in spots:
+            widget.place(in_=self, x=wx, y=wy + (max(rows[wy]) - h) // 2)
+        height = y + row_h
+        if int(self.cget("height") or 0) != height:
+            self.configure(height=height)
 
 
 class StepEditor(ttk.Frame):
@@ -124,13 +174,14 @@ class StepEditor(ttk.Frame):
         right.grid(row=1, column=1, sticky="nsew", padx=(14, 0))
         right.columnconfigure(0, weight=1)
         right.rowconfigure(1, weight=1)
-        viewbar = ttk.Frame(right)
+        viewbar = FlowBar(right)
         viewbar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        segment = viewbar.add(ttk.Frame(viewbar))
         for value, text in (("final", "Screenshot"), ("original", "Original frame")):
-            ttk.Radiobutton(viewbar, text=text, value=value, variable=self.v_view,
+            ttk.Radiobutton(segment, text=text, value=value, variable=self.v_view,
                             style="Segment.TRadiobutton",
                             command=self.schedule_preview).pack(side="left")
-        crop = ttk.Menubutton(viewbar, text="Crop")
+        crop = ttk.Menubutton(viewbar, text="Crop", width=0)
         crop_menu = tk.Menu(crop, tearoff=False)
         crop_menu.add_command(label="Crop All Steps (drag on the picture)",
                               command=lambda: self.begin_draw("crop", "all"))
@@ -140,8 +191,8 @@ class StepEditor(ttk.Frame):
         crop_menu.add_separator()
         crop_menu.add_command(label="Clear All Crops", command=self.clear_crops)
         crop.configure(menu=crop_menu)
-        crop.pack(side="left", padx=(14, 0))
-        blur = ttk.Menubutton(viewbar, text="Blur")
+        viewbar.add(crop, gap=14)
+        blur = ttk.Menubutton(viewbar, text="Blur", width=0)
         blur_menu = tk.Menu(blur, tearoff=False)
         blur_menu.add_command(label="Add Blur Box (drag on the picture)",
                               command=lambda: self.begin_draw("blur", "step"))
@@ -151,12 +202,27 @@ class StepEditor(ttk.Frame):
         blur_menu.add_separator()
         blur_menu.add_command(label="Re-scan All Steps for Sensitive Text", command=self.rescan)
         blur.configure(menu=blur_menu)
-        blur.pack(side="left", padx=(6, 0))
-        self.tool_menus = (crop_menu, blur_menu)
+        viewbar.add(blur)
+        mark = ttk.Menubutton(viewbar, text="Annotate", width=0)
+        mark_menu = tk.Menu(mark, tearoff=False)
+        mark_menu.add_command(label="Add Arrow (drag from the start to the tip)",
+                              command=lambda: self.begin_draw("arrow", "step"))
+        mark_menu.add_command(label="Add Number (click where it goes)",
+                              command=lambda: self.begin_place("number"))
+        mark_menu.add_command(label="Add Text Label (click where it starts)",
+                              command=lambda: self.begin_place("text"))
+        mark_menu.add_separator()
+        mark_menu.add_command(label="Edit or Remove (click an annotation)",
+                              command=lambda: self.begin_place("edit"))
+        mark_menu.add_command(label="Clear Annotations on This Step",
+                              command=self.clear_annotations)
+        mark.configure(menu=mark_menu)
+        viewbar.add(mark)
+        self.tool_menus = (crop_menu, blur_menu, mark_menu)
         self.chk_hl_step = ttk.Checkbutton(viewbar, text="Highlight this step",
                                            variable=self.v_hl_step,
                                            command=self.toggle_step_highlight)
-        self.chk_hl_step.pack(side="right")
+        viewbar.add(self.chk_hl_step, gap=14)
         self.viewbar = viewbar
 
         self.canvas = tk.Canvas(right, highlightthickness=0, height=180, width=320)
@@ -217,29 +283,28 @@ class StepEditor(ttk.Frame):
         # Bottom bar: navigation and actions on the left, saving on the right
         bar = ttk.Frame(self)
         bar.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        ttk.Button(bar, text="< Prev", width=7, command=lambda: self.step_by(-1)).pack(side="left")
-        ttk.Button(bar, text="Next >", width=7, command=lambda: self.step_by(1)).pack(
-            side="left", padx=4)
-        ttk.Separator(bar, orient="vertical").pack(side="left", fill="y", padx=8)
-        opener = ttk.Menubutton(bar, text="Open", width=6)
+        saving = ttk.Frame(bar)
+        saving.pack(side="right", anchor="n")
+        self.btn_save = ttk.Button(saving, text="Save Changes", style="Accent.TButton",
+                                   command=self.save)
+        self.btn_save.pack(side="right")
+        ttk.Button(saving, text="Discard", command=self.discard).pack(side="right", padx=6)
+        actions = FlowBar(bar, gap=4)
+        actions.pack(side="left", fill="x", expand=True)
+        actions.add(ttk.Button(actions, text="< Prev", width=7, command=lambda: self.step_by(-1)))
+        actions.add(ttk.Button(actions, text="Next >", width=7, command=lambda: self.step_by(1)))
+        opener = ttk.Menubutton(actions, text="Open", width=6)
         open_menu = tk.Menu(opener, tearoff=False)
         open_menu.add_command(label="Open Image", command=self.open_image)
         open_menu.add_command(label="Open steps.md", command=self.open_index)
         open_menu.add_command(label="Open Output Folder", command=self.open_folder)
         open_menu.add_command(label="Open Exports Folder", command=self.open_export_folder)
         opener.configure(menu=open_menu)
-        opener.pack(side="left")
+        actions.add(opener, gap=16)
         self.tool_menus = self.tool_menus + (open_menu,)
-        self.action_bar = ttk.Frame(bar)
-        self.action_bar.pack(side="left", padx=4)
-        ttk.Button(self.action_bar, text="Play in VLC", command=self.play).pack(side="left")
-        self.btn_narration = ttk.Button(self.action_bar, text="Captions From Narration",
-                                        command=self.captions_from_narration)
-        self.btn_narration.pack(side="left", padx=(4, 0))
-        self.btn_save = ttk.Button(bar, text="Save Changes", style="Accent.TButton",
-                                   command=self.save)
-        self.btn_save.pack(side="right")
-        ttk.Button(bar, text="Discard", command=self.discard).pack(side="right", padx=6)
+        actions.add(ttk.Button(actions, text="Play in VLC", command=self.play))
+        self.btn_narration = actions.add(ttk.Button(actions, text="Captions From Narration",
+                                                    command=self.captions_from_narration))
 
     def on_theme_changed(self):
         """Colors that are not styles: menus of the tool buttons and the
@@ -357,6 +422,9 @@ class StepEditor(ttk.Frame):
             n = len(stepdoc.redaction_boxes(step, self.doc))
             if n:
                 info += f" | {n} area(s) blurred"
+        marks = len(annotate.step_annotations(step))
+        if marks:
+            info += f" | {marks} annotation(s)"
         self.v_redact_step.set(bool(stepdoc.effective(step, self.doc, "redact")))
         self.v_info.set(info)
         self.v_hl_step.set(bool(stepdoc.effective(step, self.doc, "highlight")))
@@ -636,6 +704,10 @@ class StepEditor(ttk.Frame):
         self.v_view.set("original")
         self.canvas.configure(cursor="crosshair")
         self.render_preview()
+        if kind == "arrow":
+            self.app.set_status("Drag from where the arrow starts to what it points at. "
+                                "Press Esc to cancel.")
+            return
         what = {"crop": "the area to keep", "blur": "the area to blur"}.get(kind, "the area")
         self.app.set_status(f"Drag a rectangle around {what}. Press Esc to cancel.")
 
@@ -648,12 +720,16 @@ class StepEditor(ttk.Frame):
 
     def on_press(self, event):
         if self.draw and self.view_map:
-            if self.draw["kind"] == "pick":
-                self.draw = None
+            if self.draw["kind"] in ("pick", "number", "text", "edit"):
+                kind, self.draw = self.draw["kind"], None
                 self.canvas.configure(cursor="")
                 scale, ox, oy = self.view_map
-                self.pick_box((event.x - ox) / scale, (event.y - oy) / scale)
-                self.on_select()
+                x, y = (event.x - ox) / scale, (event.y - oy) / scale
+                if kind == "pick":
+                    self.pick_box(x, y)
+                    self.on_select()
+                else:
+                    self.place_annotation(kind, x, y)
                 return
             self.draw["start"] = (event.x, event.y)
 
@@ -663,6 +739,10 @@ class StepEditor(ttk.Frame):
         if self.draw["item"]:
             self.canvas.delete(self.draw["item"])
         x0, y0 = self.draw["start"]
+        if self.draw["kind"] == "arrow":
+            self.draw["item"] = self.canvas.create_line(x0, y0, event.x, event.y, arrow="last",
+                                                        fill=ANNOTATION_COLOR, width=3)
+            return
         self.draw["item"] = self.canvas.create_rectangle(x0, y0, event.x, event.y,
                                                          outline="#4FC3F7", width=2, dash=(6, 3))
 
@@ -673,6 +753,10 @@ class StepEditor(ttk.Frame):
         self.canvas.configure(cursor="")
         scale, ox, oy = self.view_map
         x0, y0 = draw["start"]
+        if draw["kind"] == "arrow":
+            self.add_arrow([(x0 - ox) / scale, (y0 - oy) / scale],
+                           [(event.x - ox) / scale, (event.y - oy) / scale])
+            return
         rect = [(min(x0, event.x) - ox) / scale, (min(y0, event.y) - oy) / scale,
                 abs(event.x - x0) / scale, abs(event.y - y0) / scale]
         if rect[2] < 8 or rect[3] < 8:
@@ -698,6 +782,125 @@ class StepEditor(ttk.Frame):
             self.app.set_status("Blur box added.")
         self.set_dirty()
         self.v_view.set("final")
+        self.on_select()
+
+    # ---------------------------------------------------------- annotations
+
+    def begin_place(self, kind):
+        """Click on the original frame to place a number or a text label, or
+        to edit or remove an annotation."""
+        step = self.current_step()
+        if step is None or not self.doc.get("width"):
+            return
+        if kind == "edit" and not annotate.step_annotations(step):
+            self.app.set_status("This step has no annotations.")
+            return
+        self.draw = {"kind": kind, "scope": "step", "start": None, "item": None}
+        self.v_view.set("original")
+        self.canvas.configure(cursor="hand2" if kind == "edit" else "crosshair")
+        self.render_preview()
+        self.app.set_status({
+            "number": "Click where the number goes. Press Esc to cancel.",
+            "text": "Click where the label's top-left corner goes. Press Esc to cancel.",
+            "edit": "Click an annotation to edit or remove it. Press Esc to cancel.",
+        }[kind])
+
+    def _frame_point(self, x, y):
+        return [max(0, min(round(x), self.doc["width"] - 1)),
+                max(0, min(round(y), self.doc["height"] - 1))]
+
+    def add_arrow(self, start, tip):
+        start, tip = self._frame_point(*start), self._frame_point(*tip)
+        if abs(tip[0] - start[0]) + abs(tip[1] - start[1]) < 12:
+            self.app.set_status("Arrow too short; drag from where it starts to its tip.")
+            self.schedule_preview()
+            return
+        self.add_annotation({"kind": "arrow", "from": start, "to": tip}, "Arrow added.")
+
+    def ask_label(self, initial=""):
+        text = simpledialog.askstring(self.app.name, "Label text:", initialvalue=initial,
+                                      parent=self.winfo_toplevel())
+        return " ".join((text or "").split())
+
+    def place_annotation(self, kind, x, y):
+        step = self.current_step()
+        point = self._frame_point(x, y)
+        if kind == "number":
+            n = annotate.next_number(step)
+            self.add_annotation({"kind": "number", "at": point, "n": n}, f"Number {n} added.")
+        elif kind == "text":
+            text = self.ask_label()
+            if not text:
+                self.app.set_status("No text; nothing added.")
+                self.schedule_preview()
+                return
+            self.add_annotation({"kind": "text", "at": point, "text": text}, "Label added.")
+        elif kind == "edit":
+            self.edit_annotation(step, x, y)
+
+    def add_annotation(self, ann, message):
+        step = self.current_step()
+        step.setdefault("annotations", []).append(ann)
+        self.set_dirty()
+        self.v_view.set("final")
+        self.app.set_status(message + " Click Save Changes to keep it.")
+        self.on_select()
+
+    def edit_annotation(self, step, x, y):
+        hits = [(d, a) for a in annotate.step_annotations(step)
+                for d in [annotate.hit(a, x, y, self.doc["width"])] if d is not None]
+        if not hits:
+            self.app.set_status("No annotation there.")
+            self.schedule_preview()
+            return
+        ann = min(hits, key=lambda h: h[0])[1]
+        parent = self.winfo_toplevel()
+        if ann["kind"] == "text":
+            text = simpledialog.askstring(
+                self.app.name, "Label text (clear it to remove the label):",
+                initialvalue=ann["text"], parent=parent)
+            if text is None:
+                self.schedule_preview()
+                return
+            text = " ".join(text.split())
+            if text:
+                ann["text"] = text
+                message = "Label changed."
+            else:
+                step["annotations"].remove(ann)
+                message = "Label removed."
+        elif ann["kind"] == "number":
+            n = simpledialog.askinteger(
+                self.app.name, "Number to show (0 removes the marker):",
+                initialvalue=ann.get("n", 1), minvalue=0, maxvalue=999, parent=parent)
+            if n is None:
+                self.schedule_preview()
+                return
+            if n:
+                ann["n"] = n
+                message = f"Marker changed to {n}."
+            else:
+                step["annotations"].remove(ann)
+                message = "Marker removed."
+        else:
+            if not messagebox.askyesno(self.app.name, "Remove this arrow?", parent=parent):
+                self.schedule_preview()
+                return
+            step["annotations"].remove(ann)
+            message = "Arrow removed."
+        self.set_dirty()
+        self.v_view.set("final")
+        self.app.set_status(message + " Click Save Changes to keep it.")
+        self.on_select()
+
+    def clear_annotations(self):
+        step = self.current_step()
+        if step is None or not annotate.step_annotations(step):
+            self.app.set_status("This step has no annotations.")
+            return
+        step["annotations"] = []
+        self.set_dirty()
+        self.app.set_status("Annotations cleared on this step. Click Save Changes to keep it.")
         self.on_select()
 
     def no_crop_step(self):
@@ -742,7 +945,7 @@ class StepEditor(ttk.Frame):
             return
         filters = None
         if self.v_view.get() == "final":
-            filters = stepdoc.build_filter(step, self.doc)
+            filters = stepdoc.build_filter(step, self.doc, work_dir=self.out_dir)
         scale = f"scale={w}:{h}:force_original_aspect_ratio=decrease"
         vf = f"{filters},{scale}" if filters else scale
         thumb = self.app.temp_dir / "preview.png"
@@ -792,6 +995,34 @@ class StepEditor(ttk.Frame):
             self.overlay(b, "#FF9800", "blur")
         if step.get("change_box") and stepdoc.effective(step, self.doc, "highlight"):
             self.overlay(step["change_box"], "#E53935")
+        self.draw_annotations(step)
+
+    def draw_annotations(self, step):
+        """Annotations as simple outlines on the original frame, so they can
+        be found and clicked; the Screenshot view shows them as saved."""
+        scale, ox, oy = self.view_map
+        sz = annotate.sizes(self.doc["width"])
+
+        def pt(p):
+            return ox + p[0] * scale, oy + p[1] * scale
+
+        for ann in annotate.step_annotations(step):
+            if ann["kind"] == "arrow":
+                self.canvas.create_line(*pt(ann["from"]), *pt(ann["to"]), arrow="last",
+                                        fill=ANNOTATION_COLOR, width=3)
+            elif ann["kind"] == "number":
+                (cx, cy), r = pt(ann["at"]), max(8, sz["marker"] * scale)
+                self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r,
+                                        outline=ANNOTATION_COLOR, width=2)
+                self.canvas.create_text(cx, cy, text=str(ann.get("n", 1)),
+                                        fill=ANNOTATION_COLOR)
+            else:
+                x, y = pt(ann["at"])
+                w, h = annotate.label_size(ann["text"], self.doc["width"])
+                self.canvas.create_rectangle(x, y, x + w * scale, y + h * scale,
+                                             outline=ANNOTATION_COLOR, width=2)
+                self.canvas.create_text(x + 4, y + h * scale / 2, anchor="w",
+                                        text=ann["text"], fill=ANNOTATION_COLOR)
 
     # ------------------------------------------------------------- saving
 

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-10-10
-# Version: v1.5.0
+# 2026-10-12
+# Version: v1.6.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
 # Videos list, then checks the Steps tab (arrow-key navigation, reordering,
-# captions, saving, captions from narration), the version in the title, and
-# the Help menu (help, About, links, update check), the light, dark, and
-# system themes, and the Advanced Settings window. Skipped when Tkinter or a
+# captions, annotations, saving, captions from narration), the version in
+# the title, the Help menu (help, About, links, update check), the light,
+# dark, and system themes, and the Advanced Settings window. Skipped when Tkinter or a
 # display is not available (on Linux CI it runs under xvfb-run).
 
 import os
@@ -198,6 +198,70 @@ class GuiTests(unittest.TestCase):
         md = (self.tmp / "caption" / "Demo" / "steps.md").read_text(encoding="utf-8")
         self.assertIn("Open the installer.", md)
         self.assertEqual(self.errors, [])
+
+    def test_annotations_are_added_edited_and_saved(self):
+        ed = self.process("annotate")
+        self.assertIn("Add Arrow (drag from the start to the tip)",
+                      self.menu_labels(ed.tool_menus[2]))
+        ed.begin_draw("arrow", "step")
+        self.pump()
+        scale, ox, oy = ed.view_map
+
+        def at(x, y):
+            return round(ox + x * scale), round(oy + y * scale)
+
+        ed.canvas.event_generate("<ButtonPress-1>", x=at(100, 600)[0], y=at(100, 600)[1])
+        ed.canvas.event_generate("<B1-Motion>", x=at(400, 600)[0], y=at(400, 600)[1])
+        ed.canvas.event_generate("<ButtonRelease-1>", x=at(500, 600)[0], y=at(500, 600)[1])
+        self.pump()
+        ed.begin_place("number")
+        self.pump()
+        ed.canvas.event_generate("<ButtonPress-1>", x=at(900, 100)[0], y=at(900, 100)[1])
+        self.pump()
+        with mock.patch.object(simpledialog, "askstring", return_value="  Click   Next "):
+            ed.begin_place("text")
+            self.pump()
+            ed.canvas.event_generate("<ButtonPress-1>", x=at(200, 200)[0], y=at(200, 200)[1])
+            self.pump()
+        anns = ed.current_step()["annotations"]
+        self.assertEqual([a["kind"] for a in anns], ["arrow", "number", "text"])
+        self.assertEqual(anns[1]["n"], 1)
+        self.assertEqual(anns[2]["text"], "Click Next")
+        self.assertLess(abs(anns[0]["to"][0] - 500), 6)
+
+        # Edit: setting the marker to 0 removes it
+        with mock.patch.object(simpledialog, "askinteger", return_value=0):
+            ed.begin_place("edit")
+            self.pump()
+            ed.canvas.event_generate("<ButtonPress-1>", x=at(900, 100)[0], y=at(900, 100)[1])
+            self.pump()
+        self.assertEqual([a["kind"] for a in ed.current_step()["annotations"]],
+                         ["arrow", "text"])
+        self.assertTrue(ed.save(wait=True))
+        self.pump()
+        import stepdoc
+        saved = stepdoc.load(self.tmp / "annotate" / "Demo")
+        self.assertEqual(len(saved["steps"][0]["annotations"]), 2)
+        self.assertEqual(self.errors, [])
+
+    def test_toolbars_wrap_instead_of_cutting_buttons_off(self):
+        import gui_editor
+        ed = self.app.editor
+        bars = [w for w in self.all_widgets(ed) if isinstance(w, gui_editor.FlowBar)]
+        self.assertEqual(len(bars), 2)
+        for size in ("1400x860", "1180x720"):
+            self.root.geometry(size)
+            self.pump(0.5)
+            for bar in bars:
+                for widget, _gap in bar.items:
+                    right = widget.winfo_x() + widget.winfo_reqwidth()
+                    self.assertLessEqual(right, bar.winfo_width() + 1,
+                                         f"{widget} is cut off at {size}")
+
+    def all_widgets(self, widget):
+        for child in widget.winfo_children():
+            yield child
+            yield from self.all_widgets(child)
 
     def test_captions_from_narration(self):
         ed = self.process("narration")

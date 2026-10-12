@@ -1,4 +1,4 @@
-README.md v1.34.0 (Last Rev: 2026-10-11)
+README.md v1.35.0 (Last Rev: 2026-10-12)
 
 # Screencap Documentation Tool
 
@@ -15,6 +15,7 @@ For each recording you get:
 - Duplicate screenshots (for example when you go back to a screen you already captured) are removed automatically, and can be restored.
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps.
+- Annotations: draw arrows, numbered markers, and text labels on any screenshot to point readers at the right button.
 - A clean GUI with light and dark themes that can follow the system setting.
 - Saved presets: built-in settings for installer wizards, general desktop use, web consoles, terminals, remote desktops, forms, slideshows, video meetings, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
@@ -64,6 +65,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `whisper_worker.py` | Runs the speech recognition (faster-whisper) in the optional `whisper-env` Python environment. |
 | `whisper-env/` | Optional. Created by the installer's speech recognition option (`-WithWhisper` or `SCREENCAP_WITH_WHISPER=1`). Not in git. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
+| `annotate.py` | Annotations (arrows, numbered markers, text labels): draws them and gives FFmpeg the filters that put them on the screenshot. |
 | `tests/` | Automated tests, including a GUI test that drives the real window. See [Automated Testing](#automated-testing). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
@@ -305,6 +307,7 @@ Select a processed recording in the **Recordings** list and the **Steps** tab sh
 | **Screenshot / Original frame** | Preview the step as it will be saved, or the untouched frame from the video. |
 | **Crop** menu | **Crop All Steps** or **Crop This Step Only**: drag a rectangle on the picture around the area to keep (Esc cancels). **No Crop on This Step** leaves the selected step uncropped even when the recording has a crop. **Clear All Crops** removes every crop. |
 | **Blur** menu | **Add Blur Box**: drag a rectangle around anything else to blur. **Un-blur / Re-blur**: click a blur box on the picture; a detected box is switched off (gray outline) or back on, a hand-drawn box is removed. **Blur This Step** switches blurring for the selected step only. **Re-scan All Steps for Sensitive Text** detects sensitive text again on every step and saves, for example after installing Tesseract (hand-drawn boxes are kept). |
+| **Annotate** menu | **Add Arrow**: drag from where the arrow starts to what it points at. **Add Number**: click to place a numbered marker (1, 2, 3, ... in the order you add them). **Add Text Label**: click where the label goes and type its text. **Edit or Remove**: click an annotation to change its text or number, or to remove it (an empty label or the number 0 removes it). **Clear Annotations on This Step** removes them all. Annotations are drawn on top of everything else, including the blur, so they never reveal what is blurred. |
 | **Highlight this step** | Turn the red "what changed" box on or off for the selected step only. This overrides the recording-wide setting. |
 | **Whole recording: Blur sensitive info / Highlight changes** (top right) | Turn blurring or the red box on or off for the whole recording. |
 | **Caption** | The text shown under the step in `steps.md` and in exports, replacing the `_Notes:_` placeholder. |
@@ -316,7 +319,7 @@ Select a processed recording in the **Recordings** list and the **Steps** tab sh
 | **Save Changes** | Re-render the screenshots from the originals and regenerate `steps.md` and `steps.json`. |
 | **Discard** | Go back to the last saved version. |
 
-On **Original frame**, dashed outlines show what will be applied: blue for the crop, red for the "what changed" box, yellow for detected sensitive text (gray when switched off), and orange for hand-drawn blur boxes. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
+On **Original frame**, dashed outlines show what will be applied: blue for the crop, red for the "what changed" box, yellow for detected sensitive text (gray when switched off), and orange for hand-drawn blur boxes. Annotations are shown as red outlines there, and finished on **Screenshot**. Annotation sizes follow the recording's resolution, so they look the same in a 1080p and a 4K recording. Their text uses a bold system font (Segoe UI on Windows, Arial on macOS, DejaVu Sans or another sans-serif font on Linux); set `SCREENCAP_FONT` to the path of a `.ttf` file to use a different one. The drawn arrows and markers are kept in an `overlays` folder next to the screenshots. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
 
 Nothing is written until you click **Save Changes**. If you switch recordings, start processing, or close the window with unsaved changes, the GUI asks whether to save them first.
 

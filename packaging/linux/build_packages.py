@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # build_packages.py
-# 2026-10-10
-# Version: v1.0.0
+# 2026-10-12
+# Version: v1.0.1
 #
 # PURPOSE:
 # Builds the .deb (Debian, Ubuntu, Mint, Pop!_OS) and .rpm (Fedora, RHEL
@@ -43,7 +43,8 @@ DESCRIPTION = (
 DEPENDS = {
     "deb": {
         "depends": ["python3 (>= 3.8)", "python3-tk", "ffmpeg"],
-        "recommends": ["tesseract-ocr", "tesseract-ocr-eng", "pandoc", "xdg-utils"],
+        "recommends": ["tesseract-ocr", "tesseract-ocr-eng", "pandoc", "xdg-utils",
+                       "fonts-dejavu-core"],
         "suggests": ["vlc", "chromium | chromium-browser | google-chrome-stable"],
     },
     "rpm": {

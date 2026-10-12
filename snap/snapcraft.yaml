@@ -1,6 +1,6 @@
 # snapcraft.yaml
-# 2026-10-11
-# Version: v1.1.0
+# 2026-10-12
+# Version: v1.1.1
 #
 # PURPOSE:
 # Snap package for the Snap Store (Ubuntu and any distribution with snapd).
@@ -88,3 +88,4 @@ parts:
       - tesseract-ocr-eng
       - pandoc
       - xdg-utils
+      - fonts-dejavu-core   # text and numbers on annotations
