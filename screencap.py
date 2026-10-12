@@ -39,7 +39,7 @@ import version  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -428,7 +428,8 @@ def export_video(out_dir, args):
     failed = 0
     for fmt in args.export:
         try:
-            dest = export.export(out_dir, doc, fmt, pandoc=args.pandoc, browser=args.browser)
+            dest = export.export(out_dir, doc, fmt, pandoc=args.pandoc, browser=args.browser,
+                                 logo=args.logo, template=args.word_template)
             log.info("  Exported %s", dest)
         except Exception as exc:
             failed += 1
@@ -550,6 +551,13 @@ def parse_args(argv):
     p.add_argument("--doc-author", help="Author shown in exported documents")
     p.add_argument("--doc-version", help="Version shown in exported documents "
                                           "(default: v1.0.0)")
+    p.add_argument("--logo", help="Picture (PNG, JPG, GIF, or SVG) shown at the top of "
+                                  "exported documents")
+    p.add_argument("--word-template", metavar="DOCX",
+                   help="Word document whose styles, margins, and page header and footer "
+                        "are used for docx exports (see --create-word-template)")
+    p.add_argument("--create-word-template", metavar="DOCX",
+                   help="Save the standard Word template to DOCX to edit in Word, then exit")
     p.add_argument("--pandoc", help="Path to pandoc (needed for docx export)")
     p.add_argument("--browser", help="Path to Microsoft Edge, Google Chrome, or "
                                      "Chromium (needed for pdf export)")
@@ -642,6 +650,15 @@ def setup_logging(output, verbose):
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.create_word_template:
+        try:
+            dest = export.create_template(args.create_word_template, pandoc=args.pandoc)
+        except (RuntimeError, OSError) as exc:
+            print(f"Could not create the Word template: {exc}", file=sys.stderr)
+            return EXIT_SETUP_ERROR
+        print(f"Saved the standard Word template to {dest}. Open it in Word, change its "
+              "styles and page header, save it, and use it with --word-template.")
+        return 0
     source = args.source.expanduser().resolve()
     output = args.output.expanduser().resolve()
     setup_logging(output, args.verbose)

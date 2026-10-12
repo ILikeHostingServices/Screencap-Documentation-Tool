@@ -21,7 +21,7 @@ For each recording you get:
 - Saved presets: built-in settings for installer wizards, general desktop use, web consoles, terminals, remote desktops, forms, slideshows, video meetings, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
 - Optional **Captions From Narration**: if you talk while you record, what you said becomes the first-draft caption of each step. Speech recognition runs offline on your PC.
-- One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header. Every original frame is kept, so nothing you do in the editor is permanent.
+- One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header, and optionally your company logo and Word template. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring and [Pandoc](https://pandoc.org/) for Word export. PDF export uses Microsoft Edge (included with Windows 11) or Google Chrome/Chromium. All are free and open source, and the installers set them up for you.
 
@@ -313,7 +313,7 @@ Select a processed recording in the **Recordings** list and the **Steps** tab sh
 | **Whole recording: Blur sensitive info / Highlight changes / Zoomed inset** (top right) | Turn blurring, the red box, or the zoomed inset on or off for the whole recording. The **zoomed inset** is a magnified copy (up to 2.5 times) of a small change, such as a ticked checkbox or a short field, placed in the corner of the screenshot farthest from it, so it stays readable when the document shows the screenshot small. Steps where the change is already big enough to read, or where nothing changed, get no inset. It is made from the blurred screenshot, so it never shows anything that is blurred. |
 | **Caption** | The text shown under the step in `steps.md` and in exports, replacing the `_Notes:_` placeholder. |
 | **Document title / Version / Author** | The header of exported documents. The title defaults to the recording's name and the version to `v1.0.0`; the date is the day you export. |
-| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. |
+| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. **Logo and Template...** chooses a company logo and a Word template used for every export (see [Logo And Word Template](#logo-and-word-template)). |
 | **Open** menu | Open the screenshot, `steps.md`, the recording's output folder, or the exports folder. |
 | **Play in VLC** | Open the original recording in VLC 3 seconds before the selected step's screen appeared, so you can watch the click or keystroke that led to it. Needs [VLC](https://www.videolan.org/) and the recording still in its source folder. |
 | **Captions From Narration** | Fill the empty captions from what was said in the recording (see [Captions From Narration](#captions-from-narration)). |
@@ -321,6 +321,16 @@ Select a processed recording in the **Recordings** list and the **Steps** tab sh
 | **Discard** | Go back to the last saved version. |
 
 On **Original frame**, dashed outlines show what will be applied: blue for the crop, red for the "what changed" box, yellow for detected sensitive text (gray when switched off), and orange for hand-drawn blur boxes. Annotations are shown as red outlines there, and finished on **Screenshot**. Annotation sizes follow the recording's resolution, so they look the same in a 1080p and a 4K recording. Their text uses a bold system font (Segoe UI on Windows, Arial on macOS, DejaVu Sans or another sans-serif font on Linux); set `SCREENCAP_FONT` to the path of a `.ttf` file to use a different one. The drawn arrows and markers are kept in an `overlays` folder next to the screenshots. Cropping only affects the rendered screenshots: the frames in `originals/` are never changed, so a crop can be adjusted or removed at any time.
+
+#### Logo And Word Template
+
+Click **Logo and Template...** in the Export box to make exports look like your own documents. Both are remembered and used for every export until you clear them.
+
+- **Logo**: a PNG, JPG, GIF, or SVG picture shown at the top of HTML, PDF, and Word exports, next to (HTML, PDF) or above (Word) the title.
+- **Word template**: a Word document whose look is copied into Word exports: the fonts, colors, and spacing of its styles (Title, Heading 2 for the step headings, Normal for captions), its margins and page size, and its page header and footer. Word's own templates (`.dotx`) are not used directly; save a `.docx` instead.
+- **Create Starter Template...** saves the standard template (it needs Pandoc). Open it in Word, change its styles (right-click a style in the Styles gallery, then **Modify**) and add your logo or a confidentiality note to the page header or footer, save it, and choose it as the Word template. Leave the text in it alone: only its styles, page layout, header, and footer are used.
+
+On the command line, use `--logo`, `--word-template`, and `--create-word-template` (see [Command Line Reference](#command-line-reference)).
 
 Nothing is written until you click **Save Changes**. If you switch recordings, start processing, or close the window with unsaved changes, the GUI asks whether to save them first.
 
@@ -529,6 +539,9 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--dedup-threshold` | `0.01` | Two screenshots are duplicates when at most this percent of the picture differs. The default only matches virtually identical screens, so small changes such as a ticked checkbox are kept. Removed duplicates are kept as deleted steps and can be restored in the Steps tab. |
 | `--export` | none | After processing, export each recording: any of `html`, `docx`, `pdf`, comma separated (for example `--export html,pdf`). Recordings that were already processed are exported too, so this also works for re-exporting. |
 | `--doc-author`, `--doc-version` | none, `v1.0.0` | Author and version in the header of exported documents (saved for next time). |
+| `--logo` | none | A picture (PNG, JPG, GIF, or SVG) shown at the top of exported documents. |
+| `--word-template` | none | A Word `.docx` whose styles, margins, and page header and footer are used for Word exports. |
+| `--create-word-template FILE` | | Save the standard Word template to `FILE` to edit in Word, then exit. Needs Pandoc. |
 | `--pandoc`, `--browser` | auto | Explicit paths to Pandoc (Word export) and to Edge, Chrome, or Chromium (PDF export). |
 | `--no-redact` | off | Do not blur sensitive information, and do not create the `unredacted/` copy. |
 | `--redact-pattern` | none | Extra text to blur, as a case-insensitive regular expression. Repeat for several. |

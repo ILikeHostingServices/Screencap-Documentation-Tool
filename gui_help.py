@@ -62,6 +62,7 @@ In the Steps tab:
 - Annotate menu: draw arrows, numbered markers, and text labels on the screenshot. Edit or Remove changes or removes one.
 - Screenshot / Original frame compares the edited picture with the untouched capture.
 - Open menu: the screenshot, steps.md, or the output and export folders.
+- Export: HTML, Word, or PDF. Logo and Template chooses a company logo and a Word template (its styles and page header and footer) for every export.
 - Save Changes re-renders the screenshots and steps.md from the originals. Discard Changes goes back to the last save.
 - Play in VLC opens the recording just before the selected step. Captions From Narration (next to Caption) fills empty captions from what you said."""),
     ("Blurring Sensitive Information", """\

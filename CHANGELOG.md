@@ -4,6 +4,16 @@ CHANGELOG.md v1.33.0 (Last Rev: 2026-10-12)
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
+## v1.28.0 - Company logo and Word template for exports (2026-10-12)
+
+**New**
+- **Logo and Template...** in the Steps tab's Export box: choose a **company logo** (PNG, JPG, GIF, or SVG) that goes at the top of HTML, PDF, and Word exports, and a **Word template** whose styles (fonts, colors, spacing), margins, and page header and footer are used for Word exports. Both are remembered for every export until cleared.
+- **Create Starter Template...** saves the standard Word template to edit in Word: change its styles, put your logo or a confidentiality note in the page header or footer, save it, and choose it.
+- Command line: `--logo`, `--word-template`, and `--create-word-template FILE`.
+
+**Notes**
+- With a logo, the title block of a Word export is written with Word's Title, Subtitle, Author, and Date styles below the logo, so a template's styling of those applies too.
+
 ## v1.27.0 - Zoomed inset of small changes (2026-10-12)
 
 **New**

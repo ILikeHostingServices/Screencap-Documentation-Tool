@@ -244,6 +244,36 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(len(saved["steps"][0]["annotations"]), 2)
         self.assertEqual(self.errors, [])
 
+    def test_logo_and_template_are_chosen_once_for_every_export(self):
+        import export
+        import subprocess
+        from tkinter import filedialog
+        ed = self.process("branding")
+        logo = self.tmp / "logo.png"
+        subprocess.run([FFMPEG, "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                        "color=blue:s=120x40", "-frames:v", "1", str(logo)], check=True)
+        win = ed.open_branding()
+        self.pump()
+        with mock.patch.object(filedialog, "askopenfilename", return_value=str(logo)):
+            browse = [w for w in self.all_widgets(win)
+                      if isinstance(w, tk.ttk.Button) and w.cget("text") == "Browse..."][0]
+            browse.invoke()
+        self.pump()
+        self.assertEqual(self.app.settings_extra.get("export_logo"), str(logo))
+        self.assertEqual(self.gui.App.read_settings_file().get("export_logo"), str(logo))
+        win.destroy()
+        exported = {}
+        with mock.patch.object(export, "export",
+                               side_effect=lambda *a, **k: exported.update(k) or logo):
+            ed.export("html")
+            end = time.monotonic() + 30
+            while not exported and time.monotonic() < end:
+                self.pump(0.2)
+        self.assertEqual(exported.get("logo"), str(logo))
+        self.assertIsNone(exported.get("template"))
+        self.app.settings_extra.pop("export_logo", None)
+        self.assertEqual(self.errors, [])
+
     def test_toolbars_wrap_instead_of_cutting_buttons_off(self):
         import gui_editor
         ed = self.app.editor

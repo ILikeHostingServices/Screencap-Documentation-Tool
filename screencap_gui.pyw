@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-10-10
-# Version: v2.2.0
+# 2026-10-12
+# Version: v2.3.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -790,7 +790,8 @@ class App:
         # canonical(): names saved before v1.23.0 were in sentence case
         self.v_profile.set(presets.canonical(self.v_profile.get()) or presets.DEFAULT)
         self.settings_extra = {k: data[k] for k in ("check_updates", "last_update_check",
-                                                    "skip_version", "installer_folders")
+                                                    "skip_version", "installer_folders",
+                                                    "export_logo", "export_template")
                                if k in data}
         self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))
         if self.v_theme.get() not in theme.MODES:

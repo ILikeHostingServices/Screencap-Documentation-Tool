@@ -36,6 +36,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.28.0" date="2026-10-12">
+      <description>
+        <p>Company logo and Word template for exported documents.</p>
+      </description>
+    </release>
     <release version="1.27.0" date="2026-10-12">
       <description>
         <p>Zoomed inset that shows small changes up close.</p>

@@ -16,14 +16,15 @@
 # can be drawn on each screenshot, and a zoomed inset can show a small
 # change up close. Finished steps export to HTML, Word, or PDF,
 # Play in VLC opens the recording just before the selected step, and
-# Captions From Narration fills empty captions from what was said.
+# Captions From Narration fills empty captions from what was said. A
+# company logo and a Word template can be chosen for every export.
 
 import copy
 import threading
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import annotate
 import export
@@ -34,6 +35,7 @@ import transcribe
 
 
 ANNOTATION_COLOR = "#E53935"
+LOGO_KEY, TEMPLATE_KEY = "export_logo", "export_template"   # keys in the app settings
 
 
 class FlowBar(ttk.Frame):
@@ -287,7 +289,9 @@ class StepEditor(ttk.Frame):
         exp = ttk.Frame(lower, style="Card.TFrame", padding=10)
         exp.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         ttk.Label(exp, text="Export", style="Card.Muted.TLabel").grid(row=0, column=0,
-                                                                       columnspan=3, sticky="w")
+                                                                       sticky="w")
+        ttk.Button(exp, text="Logo and Template...", style="Card.Link.TButton",
+                   command=self.open_branding).grid(row=0, column=1, columnspan=2, sticky="e")
         self.export_buttons = []
         for col, (fmt, text) in enumerate((("html", "HTML"), ("docx", "Word"), ("pdf", "PDF"))):
             b = ttk.Button(exp, text=text, width=6, command=lambda f=fmt: self.export(f))
@@ -613,12 +617,15 @@ class StepEditor(ttk.Frame):
                 "UNREDACTED.", icon="warning", parent=parent):
             return
         doc, out_dir = self.doc, self.out_dir
+        branding = self.branding()
         result = {}
 
         def work():
             try:
                 result["path"] = export.export(out_dir, doc, fmt, unredacted,
-                                               pandoc=self.app.pandoc, browser=self.app.browser)
+                                               pandoc=self.app.pandoc, browser=self.app.browser,
+                                               logo=branding.get(LOGO_KEY),
+                                               template=branding.get(TEMPLATE_KEY))
             except Exception as exc:
                 result["error"] = exc
 
@@ -643,6 +650,109 @@ class StepEditor(ttk.Frame):
             self.app.open_path(result["path"])
 
         check()
+
+    # ---------------------------------------------------------- branding
+
+    def branding(self):
+        """The logo and Word template chosen for every export (app settings)."""
+        extra = getattr(self.app, "settings_extra", {})
+        return {k: extra.get(k) for k in (LOGO_KEY, TEMPLATE_KEY) if extra.get(k)}
+
+    def set_branding(self, key, value):
+        extra = self.app.settings_extra
+        if value:
+            extra[key] = str(value)
+        else:
+            extra.pop(key, None)
+        self.app.save_settings()
+
+    def open_branding(self):
+        """A small window to choose the logo and the Word template used for
+        every export."""
+        win = getattr(self, "branding_window", None)
+        if win is not None and win.winfo_exists():
+            win.deiconify()
+            win.lift()
+            return win
+        parent = self.winfo_toplevel()
+        win = tk.Toplevel(parent)
+        win.title("Logo and Template")
+        win.resizable(False, False)
+        win.transient(parent)
+        self.branding_window = win
+        body = ttk.Frame(win, padding=(20, 18))
+        body.pack(fill="both", expand=True)
+        body.columnconfigure(1, weight=1)
+        ttk.Label(body, text="Logo and Word Template", style="Heading.TLabel").grid(
+            row=0, column=0, columnspan=4, sticky="w")
+        ttk.Label(body, text="Used for every export. The logo goes at the top of HTML, PDF, "
+                             "and Word documents. A Word template sets the fonts, colors, "
+                             "margins, and page header and footer of Word exports.",
+                  style="Muted.TLabel", wraplength=760, justify="left").grid(
+            row=1, column=0, columnspan=4, sticky="w", pady=(4, 14))
+        current = self.branding()
+        self.v_logo = tk.StringVar(value=current.get(LOGO_KEY, ""))
+        self.v_template = tk.StringVar(value=current.get(TEMPLATE_KEY, ""))
+        rows = ((LOGO_KEY, "Logo", self.v_logo,
+                 [("Pictures", "*.png *.jpg *.jpeg *.gif *.svg"), ("All files", "*.*")]),
+                (TEMPLATE_KEY, "Word template", self.v_template,
+                 [("Word documents", "*.docx"), ("All files", "*.*")]))
+        for row, (key, label, var, types) in enumerate(rows, start=2):
+            ttk.Label(body, text=label).grid(row=row, column=0, sticky="w", padx=(0, 10),
+                                             pady=3)
+            ttk.Entry(body, textvariable=var, width=46, state="readonly").grid(
+                row=row, column=1, sticky="ew", pady=3)
+
+            def browse(key=key, var=var, types=types, label=label):
+                path = filedialog.askopenfilename(parent=win, title=f"Choose the {label.lower()}",
+                                                  filetypes=types)
+                if path:
+                    var.set(path)
+                    self.set_branding(key, path)
+                    self.app.set_status(f"{label} set for every export.")
+
+            def clear(key=key, var=var, label=label):
+                var.set("")
+                self.set_branding(key, None)
+                self.app.set_status(f"{label} cleared.")
+
+            ttk.Button(body, text="Browse...", command=browse).grid(row=row, column=2,
+                                                                    padx=(8, 0), pady=3)
+            ttk.Button(body, text="Clear", command=clear).grid(row=row, column=3,
+                                                               padx=(6, 0), pady=3)
+        starter = ttk.Frame(body)
+        starter.grid(row=4, column=0, columnspan=4, sticky="ew", pady=(14, 0))
+        ttk.Button(starter, text="Create Starter Template...",
+                   command=lambda: self.create_template(win)).pack(side="left")
+        ttk.Label(starter, text="Saves the standard template. Open it in Word, change its "
+                                "styles and page header, save it, and choose it above.",
+                  style="Muted.TLabel", wraplength=520, justify="left").pack(
+            side="left", padx=(10, 0))
+        ttk.Button(body, text="Close", command=win.destroy).grid(
+            row=5, column=3, columnspan=1, sticky="e", pady=(18, 0))
+        theme = getattr(self.app, "theme", None)
+        if theme is not None:
+            theme.style_widgets(win)
+        return win
+
+    def create_template(self, win):
+        path = filedialog.asksaveasfilename(parent=win, title="Save the starter Word template",
+                                            defaultextension=".docx",
+                                            initialfile="Screencap template.docx",
+                                            filetypes=[("Word documents", "*.docx")])
+        if not path:
+            return None
+        try:
+            dest = export.create_template(path, pandoc=self.app.pandoc)
+        except Exception as exc:
+            messagebox.showerror(self.app.name, str(exc), parent=win)
+            return None
+        self.v_template.set(str(dest))
+        self.set_branding(TEMPLATE_KEY, dest)
+        self.app.set_status(f"Saved {dest.name} and chose it as the Word template. "
+                            "Open it in Word to change how exports look.")
+        self.app.open_path(dest)
+        return dest
 
     def open_export_folder(self):
         folder = self.out_dir / export.EXPORT_DIR if self.out_dir else None
