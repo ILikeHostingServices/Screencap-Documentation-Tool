@@ -2,7 +2,7 @@
 #
 # export.py
 # 2026-10-12
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
@@ -27,6 +27,7 @@ import tempfile
 import time
 from pathlib import Path
 
+import clips
 import stepdoc
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -186,6 +187,7 @@ def build_html(out_dir, doc, unredacted=False, embed=True, logo=None):
         "section.step{margin:0 0 28px;page-break-inside:avoid;break-inside:avoid}",
         "h2{font-size:1.15em;margin:0 0 8px}.time{color:#777;font-weight:normal;font-size:0.85em}",
         "img{max-width:100%;border:1px solid #ccc}",
+        "img.clip{display:block;margin-top:8px}",
         "p.caption{margin:8px 0 0;white-space:pre-wrap}",
         "footer{color:#888;font-size:0.8em;border-top:1px solid #ddd;margin-top:32px;padding-top:8px}",
         "</style>", "</head>", "<body>", "<header>",
@@ -214,6 +216,11 @@ def build_html(out_dir, doc, unredacted=False, embed=True, logo=None):
         parts += ['<section class="step">',
                   f'<h2>Step {i} <span class="time">({stepdoc.fmt_ts(step["time"])})</span></h2>',
                   f'<img src="{src}" alt="{e(stepdoc.alt_text(step, i), quote=True)}">']
+        clip = clips.clip_path(out_dir, step)
+        if clip:
+            gif = (f"data:image/gif;base64,{base64.b64encode(clip.read_bytes()).decode('ascii')}"
+                   if embed else clip.as_uri())
+            parts.append(f'<img class="clip" src="{gif}" alt="Animated clip of step {i}">')
         caption = (step.get("caption") or "").strip()
         if caption:
             parts.append(f'<p class="caption">{e(caption)}</p>')
@@ -257,6 +264,9 @@ def build_markdown(out_dir, doc, unredacted=False, logo=None):
         img = image_path(out_dir, step, unredacted).as_posix()
         alt = stepdoc.markdown_alt(stepdoc.alt_text(step, i))
         lines += [f"## Step {i}", "", f"![{alt}]({img}){{width=100%}}", ""]
+        clip = clips.clip_path(out_dir, step)
+        if clip:
+            lines += [f"![Animated clip of step {i}]({clip.as_posix()}){{width=100%}}", ""]
         caption = (step.get("caption") or "").strip()
         if caption:
             lines += [caption, ""]

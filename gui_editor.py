@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-12
-# Version: v2.3.0
+# Version: v2.4.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -27,6 +27,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import annotate
+import clips
 import export
 import player
 import redact
@@ -108,6 +109,7 @@ class StepEditor(ttk.Frame):
         self.v_redact_step = tk.BooleanVar(value=True)
         self.v_zoom_doc = tk.BooleanVar(value=False)
         self.v_zoom_step = tk.BooleanVar(value=False)
+        self.v_clip_step = tk.BooleanVar(value=False)
         self.v_doc_title = tk.StringVar(value="")
         self.v_doc_version = tk.StringVar(value="")
         self.v_doc_author = tk.StringVar(value="")
@@ -235,6 +237,9 @@ class StepEditor(ttk.Frame):
                                 command=self.toggle_step_highlight)
         hl_menu.add_checkbutton(label="Zoomed Inset on This Step", variable=self.v_zoom_step,
                                 command=self.toggle_step_zoom)
+        hl_menu.add_separator()
+        hl_menu.add_checkbutton(label="Animated Clip of This Step (GIF)",
+                                variable=self.v_clip_step, command=self.toggle_step_clip)
         hl.configure(menu=hl_menu)
         viewbar.add(hl)
         self.tool_menus = (crop_menu, blur_menu, mark_menu, hl_menu)
@@ -318,6 +323,7 @@ class StepEditor(ttk.Frame):
         opener = ttk.Menubutton(actions, text="Open", width=6)
         open_menu = tk.Menu(opener, tearoff=False)
         open_menu.add_command(label="Open Image", command=self.open_image)
+        open_menu.add_command(label="Open Animated Clip", command=self.open_clip)
         open_menu.add_command(label="Open steps.md", command=self.open_index)
         open_menu.add_command(label="Open Output Folder", command=self.open_folder)
         open_menu.add_command(label="Open Exports Folder", command=self.open_export_folder)
@@ -445,6 +451,11 @@ class StepEditor(ttk.Frame):
         if stepdoc.effective(step, self.doc, "zoom", default=False) and "change_box" in step:
             info += (" | zoomed inset" if stepdoc.zoom_inset(step, self.doc) else
                      " | no inset (no change found, or it is big enough to read)")
+        if clips.wanted(step):
+            start, end = clips.clip_range(step, self.doc)
+            made = " (made when you save)" if not clips.clip_path(self.out_dir, step) or \
+                self.dirty else ""
+            info += f" | animated clip {end - start:.1f} s{made}"
         marks = len(annotate.step_annotations(step))
         if marks:
             info += f" | {marks} annotation(s)"
@@ -452,6 +463,7 @@ class StepEditor(ttk.Frame):
         self.v_info.set(info)
         self.v_hl_step.set(bool(stepdoc.effective(step, self.doc, "highlight")))
         self.v_zoom_step.set(bool(stepdoc.effective(step, self.doc, "zoom", default=False)))
+        self.v_clip_step.set(clips.wanted(step))
         self._set_caption(step.get("caption", ""))
         self.schedule_preview()
 
@@ -582,6 +594,24 @@ class StepEditor(ttk.Frame):
         if step["zoom"]:
             self.ensure_boxes()
         self.set_dirty()
+        self.on_select()
+
+    def toggle_step_clip(self):
+        step = self.current_step()
+        if step is None:
+            return
+        if self.v_clip_step.get() and self.source_video() is None:
+            self.v_clip_step.set(False)
+            messagebox.showinfo(self.app.name, "The original recording was not found, so a clip "
+                                "cannot be made. It may have been moved or deleted from the "
+                                "source folder.", parent=self.winfo_toplevel())
+            return
+        step["clip"] = self.v_clip_step.get()
+        if step["clip"] and not self.doc.get("source_path") and self.source_video():
+            self.doc["source_path"] = str(self.source_video())
+        self.set_dirty()
+        self.app.set_status("The animated clip is made when you click Save Changes."
+                            if step["clip"] else "Clip removed from this step.")
         self.on_select()
 
     # -------------------------------------------------------------- export
@@ -1255,6 +1285,15 @@ class StepEditor(ttk.Frame):
             path = self.out_dir / step["original"]
         if path.is_file():
             self.app.open_path(path)
+
+    def open_clip(self):
+        step = self.current_step()
+        path = clips.clip_path(self.out_dir, step) if step is not None else None
+        if path:
+            self.app.open_path(path)
+        else:
+            self.app.set_status("This step has no animated clip. Switch it on in the "
+                                "Highlight menu, then click Save Changes.")
 
     def source_video(self):
         """The recording this output came from: the one selected in the

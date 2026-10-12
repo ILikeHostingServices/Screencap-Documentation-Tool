@@ -15,10 +15,10 @@ name: screencap-documentation-tool
 title: Screencap Documentation Tool
 summary: Turn screen recordings into step-by-step screenshot documentation
 description: |
-  Finds every step in a screen recording with FFmpeg scene detection and
-  saves a screenshot of each one. Review the steps, add captions, crop, blur
-  sensitive information, and export to HTML or Word. Everything runs locally,
-  with no telemetry.
+  A free Steps Recorder replacement. Finds every step in a screen recording
+  with FFmpeg scene detection and saves a screenshot of each one. Review the
+  steps, add captions, arrows, and labels, crop, blur sensitive information,
+  and export to HTML or Word. Everything runs locally, with no telemetry.
 
   Recordings and output go in Documents/Screencap Documentation Tool in your
   home folder by default; any folder in your home or on a removable drive

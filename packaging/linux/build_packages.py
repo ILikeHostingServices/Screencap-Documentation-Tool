@@ -34,7 +34,8 @@ OWN_DIRS = (f"/usr/share/{NAME}", f"/usr/share/{NAME}/assets",
 DESCRIPTION = (
     "Turns screen recordings into step-by-step screenshot documentation.\n"
     "Finds every step in a recording with FFmpeg scene detection and saves a\n"
-    "screenshot of each one. Review the steps, add captions, crop, blur\n"
+    "screenshot of each one, like a Steps Recorder for any operating system.\n"
+    "Review the steps, add captions, arrows, and labels, crop, blur\n"
     "sensitive information, and export to HTML, Word, or PDF. Everything runs\n"
     "locally, with no telemetry.")
 

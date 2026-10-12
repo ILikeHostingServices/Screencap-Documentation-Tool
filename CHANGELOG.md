@@ -4,6 +4,18 @@ CHANGELOG.md v1.33.0 (Last Rev: 2026-10-12)
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
+## v1.30.0 - Animated clips of single steps (2026-10-12)
+
+**New**
+- **Animated GIF clips:** for steps a still picture cannot show well (dragging, a menu that opens on hover, a slider), tick **Highlight > Animated Clip of This Step (GIF)** in the Steps tab and save. The clip runs from just before the screen changes until the next screen has settled (at most 6 seconds) and appears under the step's screenshot in `steps.md` and in HTML and Word exports. **Open > Open Animated Clip** opens it.
+- Clips are made from the original recording, cropped like the screenshot and blurred with the blur boxes of the step and the next one. They are only made again when something they depend on changes, so reordering steps does not redo them.
+
+**Changed**
+- The README, the Snap Store and winget descriptions, and the Linux software center listing now describe the tool as a free replacement for Windows Steps Recorder (`psr.exe`), which Microsoft deprecated in 2023, with a comparison table under "Coming From Steps Recorder" in the README.
+
+**Notes**
+- PDF exports show a clip's first frame. Before sharing, play the clip of any screen with sensitive information: it also shows the moments between the two screenshots.
+
 ## v1.29.0 - Alt text on every screenshot (2026-10-12)
 
 **New**

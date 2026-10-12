@@ -2,7 +2,7 @@
 #
 # stepdoc.py
 # 2026-10-12
-# Version: v1.6.0
+# Version: v1.7.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -15,6 +15,7 @@
 #                                    (sensitive areas blurred when redaction is on)
 #   unredacted/step_NNN_<time>.<ext> the same screenshots without blurring
 #   overlays/shapes_<hash>.pam       drawn arrows and markers (annotate.py)
+#   clips/clip_<time>.gif            animated clips of chosen steps (clips.py)
 #   steps.json                       the step document (source of truth)
 #   steps.md                         generated from steps.json
 #   steps-unredacted.md              same, using the unredacted screenshots
@@ -28,6 +29,7 @@ import time
 from pathlib import Path
 
 import annotate
+import clips
 import imaging
 import redact
 
@@ -461,6 +463,8 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
                     (stale.name not in keep or (folder == unredacted and not redacting)):
                 stale.unlink()
     annotate.remove_stale_overlays(out_dir, overlays_in_use(doc))
+    clips.render_clips(out_dir, doc, ffmpeg, run_quiet, effective_crop, redaction_boxes,
+                       blur_graph, progress)
     if not redacting:
         if unredacted.is_dir() and not any(unredacted.iterdir()):
             unredacted.rmdir()
@@ -536,6 +540,8 @@ def markdown(doc, unredacted=False):
             lines += ["_" + ", ".join(details) + "._", ""]
         image = f"{UNREDACTED_DIR}/{step['file']}" if unredacted else step["file"]
         lines += [f"![{markdown_alt(alt_text(step, i))}]({image})", ""]
+        if step.get("clip_file") and clips.wanted(step):
+            lines += [f"![Animated clip of step {i}]({step['clip_file']})", ""]
         caption = (step.get("caption") or "").strip()
         lines += [caption if caption else "_Notes:_", ""]
     return "\n".join(lines)

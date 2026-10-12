@@ -274,6 +274,20 @@ class GuiTests(unittest.TestCase):
         self.app.settings_extra.pop("export_logo", None)
         self.assertEqual(self.errors, [])
 
+    def test_animated_clip_is_made_on_save(self):
+        import clips
+        ed = self.process("clip")
+        ed.step_by(1)
+        self.pump()
+        self.assertIn("Animated Clip of This Step (GIF)", self.menu_labels(ed.tool_menus[3]))
+        ed.v_clip_step.set(True)
+        ed.toggle_step_clip()
+        self.assertIn("animated clip", ed.v_info.get())
+        self.assertTrue(ed.save(wait=True))
+        self.pump()
+        self.assertIsNotNone(clips.clip_path(ed.out_dir, ed.current_step()))
+        self.assertEqual(self.errors, [])
+
     def test_toolbars_wrap_instead_of_cutting_buttons_off(self):
         import gui_editor
         ed = self.app.editor
