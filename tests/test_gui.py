@@ -248,12 +248,12 @@ class GuiTests(unittest.TestCase):
         import gui_editor
         ed = self.app.editor
         bars = [w for w in self.all_widgets(ed) if isinstance(w, gui_editor.FlowBar)]
-        self.assertEqual(len(bars), 2)
+        self.assertEqual(len(bars), 3)
         for size in ("1400x860", "1180x720"):
             self.root.geometry(size)
             self.pump(0.5)
             for bar in bars:
-                for widget, _gap in bar.items:
+                for widget, _gap, _right in bar.items:
                     right = widget.winfo_x() + widget.winfo_reqwidth()
                     self.assertLessEqual(right, bar.winfo_width() + 1,
                                          f"{widget} is cut off at {size}")

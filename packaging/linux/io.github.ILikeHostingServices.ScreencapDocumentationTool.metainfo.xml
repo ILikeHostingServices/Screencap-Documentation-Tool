@@ -36,6 +36,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.27.0" date="2026-10-12">
+      <description>
+        <p>Zoomed inset that shows small changes up close.</p>
+      </description>
+    </release>
     <release version="1.26.0" date="2026-10-12">
       <description>
         <p>Annotations: draw arrows, numbered markers, and text labels on screenshots.</p>

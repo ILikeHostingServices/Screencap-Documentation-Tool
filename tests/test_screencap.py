@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-10
-# Version: v1.11.0
+# 2026-10-12
+# Version: v1.12.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -312,6 +312,41 @@ class DuplicateTests(unittest.TestCase):
         self.assertGreaterEqual(x + w, 334)
         self.assertGreaterEqual(y + h, 244)
         self.assertLess(w * h, 60 * 60)
+
+    def test_zoomed_inset(self):
+        out = self.tmp / "zoom"
+        self.assertEqual(sc.main(["-s", str(self.source), "-o", str(out), "--zoom",
+                                  "--no-redact"]), 0)
+        folder = out / "Revisit"
+        doc = stepdoc.load(folder)
+        self.assertTrue(doc["zoom"])
+        small = next(s for s in doc["steps"] if s.get("change_box")
+                     and s["change_box"][2] * s["change_box"][3] < 60 * 60)
+        big = next(s for s in doc["steps"] if s.get("change_box")
+                   and s["change_box"][2] > 400)
+        self.assertIsNone(stepdoc.zoom_inset(big, doc), "a big change needs no inset")
+        inset = stepdoc.zoom_inset(small, doc)
+        x, y = inset["at"]
+        w, h = (v + 2 * inset["border"] for v in inset["size"])
+        bx, by, bw, bh = small["change_box"]
+        self.assertTrue(x >= bx + bw or x + w <= bx or y >= by + bh or y + h <= by,
+                        "the inset must not cover the change")
+        self.assertTrue(0 <= x and x + w <= 1280 and 0 <= y and y + h <= 720)
+        self.assertGreaterEqual(inset["size"][0], inset["src"][2] * stepdoc.ZOOM_MIN)
+        zoomed = (folder / small["file"]).read_bytes()
+
+        small["zoom"] = False                       # per step: off
+        stepdoc.render(folder, doc, FFMPEG)
+        self.assertNotEqual((folder / small["file"]).read_bytes(), zoomed)
+
+        small["zoom"] = None                        # back to the recording's setting
+        small["crop"] = [200, 150, 700, 400]        # the inset stays inside the crop
+        inset = stepdoc.zoom_inset(small, doc)
+        x, y = inset["at"]
+        w, h = (v + 2 * inset["border"] for v in inset["size"])
+        self.assertTrue(200 <= x and x + w <= 900 and 150 <= y and y + h <= 550)
+        stepdoc.render(folder, doc, FFMPEG)
+        self.assertEqual(imaging.image_size(FFMPEG, folder / small["file"]), (700, 400))
 
     def test_cursor_only_change_gets_no_box(self):
         prev = imaging.thumbnail(FFMPEG, self.frame(1.0), imaging.CHANGE_SIZE)

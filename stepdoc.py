@@ -75,6 +75,7 @@ def new_document(video_name, duration, width, height, ext, settings, tool_versio
         "steps": [],
         "deleted_steps": [],
         "highlight": True,
+        "zoom": False,
         "crop": None,
         "redact": True,
         "redact_patterns": [],
@@ -209,6 +210,63 @@ def clamp_rect(rect, width, height, minimum=16):
 
 BLUR_BLOCK = 12   # pixelation block size before blurring (makes text unreadable)
 
+ZOOM_MAX = 2.5        # largest magnification of the zoomed inset
+ZOOM_MIN = 1.4        # below this the change is big enough to read without one
+ZOOM_SHARE = 0.4      # the inset takes at most this share of the width and height
+ZOOM_CONTEXT = 0.14   # the inset shows at least this share of the width and height
+
+
+def zoom_inset(step, doc):
+    """Where the zoomed inset of a step goes, or None when it has none.
+    Returns dict(src=[x, y, w, h] area magnified, size=[w, h], at=[x, y],
+    border=px), all in original-frame pixels. The inset sits in the corner
+    of the visible area (the crop, or the whole frame) that keeps it
+    farthest from what changed, so it never covers the change itself."""
+    box = step.get("change_box")
+    width, height = doc.get("width"), doc.get("height")
+    if not box or not width or not height or not effective(step, doc, "zoom", default=False):
+        return None
+    ax, ay, aw, ah = effective_crop(step, doc) or [0, 0, width, height]
+    bx, by, bw, bh = box
+    # the change plus a margin, and at least ZOOM_CONTEXT of the visible
+    # area so what is around a small change (a checkbox's label) shows too
+    margin = max(8, round(0.15 * max(bw, bh)))
+    sw = min(aw, max(bw + 2 * margin, round(ZOOM_CONTEXT * aw)))
+    sh = min(ah, max(bh + 2 * margin, round(ZOOM_CONTEXT * ah)))
+    x0 = max(ax, min(round(bx + bw / 2 - sw / 2), ax + aw - sw))
+    y0 = max(ay, min(round(by + bh / 2 - sh / 2), ay + ah - sh))
+    if sw < 8 or sh < 8:
+        return None
+    factor = min(ZOOM_MAX, ZOOM_SHARE * aw / sw, ZOOM_SHARE * ah / sh)
+    if factor < ZOOM_MIN:
+        return None
+    border = max(3, round(width / 320))
+    zw, zh = round(sw * factor / 2) * 2, round(sh * factor / 2) * 2
+    ow, oh = zw + 2 * border, zh + 2 * border
+    gap = max(8, round(aw / 60))
+    corners = [(ax + gap, ay + gap), (ax + aw - gap - ow, ay + gap),
+               (ax + gap, ay + ah - gap - oh), (ax + aw - gap - ow, ay + ah - gap - oh)]
+
+    def overlap(cx, cy):
+        w = max(0, min(cx + ow, bx + bw) - max(cx, bx))
+        h = max(0, min(cy + oh, by + bh) - max(cy, by))
+        return w * h
+
+    centre = (bx + bw / 2, by + bh / 2)
+    cx, cy = min(corners, key=lambda c: (overlap(*c), -((c[0] + ow / 2 - centre[0]) ** 2 +
+                                                         (c[1] + oh / 2 - centre[1]) ** 2)))
+    return {"src": [x0, y0, sw, sh], "size": [zw, zh], "at": [max(ax, cx), max(ay, cy)],
+            "border": border}
+
+
+def zoom_graph(inset):
+    """Filter graph that adds the inset on top of the frame passed in."""
+    (x, y, w, h), (zw, zh), (px, py) = inset["src"], inset["size"], inset["at"]
+    t = inset["border"]
+    return (f"split[zbase][zsrc];[zsrc]crop={w}:{h}:{x}:{y},scale={zw}:{zh}:flags=lanczos,"
+            f"pad={zw + 2 * t}:{zh + 2 * t}:{t}:{t}:color={HIGHLIGHT_COLOR}[zoom];"
+            f"[zbase][zoom]overlay={px}:{py}:format=auto")
+
 
 def redaction_boxes(step, doc):
     """Boxes to blur for a step: detected ones not switched off, plus boxes
@@ -254,6 +312,9 @@ def build_filter(step, doc, redacted=True, work_dir=None):
     # blur first, so the highlight box is drawn on top, unblurred
     graph = blur + ("," if blur and parts else "") + ",".join(parts)
     parts = []
+    inset = zoom_inset(step, doc)
+    if inset:   # magnifies the blurred picture, so nothing hidden is shown
+        graph = (graph + "," if graph else "") + zoom_graph(inset)
     if work_dir is not None:
         # annotations on top of everything else, so nothing hides them
         shapes, texts = annotate.filters(step, doc.get("width"), doc.get("height"), work_dir)
@@ -329,6 +390,12 @@ def run_quiet(cmd):
                           text=True, encoding="utf-8", errors="replace")
 
 
+def change_boxes_wanted(doc):
+    """The red box and the zoomed inset both need to know what changed."""
+    return (doc.get("highlight", True) or doc.get("zoom", False) or
+            any(s.get("highlight") or s.get("zoom") for s in doc["steps"]))
+
+
 def redaction_wanted(doc):
     return doc.get("redact", True) or any(s.get("redact") for s in doc["steps"])
 
@@ -362,7 +429,7 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
     out_dir = Path(out_dir)
     ext = doc.get("format", "png")
     keep = set()
-    if doc.get("highlight", True) or any(s.get("highlight") for s in doc["steps"]):
+    if change_boxes_wanted(doc):
         ensure_change_boxes(out_dir, doc, ffmpeg)
     if any(annotate.step_annotations(s) for s in doc["steps"]):
         ensure_frame_size(out_dir, doc, ffmpeg)

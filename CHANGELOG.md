@@ -4,6 +4,15 @@ CHANGELOG.md v1.33.0 (Last Rev: 2026-10-12)
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
+## v1.27.0 - Zoomed inset of small changes (2026-10-12)
+
+**New**
+- **Zoomed inset:** a magnified copy (up to 2.5 times) of a small change, such as a ticked checkbox or a short field, in the corner of the screenshot farthest from it. It stays readable when a document shows the screenshot small. Switch it on for the whole recording with **Zoomed inset** (top right of the Steps tab), for one step in the new **Highlight** menu, or with `--zoom` on the command line. Steps where the change is already big enough to read get no inset.
+- The inset is made from the blurred screenshot, so it never shows anything that is blurred, and it stays inside the crop. Annotations are drawn on top of it.
+
+**Changed**
+- Steps tab: **Highlight this step** is now **Highlight > Red Box on This Step**, next to the new **Zoomed Inset on This Step**, and **Captions From Narration** moved next to **Caption**. With the shorter "removed" note above the step list, this leaves more room for the picture, which matters most on laptops with display scaling.
+
 ## v1.26.0 - Annotations: arrows, numbered markers, and text labels (2026-10-12)
 
 **New**

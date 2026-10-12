@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-10-04
-# Version: v1.11.1
+# 2026-10-12
+# Version: v1.12.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -288,7 +288,7 @@ def settings_snapshot(args):
     return {k: getattr(args, k) for k in
             ("threshold", "debounce", "capture_point", "settle", "lead",
              "max_wait", "min_gap", "analyze_fps", "analyze_width", "format",
-             "no_dedup", "dedup_threshold", "no_highlight", "crop", "no_redact")}
+             "no_dedup", "dedup_threshold", "no_highlight", "zoom", "crop", "no_redact")}
 
 
 def clear_previous_output(out_dir):
@@ -349,6 +349,7 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     doc = stepdoc.new_document(video.name, duration, width, height, args.format,
                                settings_snapshot(args), VERSION)
     doc["highlight"] = not args.no_highlight
+    doc["zoom"] = bool(args.zoom)
     doc["source_path"] = str(video.resolve())   # lets the GUI open it in VLC
     if args.crop:
         doc["crop"] = stepdoc.clamp_rect(args.crop, width, height)
@@ -554,6 +555,9 @@ def parse_args(argv):
                                      "Chromium (needed for pdf export)")
     p.add_argument("--no-highlight", action="store_true",
                    help="Do not draw a red box around what changed in each step")
+    p.add_argument("--zoom", action="store_true",
+                   help="Add a zoomed inset of what changed when it is small (it can also "
+                        "be switched on later in the GUI's step editor)")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",
                    help="Screenshot image format (default: png)")
     p.add_argument("--force", action="store_true",

@@ -16,6 +16,7 @@ For each recording you get:
 - Adjustable cropping, for the whole recording or one step, by dragging a rectangle on the picture.
 - A step editor in the GUI to remove, reorder, and caption steps.
 - Annotations: draw arrows, numbered markers, and text labels on any screenshot to point readers at the right button.
+- An optional zoomed inset that shows a small change (a ticked checkbox, a short field) up close in a corner of the screenshot.
 - A clean GUI with light and dark themes that can follow the system setting.
 - Saved presets: built-in settings for installer wizards, general desktop use, web consoles, terminals, remote desktops, forms, slideshows, video meetings, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
@@ -308,8 +309,8 @@ Select a processed recording in the **Recordings** list and the **Steps** tab sh
 | **Crop** menu | **Crop All Steps** or **Crop This Step Only**: drag a rectangle on the picture around the area to keep (Esc cancels). **No Crop on This Step** leaves the selected step uncropped even when the recording has a crop. **Clear All Crops** removes every crop. |
 | **Blur** menu | **Add Blur Box**: drag a rectangle around anything else to blur. **Un-blur / Re-blur**: click a blur box on the picture; a detected box is switched off (gray outline) or back on, a hand-drawn box is removed. **Blur This Step** switches blurring for the selected step only. **Re-scan All Steps for Sensitive Text** detects sensitive text again on every step and saves, for example after installing Tesseract (hand-drawn boxes are kept). |
 | **Annotate** menu | **Add Arrow**: drag from where the arrow starts to what it points at. **Add Number**: click to place a numbered marker (1, 2, 3, ... in the order you add them). **Add Text Label**: click where the label goes and type its text. **Edit or Remove**: click an annotation to change its text or number, or to remove it (an empty label or the number 0 removes it). **Clear Annotations on This Step** removes them all. Annotations are drawn on top of everything else, including the blur, so they never reveal what is blurred. |
-| **Highlight this step** | Turn the red "what changed" box on or off for the selected step only. This overrides the recording-wide setting. |
-| **Whole recording: Blur sensitive info / Highlight changes** (top right) | Turn blurring or the red box on or off for the whole recording. |
+| **Highlight** menu | **Red Box on This Step** turns the red "what changed" box on or off for the selected step only. **Zoomed Inset on This Step** does the same for the zoomed inset. Both override the recording-wide setting. |
+| **Whole recording: Blur sensitive info / Highlight changes / Zoomed inset** (top right) | Turn blurring, the red box, or the zoomed inset on or off for the whole recording. The **zoomed inset** is a magnified copy (up to 2.5 times) of a small change, such as a ticked checkbox or a short field, placed in the corner of the screenshot farthest from it, so it stays readable when the document shows the screenshot small. Steps where the change is already big enough to read, or where nothing changed, get no inset. It is made from the blurred screenshot, so it never shows anything that is blurred. |
 | **Caption** | The text shown under the step in `steps.md` and in exports, replacing the `_Notes:_` placeholder. |
 | **Document title / Version / Author** | The header of exported documents. The title defaults to the recording's name and the version to `v1.0.0`; the date is the day you export. |
 | **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. |
@@ -362,7 +363,7 @@ The defaults are tuned for typical setup wizards. If a recording gives you too m
 | Too many near-duplicate screenshots (hover effects, small redraws) | Sensitivity **Low**, or raise **Merge changes within** to 2 | `--threshold 0.015` and/or `--debounce 2` |
 | Missing steps (a checkbox or small text change not caught) | Sensitivity **High**, or set **Analyze width** to 0 | `--threshold 0.002` and/or `--analyze-width 0` |
 | A screenshot you wanted was removed as a duplicate | Click **Restore Deleted** in the Steps tab, or lower **Duplicate if differs by (%)** (for example to 0.005), or untick **Remove duplicate screenshots** | `--dedup-threshold 0.005`, or `--no-dedup` |
-| The red box is in the wrong place or not useful | Untick **Highlight this step** for that step in the Steps tab, or untick **Highlight what changed in each step** before processing | `--no-highlight` |
+| The red box is in the wrong place or not useful | Untick **Highlight > Red Box on This Step** for that step in the Steps tab, or untick **Highlight what changed in each step** before processing | `--no-highlight` |
 | Screenshots show a half-drawn window | **Screenshot taken**: Finished state, or raise **Settle after change** | `--capture-point end`, or raise `--settle` |
 
 After changing settings, reprocess with **Reprocess videos that are already done** ticked (command line: `--force`).
@@ -398,7 +399,7 @@ If you talk while you record ("now I accept the license and click Next"), the to
 **Use it** in either of two ways:
 
 - Tick **Captions from narration** in Detection Settings before processing. The Videos list shows **Transcribing** after the screenshots are saved.
-- For a recording that is already processed, open it in the Steps tab and click **Captions From Narration**. Review the captions, then click **Save Changes**.
+- For a recording that is already processed, open it in the Steps tab and click **Captions From Narration** (next to **Caption**). Review the captions, then click **Save Changes**.
 
 How it works:
 
@@ -537,6 +538,7 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--whisper-python` | auto | Explicit path to a Python that has faster-whisper installed. The default is the installer's `whisper-env` folder. |
 | `--crop` | none | Crop every screenshot to `X:Y:W:H` (pixels of the recording), for example `0:0:1920:1080` for the left monitor of a dual-screen recording. Width and height are rounded down to even numbers. Originals stay uncropped, and the crop can be changed in the Steps tab. |
 | `--no-highlight` | off | Do not draw the red "what changed" box. It can still be switched on later in the Steps tab, because the changed area is always worked out and saved. |
+| `--zoom` | off | Add a zoomed inset of what changed when the change is small. It can also be switched on or off later in the Steps tab. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
 | `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |
 | `--dry-run` | off | Lists the steps that would be captured without saving anything. |

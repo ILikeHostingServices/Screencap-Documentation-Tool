@@ -13,7 +13,8 @@
 # cropped by dragging a rectangle on the original frame, and sensitive areas
 # can be blurred (detected automatically, or drawn by hand) with an
 # unblurred copy kept alongside. Arrows, numbered markers, and text labels
-# can be drawn on each screenshot. Finished steps export to HTML, Word, or PDF,
+# can be drawn on each screenshot, and a zoomed inset can show a small
+# change up close. Finished steps export to HTML, Word, or PDF,
 # Play in VLC opens the recording just before the selected step, and
 # Captions From Narration fills empty captions from what was said.
 
@@ -47,8 +48,9 @@ class FlowBar(ttk.Frame):
         self._last = None
         self.bind("<Configure>", lambda e: self.layout())
 
-    def add(self, widget, gap=None):
-        self.items.append((widget, self.gap if gap is None else gap))
+    def add(self, widget, gap=None, right=False):
+        """right=True keeps the widget at the right edge of its row."""
+        self.items.append((widget, self.gap if gap is None else gap, right))
         return widget
 
     def layout(self):
@@ -57,12 +59,14 @@ class FlowBar(ttk.Frame):
             return
         x = y = row_h = 0
         spots = []
-        for widget, gap in self.items:
+        for widget, gap, right in self.items:
             w, h = widget.winfo_reqwidth(), widget.winfo_reqheight()
             if x and x + gap + w > width:
                 x, y, row_h = 0, y + row_h + self.row_gap, 0
             elif x:
                 x += gap
+            if right:
+                x = max(x, width - w)
             spots.append((widget, x, y, h))
             x += w
             row_h = max(row_h, h)
@@ -100,6 +104,8 @@ class StepEditor(ttk.Frame):
         self.v_hl_step = tk.BooleanVar(value=True)
         self.v_redact_doc = tk.BooleanVar(value=True)
         self.v_redact_step = tk.BooleanVar(value=True)
+        self.v_zoom_doc = tk.BooleanVar(value=False)
+        self.v_zoom_step = tk.BooleanVar(value=False)
         self.v_doc_title = tk.StringVar(value="")
         self.v_doc_version = tk.StringVar(value="")
         self.v_doc_author = tk.StringVar(value="")
@@ -118,19 +124,22 @@ class StepEditor(ttk.Frame):
 
         # Header: document title, unsaved marker, removed count, and the
         # switches that apply to the whole recording
-        top = ttk.Frame(self)
+        top = FlowBar(self, gap=10)
         top.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        ttk.Label(top, textvariable=self.v_title, style="Heading.TLabel").pack(side="left")
-        ttk.Label(top, textvariable=self.v_dirty, style="Warn.TLabel").pack(side="left", padx=10)
-        ttk.Label(top, textvariable=self.v_removed, style="Muted.TLabel").pack(side="left", padx=4)
-        self.options_bar = ttk.Frame(top)
-        self.options_bar.pack(side="right")
-        ttk.Checkbutton(self.options_bar, text="Highlight changes", variable=self.v_hl_doc,
-                        command=self.toggle_doc_highlight).pack(side="right", padx=(12, 0))
-        ttk.Checkbutton(self.options_bar, text="Blur sensitive info", variable=self.v_redact_doc,
-                        command=self.toggle_doc_redact).pack(side="right")
+        for var, style in ((self.v_title, "Heading.TLabel"), (self.v_dirty, "Warn.TLabel"),
+                           (self.v_removed, "Muted.TLabel")):
+            label = top.add(ttk.Label(top, textvariable=var, style=style))
+            # the text changes, so the row is laid out again when it does
+            label.bind("<Configure>", lambda e: top.layout(), add="+")
+        self.options_bar = top.add(ttk.Frame(top), gap=16, right=True)
         ttk.Label(self.options_bar, text="Whole recording:", style="Muted.TLabel").pack(
-            side="right", padx=(0, 8))
+            side="left", padx=(0, 8))
+        ttk.Checkbutton(self.options_bar, text="Blur sensitive info", variable=self.v_redact_doc,
+                        command=self.toggle_doc_redact).pack(side="left")
+        ttk.Checkbutton(self.options_bar, text="Highlight changes", variable=self.v_hl_doc,
+                        command=self.toggle_doc_highlight).pack(side="left", padx=(12, 0))
+        ttk.Checkbutton(self.options_bar, text="Zoomed inset", variable=self.v_zoom_doc,
+                        command=self.toggle_doc_zoom).pack(side="left", padx=(12, 0))
 
         # Left: the list of steps and reordering
         left = ttk.Frame(self)
@@ -218,11 +227,15 @@ class StepEditor(ttk.Frame):
                               command=self.clear_annotations)
         mark.configure(menu=mark_menu)
         viewbar.add(mark)
-        self.tool_menus = (crop_menu, blur_menu, mark_menu)
-        self.chk_hl_step = ttk.Checkbutton(viewbar, text="Highlight this step",
-                                           variable=self.v_hl_step,
-                                           command=self.toggle_step_highlight)
-        viewbar.add(self.chk_hl_step, gap=14)
+        hl = ttk.Menubutton(viewbar, text="Highlight", width=0)
+        hl_menu = tk.Menu(hl, tearoff=False)
+        hl_menu.add_checkbutton(label="Red Box on This Step", variable=self.v_hl_step,
+                                command=self.toggle_step_highlight)
+        hl_menu.add_checkbutton(label="Zoomed Inset on This Step", variable=self.v_zoom_step,
+                                command=self.toggle_step_zoom)
+        hl.configure(menu=hl_menu)
+        viewbar.add(hl)
+        self.tool_menus = (crop_menu, blur_menu, mark_menu, hl_menu)
         self.viewbar = viewbar
 
         self.canvas = tk.Canvas(right, highlightthickness=0, height=180, width=320)
@@ -239,9 +252,14 @@ class StepEditor(ttk.Frame):
                          justify="left")
         info.grid(row=2, column=0, sticky="ew", pady=(6, 0))
         right.bind("<Configure>", lambda e: info.configure(wraplength=max(200, e.width - 10)))
-        ttk.Label(right, text="Caption", style="Heading.TLabel").grid(row=3, column=0, sticky="w",
-                                                                       pady=(8, 4))
-        self.caption = tk.Text(right, height=3, wrap="word", undo=True, padx=8, pady=6,
+        heading = ttk.Frame(right)
+        heading.grid(row=3, column=0, sticky="ew", pady=(6, 2))
+        ttk.Label(heading, text="Caption", style="Heading.TLabel").pack(side="left")
+        self.btn_narration = ttk.Button(heading, text="Captions From Narration",
+                                        style="Link.TButton",
+                                        command=self.captions_from_narration)
+        self.btn_narration.pack(side="right")
+        self.caption = tk.Text(right, height=2, wrap="word", undo=True, padx=8, pady=6,
                                font="TkDefaultFont")
         self.caption.grid(row=4, column=0, sticky="ew")
         self.caption.bind("<<Modified>>", self.on_caption_modified)
@@ -303,8 +321,6 @@ class StepEditor(ttk.Frame):
         actions.add(opener, gap=16)
         self.tool_menus = self.tool_menus + (open_menu,)
         actions.add(ttk.Button(actions, text="Play in VLC", command=self.play))
-        self.btn_narration = actions.add(ttk.Button(actions, text="Captions From Narration",
-                                                    command=self.captions_from_narration))
 
     def on_theme_changed(self):
         """Colors that are not styles: menus of the tool buttons and the
@@ -343,6 +359,7 @@ class StepEditor(ttk.Frame):
             return
         self.v_title.set(self.doc.get("document", {}).get("title", ""))
         self.v_hl_doc.set(self.doc.get("highlight", True))
+        self.v_zoom_doc.set(self.doc.get("zoom", False))
         self.v_redact_doc.set(self.doc.get("redact", True))
         meta = export.metadata(self.doc)
         self._loading_meta = True
@@ -382,8 +399,7 @@ class StepEditor(ttk.Frame):
             self.v_info.set("No steps. Use Restore Deleted to bring steps back.")
         dups = sum(1 for d in self.doc["deleted_steps"] if d.get("deleted_reason") == "duplicate")
         extra = f", {dups} duplicate(s)" if dups else ""
-        self.v_removed.set(f"{deleted} removed{extra} (Restore Deleted brings them back)"
-                           if deleted else "")
+        self.v_removed.set(f"{deleted} removed{extra}" if deleted else "")
 
     # ------------------------------------------------------------ editing
 
@@ -422,12 +438,16 @@ class StepEditor(ttk.Frame):
             n = len(stepdoc.redaction_boxes(step, self.doc))
             if n:
                 info += f" | {n} area(s) blurred"
+        if stepdoc.effective(step, self.doc, "zoom", default=False) and "change_box" in step:
+            info += (" | zoomed inset" if stepdoc.zoom_inset(step, self.doc) else
+                     " | no inset (no change found, or it is big enough to read)")
         marks = len(annotate.step_annotations(step))
         if marks:
             info += f" | {marks} annotation(s)"
         self.v_redact_step.set(bool(stepdoc.effective(step, self.doc, "redact")))
         self.v_info.set(info)
         self.v_hl_step.set(bool(stepdoc.effective(step, self.doc, "highlight")))
+        self.v_zoom_step.set(bool(stepdoc.effective(step, self.doc, "zoom", default=False)))
         self._set_caption(step.get("caption", ""))
         self.schedule_preview()
 
@@ -540,6 +560,25 @@ class StepEditor(ttk.Frame):
             self.ensure_boxes()
         self.set_dirty()
         self.schedule_preview()
+
+    def toggle_doc_zoom(self):
+        if not self.doc:
+            return
+        self.doc["zoom"] = self.v_zoom_doc.get()
+        if self.doc["zoom"]:
+            self.ensure_boxes()
+        self.set_dirty()
+        self.on_select()
+
+    def toggle_step_zoom(self):
+        step = self.current_step()
+        if step is None:
+            return
+        step["zoom"] = self.v_zoom_step.get()
+        if step["zoom"]:
+            self.ensure_boxes()
+        self.set_dirty()
+        self.on_select()
 
     # -------------------------------------------------------------- export
 
@@ -982,7 +1021,8 @@ class StepEditor(ttk.Frame):
     def draw_overlays(self, step):
         """On the original frame, outline what will be applied: the crop
         (blue), the "what changed" box (red), detected text to blur (yellow,
-        gray when switched off), and hand-drawn blur boxes (orange)."""
+        gray when switched off), hand-drawn blur boxes (orange), the zoomed
+        inset (purple), and the annotations."""
         crop = stepdoc.effective_crop(step, self.doc)
         if crop:
             self.overlay(crop, "#4FC3F7", "crop")
@@ -995,6 +1035,11 @@ class StepEditor(ttk.Frame):
             self.overlay(b, "#FF9800", "blur")
         if step.get("change_box") and stepdoc.effective(step, self.doc, "highlight"):
             self.overlay(step["change_box"], "#E53935")
+        inset = stepdoc.zoom_inset(step, self.doc)
+        if inset:
+            t = 2 * inset["border"]
+            self.overlay(inset["at"] + [inset["size"][0] + t, inset["size"][1] + t],
+                         "#AB47BC", "zoomed inset")
         self.draw_annotations(step)
 
     def draw_annotations(self, step):
