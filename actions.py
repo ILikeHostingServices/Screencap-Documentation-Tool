@@ -236,20 +236,31 @@ def crop_around(x, y, width, height):
     return [x0, y0, x1 - x0, y1 - y0]
 
 
-def words_at(ffmpeg, tesseract, video, t, area, tmp):
-    """OCR lines in area of the recording at time t, in frame pixels."""
+def tight_area(x, y, width, height):
+    """[x, y, w, h] of a button-sized area around a click, read as one line
+    when the wider area gave nothing (the mouse pointer sits on the words)."""
+    half_w, half_h = max(160, width // 12), max(28, height // 40)
+    x0, y0 = max(0, x - half_w), max(0, y - half_h)
+    x1, y1 = min(width, x + half_w), min(height, y + half_h)
+    return [x0, y0, x1 - x0, y1 - y0]
+
+
+def words_at(ffmpeg, tesseract, video, t, area, tmp, psm=11):
+    """OCR lines in area of the recording at time t, in frame pixels. Gray,
+    enlarged pixels read best, even with the mouse pointer over a letter."""
     x, y, w, h = area
-    image = Path(tmp) / f"click_{t:.3f}.png"
+    image = Path(tmp) / f"click_{t:.3f}_{psm}.png"
     res = subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
                           "-ss", f"{max(t - 0.05, 0):.3f}", "-i", str(video),
                           "-frames:v", "1", "-vf",
-                          f"crop={w}:{h}:{x}:{y},scale=iw*{OCR_SCALE}:-1:flags=lanczos",
+                          f"crop={w}:{h}:{x}:{y},scale=iw*{OCR_SCALE}:-1:flags=lanczos,"
+                          "format=gray",
                           str(image)],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                          errors="replace", stdin=subprocess.DEVNULL, creationflags=NO_WINDOW)
     if res.returncode != 0 or not image.is_file():
         raise RuntimeError(res.stderr.strip()[-200:])
-    lines = redact.read_words(tesseract, image, psm=11, min_conf=MIN_CONF)
+    lines = redact.read_words(tesseract, image, psm=psm, min_conf=MIN_CONF)
     return [[(text, [x + bx // OCR_SCALE, y + by // OCR_SCALE, bw // OCR_SCALE,
                      bh // OCR_SCALE]) for text, (bx, by, bw, bh) in words]
             for words in lines]
@@ -267,7 +278,15 @@ def label_actions(acts, video, ffmpeg, tesseract, width, height, extra, tmp):
         except (RuntimeError, OSError) as exc:
             log.debug("  Reading the words at a click failed: %s", exc)
             continue
-        label = safe_label(click_label(lines, a["x"], a["y"], width), extra)
+        label = click_label(lines, a["x"], a["y"], width)
+        if not label:
+            try:
+                tight = words_at(ffmpeg, tesseract, video, a["t"],
+                                 tight_area(a["x"], a["y"], width, height), tmp, psm=7)
+                label = click_label(tight, a["x"], a["y"], width)
+            except (RuntimeError, OSError) as exc:
+                log.debug("  Reading the words at a click failed: %s", exc)
+        label = safe_label(label, extra)
         if label:
             a["label"] = label
         elif a["type"] == "click":
