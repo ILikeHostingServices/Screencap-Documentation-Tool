@@ -1,16 +1,17 @@
-README.md v1.36.0 (Last Rev: 2026-10-12)
+README.md v1.37.0 (Last Rev: 2026-10-13)
 
 # Screencap Documentation Tool
 
 ## Overview
 
-**A free Steps Recorder replacement for Windows, Linux, and macOS.** Record your screen while you install or configure a program, drop the recording in a folder, and this tool pulls out a screenshot of every step for you. No more scrubbing through video to find the right frames.
+**A free Steps Recorder replacement for Windows, Linux, and macOS.** Click **Record**, install or configure a program as usual, click **Stop**, and this tool pulls out a screenshot of every step for you, marks where you clicked, and writes a first draft of each step's caption. Recordings from any other recorder work too. No more scrubbing through video to find the right frames.
 
 Microsoft deprecated Windows' built-in Steps Recorder (`psr.exe`) in 2023: it gets no more updates and is to be removed in a future Windows release. This tool does the same job and more: full resolution screenshots, captions, arrows and labels, automatic blurring of passwords and keys, and finished HTML, Word, or PDF documents. See [Coming From Steps Recorder](#coming-from-steps-recorder).
 
 For each recording you get:
 
 - One full resolution screenshot per step, numbered in order.
+- A built-in screen recorder that notes every click and key: each step gets a red ring where you clicked and a first-draft caption such as `Click "Next".` or `Click next to "User name", type the text, then press Tab.` Typed text is never saved.
 - A `steps.md` file listing every step with its timestamp, its screenshot, and its caption, ready to turn into documentation.
 - Passwords, license keys, tokens, and IP and email addresses blurred automatically, with an unblurred copy kept alongside in case you need the details.
 - A red box around what changed since the previous step, so readers see where to click or what appeared.
@@ -31,14 +32,15 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 
 ### Coming From Steps Recorder
 
-Steps Recorder watched your mouse and keyboard and took a small screenshot at every click. This tool works from a screen recording instead, which you make with any recorder (see [Recording Tips For Best Results](#recording-tips-for-best-results)), and finds the steps itself.
+Steps Recorder watched your mouse and keyboard and took a small screenshot at every click. This tool records a video of the screen while it notes your clicks and keys the same way (see [Recording The Screen](#recording-the-screen)), then finds the steps in the video itself. It also works with recordings made by any other recorder (see [Recording Tips For Best Results](#recording-tips-for-best-results)).
 
 | Steps Recorder | Screencap Documentation Tool |
 | --- | --- |
-| Start Record, do the task, Stop Record | Record the task with Snipping Tool, OBS Studio, or another recorder, then click **Process All** |
+| Start Record, do the task, Stop Record | **Record**, do the task, **Stop**: the screenshots are made straight away. Recordings from Snipping Tool, OBS Studio, or any other recorder work too |
 | A compressed screenshot at every click | A full resolution screenshot of every step, taken when the screen settles; duplicates are removed |
-| A green outline around what was clicked | A red box around what changed, an optional zoomed inset, and arrows, numbers, and labels you add |
-| Auto-written text ("User left click on Next") | Your own captions, or a first draft from what you said while recording ([Captions From Narration](#captions-from-narration)) |
+| A green outline around what was clicked | A red ring where you clicked, a red box around what changed, an optional zoomed inset, and arrows, numbers, and labels you add |
+| Auto-written text ("User left click on "Next (button)" in "Setup"") | A first draft in plain words (`Click "Next".`), a first draft from what you said while recording ([Captions From Narration](#captions-from-narration)), or your own captions |
+| Every key you typed could end up in the file | Keys such as Enter, Tab, and Ctrl+S are noted by name; typed text is never saved |
 | Comments | Captions and text labels on the screenshot |
 | Saved as a `.zip` holding an `.mht` web archive, best viewed in Internet Explorer | HTML (one self-contained file), Word, or PDF with your logo and Word template, plus `steps.md` |
 | Everything on screen was recorded, passwords and keys included | Passwords, keys, tokens, and addresses are blurred automatically (an unblurred copy is kept separately) |
@@ -87,7 +89,10 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `whisper-env/` | Optional. Created by the installer's speech recognition option (`-WithWhisper` or `SCREENCAP_WITH_WHISPER=1`). Not in git. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
 | `clips.py` | Animated GIF clips of single steps, made with FFmpeg from the original recording. |
-| `annotate.py` | Annotations (arrows, numbered markers, text labels): draws them and gives FFmpeg the filters that put them on the screenshot. |
+| `annotate.py` | Annotations (arrows, numbered markers, text labels, click rings): draws them and gives FFmpeg the filters that put them on the screenshot. |
+| `recorder.py` | The built-in screen recorder: records with FFmpeg and notes clicks and keys with the system's own functions. |
+| `gui_recorder.py` | The GUI's Record window and the small Recording window (timer, Stop, Discard). |
+| `actions.py` | Uses the noted clicks and keys: gives each to its step, adds click rings, and writes first-draft captions. |
 | `tests/` | Automated tests, including a GUI test that drives the real window. See [Automated Testing](#automated-testing). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
 | `assets/` | Application icon (`icon.ico` for Windows, `icon.png` for Linux and macOS) and `make_icon.py`, which regenerates both from code (needs Pillow). |
@@ -112,6 +117,7 @@ Each run creates these files in the output folder:
 
 | Path | Purpose |
 | --- | --- |
+| `source/Recording <date> <time>.mkv` | A recording made with **Record**. Next to it, `Recording <date> <time>.events.json` lists its clicks and keys (never typed text). Delete the `.events.json` file to process the recording without them. |
 | `output/<video>/step_001_00-00-03.750.png` | Screenshot for each step, rendered from its original. The name holds the step number and timestamp. |
 | `output/<video>/originals/` | The untouched full frames captured from the video. Never modified, so edits can always be redone. |
 | `output/<video>/steps.md` | The steps in order, with screenshots, timestamps, and captions. Generated from `steps.json`. Uses the blurred screenshots. |
@@ -291,7 +297,7 @@ sudo bash install.sh        # macOS: bash install.sh
 The window is laid out in the order you use it:
 
 1. **Folders** (top bar). **Recordings** is where recordings come from and **Output** is where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the recordings folder recursively.
-2. **Recordings** (left). Lists every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
+2. **Recordings** (left). **Record** (or Ctrl+R) records the screen with the built-in recorder (see [Recording The Screen](#recording-the-screen)). The list shows every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
 3. **Settings** (left, below). Pick a **Preset** for the kind of recording (see [Presets](#presets)); a line under it says what it is for. **Sensitivity** (High, Normal, Low, or your own threshold) and **Screenshot taken** (the finished state of each step, or right after each change) are the settings you change most. The check boxes switch the red **highlight** box, automatic **blurring** of passwords, keys, IP and email addresses (see [Blurring Sensitive Information](#blurring-sensitive-information)), **duplicate removal**, and **Captions from narration**. **Save as Preset...** and **Delete Preset** manage your own presets.
 4. **Advanced Settings...** (also in the **View** menu) opens a separate window, grouped into **Timing**, **Detection** (frames checked per second, analysis width, duplicate tolerance), **Output** (image format and extra **Also blur** patterns), and **Run** (**Reprocess recordings that are already done**, and **Dry run** to count steps without saving anything). **Reset to Defaults** puts everything back.
 5. **Steps tab** (right). The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
@@ -303,6 +309,36 @@ Drag the divider between the left side and the tabs to give either more room.
 **Appearance:** **View > System Theme** (the default) follows the light or dark app setting of Windows (Settings > Personalization > Colors), macOS, or the Linux desktop, and switches when that setting changes. **View > Light Theme** and **View > Dark Theme** pick one for good. The choice is remembered.
 
 Your folders and settings are saved when you process or close the window and restored the next time you open it.
+
+### Recording The Screen
+
+**Record** (above the list of recordings, or **File > Record Screen...**, Ctrl+R) records the screen the way Windows Steps Recorder did, but as a video, while it notes where you click and which keys you press.
+
+1. Choose a **Microphone** if you want to talk through the steps (your words can become captions with [Captions From Narration](#captions-from-narration)), and whether keys are noted.
+2. Click **Start Recording**. The main window minimizes and a small **Recording** window with a timer, **Stop**, and **Discard** appears in the bottom-right corner.
+3. Do the task as usual, pausing a moment after each step. Click **Stop** when you are done.
+
+The recording is saved in the Recordings folder as `Recording <date> <time>.mkv`, selected in the list, and processed straight away (untick **Make the screenshots when I stop** to do that later).
+
+What is noted, next to the recording in `<name>.events.json`:
+
+- Where and when you click, including double-clicks, right-clicks, and drags.
+- Keys by name: Enter, Tab, Esc, Delete, the arrow and function keys, and shortcuts such as Ctrl+S.
+- **Never the text you type.** Letters, digits, and punctuation only count as "type the text". Untick **Note keys pressed** to leave keys out entirely.
+
+What it is used for:
+
+- Each click gets a red ring on its step's screenshot, and a drag gets an arrow. They are ordinary annotations: **Annotate > Edit or Remove** takes one off.
+- Each empty caption gets a first draft, for example `Click "Next".`, `Double-click "Report.docx".`, or `Click next to "User name", type the text, then press Tab.` The words of the clicked button are read from the recording at the moment of the click with Tesseract OCR, when it is installed. Words that look sensitive (the same patterns that are blurred) are left out, and without Tesseract the caption says "the marked spot".
+- Captions you type are never changed. **Captions From Narration** replaces a first draft you have not edited, since your own words usually say more.
+
+By system:
+
+- **Windows:** all monitors are recorded, at their full resolution. The small Recording window is left out of the video (Windows 10 version 2004 and later).
+- **macOS:** the main display is recorded. The first time, macOS asks to allow the app (or Terminal, for the Python install) under **System Settings > Privacy & Security > Screen Recording**, and **Input Monitoring** for keys. Restart the app after allowing it.
+- **Linux:** the whole screen of an X11 session is recorded. Wayland sessions do not let other programs record the screen or see clicks: choose an "on Xorg" or "X11" session at the login screen, or record with the desktop's own recorder (GNOME: Ctrl+Shift+Alt+R) and put the file in the Recordings folder. The Recording window shows in the video there, in the bottom-right corner. In the snap, connect the microphone once with `sudo snap connect screencap-documentation-tool:audio-record`.
+
+On the command line, `screencap --record` records until you press Enter and then processes the recording (see the [Command Line Reference](#command-line-reference)).
 
 ### Help Menu And Update Checks
 
@@ -407,6 +443,7 @@ After changing settings, reprocess with **Reprocess videos that are already done
 
 ### Recording Tips For Best Results
 
+- The built-in **Record** button is the simplest way: it also notes your clicks for click rings and captions. See [Recording The Screen](#recording-the-screen).
 - Pause for about a second after each meaningful step. The tool looks for moments when the screen is still.
 - Record a single window or monitor rather than a multi-monitor desktop. If you do record several monitors, crop to the one that matters with **Crop: All Steps** in the Steps tab, or `--crop` on the command line.
 - Turn on Do Not Disturb so notification popups do not show up as extra steps.
@@ -579,6 +616,13 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--crop` | none | Crop every screenshot to `X:Y:W:H` (pixels of the recording), for example `0:0:1920:1080` for the left monitor of a dual-screen recording. Width and height are rounded down to even numbers. Originals stay uncropped, and the crop can be changed in the Steps tab. |
 | `--no-highlight` | off | Do not draw the red "what changed" box. It can still be switched on later in the Steps tab, because the changed area is always worked out and saved. |
 | `--zoom` | off | Add a zoomed inset of what changed when the change is small. It can also be switched on or off later in the Steps tab. |
+| `--record` | off | Record the screen first (press Enter in the terminal to stop), save the recording in the source folder, and process it. Clicks and keys are noted for click rings and captions. |
+| `--record-seconds N` | none | With `--record`: stop by itself after `N` seconds. |
+| `--microphone NAME` | none | With `--record`: also record this microphone, for Captions From Narration. `--list-microphones` shows the names. |
+| `--list-microphones` | | List the microphones `--microphone` can use, then exit. |
+| `--no-key-log` | off | With `--record`: do not note keys at all (by default Enter, Tab, shortcuts and the like are noted by name; typed text never is). |
+| `--ignore-clicks` | off | Process a recording without the clicks and keys noted by the built-in recorder. |
+| `--no-click-marks` | off | Use the noted clicks for captions only, without red rings on the screenshots. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
 | `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |
 | `--dry-run` | off | Lists the steps that would be captured without saving anything. |
@@ -587,7 +631,7 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--list-presets` | | List the built-in and saved presets with their settings, then exit. |
 | `-v`, `--verbose` | off | Shows debug output on screen, including the exact FFmpeg commands. |
 
-Exit codes: `0` success, `1` one or more recordings failed, `2` setup problem (FFmpeg not found, or `--transcribe` without the speech recognition installed), `130` cancelled with Ctrl+C.
+Exit codes: `0` success, `1` one or more recordings failed, `2` setup problem (FFmpeg not found, `--transcribe` without the speech recognition installed, or `--record` could not record), `130` cancelled with Ctrl+C.
 
 ## Troubleshooting
 
@@ -623,6 +667,17 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | Double-clicking `Run-Screencap-GUI.bat` does nothing | The GUI hit an error before its window opened, and GUI apps have no console to show it. Run `py -3 C:\DATA\Tools\Screencap-Documentation-Tool\screencap_gui.pyw` from a terminal to see the error. |
 | Taskbar shows the Python icon instead of the app icon | The shortcut was created by an older installer. Paste the Quick Start command again to recreate it, unpin the old taskbar entry, and pin the app again from the Start Menu. |
 | Preview says `Preview unavailable` | Previews are drawn with FFmpeg. Check that the **Log** tab shows `Using FFmpeg: ...` at startup. |
+
+### Recording Problems
+
+| Symptom | Cause / Fix |
+| --- | --- |
+| `Recording needs an X11 desktop session; this one uses Wayland` | Wayland does not let other programs record the screen. Log out, choose an "on Xorg" or "X11" session at the login screen, and log in again. Or record with the desktop's own recorder and put the file in the Recordings folder. |
+| The recording is black, or `Recording did not work` on macOS | Screen Recording permission is missing. Allow the app (or Terminal) in **System Settings > Privacy & Security > Screen Recording**, then restart it. |
+| Keys are not noted on macOS | Allow the app (or Terminal) in **System Settings > Privacy & Security > Input Monitoring**. Clicks are noted without it. |
+| `Clicks and keys could not be read` in the log | The recording was kept, without click rings or click captions. On Linux, install `libxtst6` (Debian, Ubuntu) or `libXtst` (Fedora, openSUSE). |
+| Captions say "the marked spot" instead of the button's name | Tesseract OCR is not installed, or could not read the words there (very small text, an icon without text). Install Tesseract and process the recording again with **Reprocess recordings that are already done**. |
+| No microphones in the list | FFmpeg found none. On Windows check **Settings > Privacy & security > Microphone > Let desktop apps access your microphone**. In the snap, run `sudo snap connect screencap-documentation-tool:audio-record`. |
 
 ### Processing Problems
 

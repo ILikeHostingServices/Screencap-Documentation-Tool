@@ -17,7 +17,8 @@ optdepends=('tesseract: blur sensitive text automatically'
             'pandoc-cli: Word export'
             'chromium: PDF export (or Google Chrome or Microsoft Edge)'
             'vlc: Play in VLC'
-            'xdg-utils: open folders and files from the app')
+            'xdg-utils: open folders and files from the app'
+            'libxtst: note every click while recording the screen')
 source=("@SOURCE@")
 sha256sums=('@SHA256@')
 

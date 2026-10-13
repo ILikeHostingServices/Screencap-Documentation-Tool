@@ -2,7 +2,7 @@
 #
 # build_packages.py
 # 2026-10-12
-# Version: v1.0.1
+# Version: v1.0.2
 #
 # PURPOSE:
 # Builds the .deb (Debian, Ubuntu, Mint, Pop!_OS) and .rpm (Fedora, RHEL
@@ -35,6 +35,7 @@ DESCRIPTION = (
     "Turns screen recordings into step-by-step screenshot documentation.\n"
     "Finds every step in a recording with FFmpeg scene detection and saves a\n"
     "screenshot of each one, like a Steps Recorder for any operating system.\n"
+    "The built-in recorder notes your clicks for click rings and captions.\n"
     "Review the steps, add captions, arrows, and labels, crop, blur\n"
     "sensitive information, and export to HTML, Word, or PDF. Everything runs\n"
     "locally, with no telemetry.")
@@ -45,14 +46,14 @@ DEPENDS = {
     "deb": {
         "depends": ["python3 (>= 3.8)", "python3-tk", "ffmpeg"],
         "recommends": ["tesseract-ocr", "tesseract-ocr-eng", "pandoc", "xdg-utils",
-                       "fonts-dejavu-core"],
+                       "fonts-dejavu-core", "libxtst6"],
         "suggests": ["vlc", "chromium | chromium-browser | google-chrome-stable"],
     },
     "rpm": {
         "depends": ["python3 >= 3.8", "(python3-tkinter or python3-tk)",
                     "/usr/bin/ffmpeg", "/usr/bin/ffprobe"],
         "recommends": ["(tesseract or tesseract-ocr)", "pandoc", "xdg-utils",
-                       "(dejavu-sans-fonts or dejavu-fonts)"],
+                       "(dejavu-sans-fonts or dejavu-fonts)", "(libXtst or libXtst6)"],
         "suggests": ["vlc"],
     },
 }

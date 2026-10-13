@@ -1,11 +1,12 @@
 # ci.yml
-# 2026-10-02
-# Version: v1.1.0
+# 2026-10-13
+# Version: v1.2.0
 #
 # PURPOSE:
 # Runs the automated tests on real Windows and Linux machines for every push
 # and pull request: code checks, the full test suite (engine, blurring,
-# export, presets, VLC, captions from narration with a real speech model),
+# export, presets, VLC, captions from narration with a real speech model,
+# the built-in recorder recording real clicks),
 # and the GUI test that drives the real window.
 # Every optional tool is installed, and the run fails if any test was
 # skipped, so a missing tool can never let a test pass silently.
@@ -60,7 +61,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg tesseract-ocr pandoc vlc xvfb
+          sudo apt-get install -y -qq ffmpeg tesseract-ocr pandoc vlc xvfb libxtst6
           # Ubuntu blocks Chrome's sandbox for unprivileged users on CI
           echo "SCREENCAP_NO_SANDBOX=1" >> "$GITHUB_ENV"
 

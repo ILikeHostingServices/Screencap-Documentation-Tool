@@ -2,12 +2,13 @@
 #
 # screencap_gui.pyw
 # 2026-10-12
-# Version: v2.3.0
+# Version: v2.4.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
-# settings, process recordings with live progress, then review and edit the
-# captured steps in the Steps tab (see gui_editor.py). The Help menu has
+# settings, record the screen with the built-in recorder (gui_recorder.py),
+# process recordings with live progress, then review and edit the captured
+# steps in the Steps tab (see gui_editor.py). The Help menu has
 # built-in help, the About window, project links, and the update check
 # (see gui_help.py). Light, dark, and system themes are in theme.py.
 #
@@ -41,12 +42,13 @@ import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import transcribe  # noqa: E402
 import gui_help  # noqa: E402
+import gui_recorder  # noqa: E402
 import updates  # noqa: E402
 import theme  # noqa: E402
 from gui_editor import StepEditor  # noqa: E402
 
 APP_NAME = version.APP_NAME
-GUI_VERSION = "2.2.0"   # this file; the release version is in version.py
+GUI_VERSION = "2.4.0"   # this file; the release version is in version.py
 ASSETS_DIR = apppaths.BUNDLE_DIR / "assets"
 # Unique taskbar identity so Windows shows this app's icon instead of grouping
 # the window under the generic Python (pythonw.exe) icon. Convention for every
@@ -104,6 +106,8 @@ class App:
         self.cancel = threading.Event()
         self.videos = {}          # tree iid -> (video Path, output dir Path)
         self.editor_iid = None    # video currently open in the Steps tab
+        self.recording = None     # gui_recorder.RecordingSession while recording
+        self.log = sc.log
         self.temp_dir = Path(tempfile.mkdtemp(prefix="screencap_preview_"))
         self.ffmpeg = sc.find_tool("ffmpeg")
         self.ffprobe = sc.find_tool("ffprobe")
@@ -237,6 +241,9 @@ class App:
             return menu
 
         file_menu = cascade("File")
+        file_menu.add_command(label="Record Screen...", accelerator="Ctrl+R",
+                              command=self.start_recording)
+        file_menu.add_separator()
         file_menu.add_command(label="Choose Source Folder...",
                               command=lambda: self.browse(self.v_source))
         file_menu.add_command(label="Choose Output Folder...",
@@ -261,6 +268,7 @@ class App:
         view_menu.add_command(label="Log", accelerator="Ctrl+2",
                               command=lambda: self.notebook.select(1))
         self.view_menu = view_menu
+        self.root.bind("<Control-r>", lambda e: self.start_recording())
         self.root.bind("<Control-Key-1>", lambda e: self.notebook.select(0))
         self.root.bind("<Control-Key-2>", lambda e: self.notebook.select(1))
 
@@ -364,6 +372,8 @@ class App:
         ttk.Label(head, text="Recordings", style="Card.Heading.TLabel").pack(side="left")
         self.btn_refresh = ttk.Button(head, text="Refresh", command=self.refresh_videos)
         self.btn_refresh.pack(side="right")
+        self.btn_record = ttk.Button(head, text="\u25cf Record", command=self.start_recording)
+        self.btn_record.pack(side="right", padx=(0, 6))
         self.tree = ttk.Treeview(vids, columns=("status", "steps"), selectmode="extended",
                                  height=6)
         self.tree.heading("#0", text="Recording", anchor="w")
@@ -791,7 +801,10 @@ class App:
         self.v_profile.set(presets.canonical(self.v_profile.get()) or presets.DEFAULT)
         self.settings_extra = {k: data[k] for k in ("check_updates", "last_update_check",
                                                     "skip_version", "installer_folders",
-                                                    "export_logo", "export_template")
+                                                    "export_logo", "export_template",
+                                                    gui_recorder.MIC_KEY,
+                                                    gui_recorder.KEYS_KEY,
+                                                    gui_recorder.PROCESS_KEY)
                                if k in data}
         self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))
         if self.v_theme.get() not in theme.MODES:
@@ -1070,7 +1083,7 @@ class App:
 
     def set_running(self, running):
         state = "disabled" if running else "normal"
-        for b in (self.btn_all, self.btn_sel, self.btn_refresh):
+        for b in (self.btn_all, self.btn_sel, self.btn_refresh, self.btn_record):
             b.configure(state=state)
         self.btn_cancel.configure(state="normal" if running else "disabled")
         self.root.configure(cursor="watch" if running else "")
@@ -1128,6 +1141,35 @@ class App:
             self.show_steps()
 
     # --------------------------------------------------------------- steps
+
+    # ----------------------------------------------------------- recording
+
+    def start_recording(self):
+        if self.recording is not None or (self.worker and self.worker.is_alive()):
+            return
+        if not self.editor.confirm_discard():
+            return
+        gui_recorder.RecordingSession(self).open()
+
+    def on_recorded(self, path, process):
+        """A recording was saved: show it in the list and, if asked, process it."""
+        events = gui_recorder.recorder.load_events(path) or {}
+        sc.log.info("Saved the recording to %s (%d click(s) and key(s) noted)", path,
+                    len(events.get("events") or []))
+        self.refresh_videos()
+        iid = next((i for i, (v, _) in self.videos.items()
+                    if v.resolve() == Path(path).resolve()), None)
+        if iid is None:
+            self.set_status(f"Saved {Path(path).name}. It is not in the list because the "
+                            "Recordings folder changed.")
+            return
+        self.tree.selection_set(iid)
+        self.tree.see(iid)
+        if process:
+            self.start([iid])
+        else:
+            self.set_status(f"Saved {Path(path).name}. Click Process Selected to make the "
+                            "screenshots.")
 
     def selected_video(self):
         sel = [i for i in self.tree.selection() if i in self.videos]
@@ -1194,6 +1236,8 @@ class App:
     def on_close(self):
         if not self.editor.confirm_discard():
             return
+        if self.recording is not None:
+            self.recording.cancel_quietly()
         if self.worker and self.worker.is_alive():
             if not messagebox.askyesno(APP_NAME, "Processing is still running. "
                                        "Cancel it and exit?", parent=self.root):

@@ -2,7 +2,7 @@
 #
 # gui_help.py
 # 2026-10-12
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -24,6 +24,8 @@ import version
 
 TOPICS = [
     ("Getting Started", """\
+0. Record (optional). Click Record above the list of recordings (or press Ctrl+R) to record the screen with the built-in recorder. Each click is noted, so the steps get a red ring where you clicked and a first-draft caption such as Click "Next". See Recording the Screen.
+
 1. Folders. Put your screen recordings (.mp4, .mov, or .mkv) in the source folder, or choose another folder with Browse. Screenshots go to the output folder, one subfolder per recording.
 
 2. Preset. Pick the kind of recording, for example Installer Wizard, General Desktop Use, Web Console, or Terminal / Command Line. The preset fills in all the detection settings.
@@ -37,6 +39,18 @@ TOPICS = [
 The original screenshots are always kept, so every edit can be changed again later.
 
 More settings (timing, image format, extra blur patterns, dry run) are under View > Advanced Settings. View > Light Theme, Dark Theme, or System Theme changes the look."""),
+    ("Recording The Screen", """\
+Record (above the list of recordings, or File > Record Screen, Ctrl+R) records the screen like Windows Steps Recorder did, but as a video:
+
+1. Choose a microphone if you want to talk through the steps (your words can become captions with Captions From Narration), and whether keys are noted.
+2. Click Start Recording. The window minimizes and a small Recording window with Stop and Discard appears in the bottom-right corner.
+3. Do the task as usual, then click Stop. The recording is saved in the Recordings folder and the screenshots are made straight away (unless you unticked that).
+
+What gets noted: where and when you click (double-clicks, right-clicks, and drags too), and keys such as Enter, Tab, Esc, arrows, function keys, and shortcuts like Ctrl+S. Typed text is never saved: letters and digits only count as "type the text".
+
+What it is used for: each click gets a red ring on its step (a drag gets an arrow), and empty captions get a first draft such as Click "Next", or Click next to "User name", type the text, then press Tab. The words of the clicked button are read with Tesseract OCR when it is installed; words that look sensitive are left out. Edit any caption as usual; Captions From Narration replaces drafts you have not edited.
+
+Notes: on Windows all monitors are recorded, and the Recording window is left out of the video. On macOS allow Screen Recording (and Input Monitoring for keys) in System Settings > Privacy & Security. On Linux an X11 session is needed; Wayland desktops do not let other programs record the screen, so use the desktop's own recorder and put the file in the Recordings folder."""),
     ("Presets", """\
 A preset is a named set of detection settings for one kind of recording:
 
@@ -59,7 +73,7 @@ In the Steps tab:
 - Crop menu: drag a rectangle on the picture to keep only part of the screen, for all steps or just this one.
 - Blur menu: add a blur box, or click a blurred area to switch it off or back on.
 - Highlight menu: the red box shows what changed since the previous step, and the zoomed inset shows a small change up close in a corner. Animated Clip of This Step adds a short GIF of the step when you save. Switch either on or off for the whole recording (top right) or for one step (Highlight menu).
-- Annotate menu: draw arrows, numbered markers, and text labels on the screenshot. Edit or Remove changes or removes one.
+- Annotate menu: draw arrows, numbered markers, and text labels on the screenshot. Edit or Remove changes or removes one, including the click rings added by the recorder.
 - Screenshot / Original frame compares the edited picture with the untouched capture.
 - Open menu: the screenshot, steps.md, or the output and export folders.
 - Export: HTML, Word, or PDF. Logo and Template chooses a company logo and a Word template (its styles and page header and footer) for every export.
@@ -89,6 +103,7 @@ Delete               Delete the selected step
 Esc                  Cancel drawing a crop or blur box
 Double-click a step  Open the screenshot
 Double-click a video Open its output folder
+Ctrl+R               Record the screen
 Ctrl+1 / Ctrl+2      Steps tab / Log tab
 F1                   This help"""),
     ("Troubleshooting", """\
