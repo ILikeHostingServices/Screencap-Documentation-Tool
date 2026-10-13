@@ -2,7 +2,7 @@
 #
 # test_recorder.py
 # 2026-10-12
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Tests for the built-in recorder and the use of its clicks: turning mouse
@@ -167,6 +167,16 @@ class ActionTests(unittest.TestCase):
         self.assertIsNone(actions.click_label(lines, 700, 205, 1280))
         self.assertEqual(actions.nearby_label(lines, 400, 210, 1280), "User name")
         self.assertIsNone(actions.click_label([ocr_line("|", "~", y=100)], 105, 105, 1280))
+        # a checkbox clicked on its box: the label is to the right
+        self.assertEqual(actions.right_label([ocr_line("Create", "a", "shortcut", y=300)],
+                                             80, 308, 1280), "Create a shortcut")
+        # button edges read as | do not join two buttons into one label
+        buttons = [ocr_line("Back", "|", "Next", y=400)]
+        self.assertEqual(actions.click_label(buttons, 170, 405, 1280), "Next")
+        # a text cursor read as "I" is not the clicked word; the field label is
+        field = [ocr_line("Product", "key:", y=500) + [("I", [380, 498, 6, 18])]]
+        self.assertIsNone(actions.click_label(field, 382, 505, 1280))
+        self.assertEqual(actions.nearby_label(field, 382, 505, 1280), "Product key")
 
     def test_sensitive_words_never_go_in_a_caption(self):
         self.assertIsNone(actions.safe_label("admin@example.com"))

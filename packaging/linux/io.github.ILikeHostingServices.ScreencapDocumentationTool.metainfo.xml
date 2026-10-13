@@ -26,6 +26,28 @@
       <li>Light and dark themes; everything runs locally, with no telemetry</li>
     </ul>
   </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Each step with its screenshot, the click marked, secrets blurred, and a first-draft caption</caption>
+      <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/01-steps-editor.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Recording the screen with the built-in recorder</caption>
+      <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/05-recording.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Arrows, numbered markers, and text labels on a screenshot</caption>
+      <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/02-annotate-menu.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The finished document, exported as HTML</caption>
+      <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/06-export-html.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The dark theme</caption>
+      <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/04-dark-theme.png</image>
+    </screenshot>
+  </screenshots>
   <launchable type="desktop-id">io.github.ILikeHostingServices.ScreencapDocumentationTool.desktop</launchable>
   <url type="homepage">https://github.com/ILikeHostingServices/Screencap-Documentation-Tool</url>
   <url type="bugtracker">https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues</url>
@@ -39,6 +61,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.31.2" date="2026-10-13">
+      <description>
+        <p>Better first-draft captions from clicks, and screenshots in the software center listing.</p>
+      </description>
+    </release>
     <release version="1.31.1" date="2026-10-13">
       <description>
         <p>Snap Store fix: the snap asks for audio playback together with the microphone.</p>
