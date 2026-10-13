@@ -13,8 +13,10 @@ output/*
 *.webm
 *.png
 *.jpg
-# ...except the application icon
+# ...except the application icon and the app's own screenshots, which show
+# only a made-up demo (packaging/screenshots/make_screenshots.sh)
 !assets/icon.png
+!docs/screenshots/*.png
 *.jpeg
 *.log
 

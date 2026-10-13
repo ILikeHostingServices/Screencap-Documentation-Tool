@@ -1,6 +1,12 @@
-README.md v1.37.0 (Last Rev: 2026-10-13)
+README.md v1.38.0 (Last Rev: 2026-10-13)
 
 # Screencap Documentation Tool
+
+[![Get it from the Snap Store](https://snapcraft.io/en/dark/install.svg)](https://snapcraft.io/screencap-documentation-tool)
+[![Download for Windows and Linux](https://img.shields.io/github/v/release/ILikeHostingServices/Screencap-Documentation-Tool?label=download&logo=github)](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest)
+[![Homebrew](https://img.shields.io/badge/homebrew-ilikehostingservices%2Ftap-FBB040?logo=homebrew&logoColor=white)](#macos)
+
+![The Steps tab: each step of a recorded setup wizard with its screenshot, a red ring where the mouse was clicked, the product key blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
 
 ## Overview
 
@@ -29,6 +35,19 @@ For each recording you get:
 - One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header, and optionally your company logo and Word template. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring and [Pandoc](https://pandoc.org/) for Word export. PDF export uses Microsoft Edge (included with Windows 11) or Google Chrome/Chromium. All are free and open source, and the installers set them up for you.
+
+### Screenshots
+
+| | |
+| --- | --- |
+| ![Recording the screen: the setup wizard being recorded, with the small Recording window and its Stop and Discard buttons in the corner](docs/screenshots/05-recording.png) | ![The Record window: microphone, noting keys, and making the screenshots when the recording stops](docs/screenshots/03-record-window.png) |
+| **Record** the task: every click is noted. | Choose a microphone for narration, or none. |
+| ![The Annotate menu with a numbered marker, an arrow, and a text label drawn on a step](docs/screenshots/02-annotate-menu.png) | ![The dark theme](docs/screenshots/04-dark-theme.png) |
+| Add arrows, numbers, and labels. | Light, dark, or the system's theme. |
+| ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | |
+| Export the steps as one HTML, Word, or PDF document. | |
+
+The screenshots show a made-up "Example App" setup wizard recorded with the built-in recorder; `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
 
 ### Coming From Steps Recorder
 
@@ -69,6 +88,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
+| `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a made-up setup wizard (`demo_wizard.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, ImageMagick, and Chromium. |
+| `docs/screenshots/` | The screenshots of the app. |
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
 | `theme.py` | The GUI's light, dark, and system themes. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |

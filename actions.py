@@ -2,7 +2,7 @@
 #
 # actions.py
 # 2026-10-12
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Uses the clicks and keys noted by the built-in recorder (recorder.py) to
@@ -94,6 +94,12 @@ def _gap_ok(a, b):
     return 0 <= b[0] - (a[0] + a[2]) <= h * 0.9
 
 
+def _is_word(text):
+    """True for real words; OCR also reads borders, carets, and the text
+    cursor as | or I, which must not count as the clicked words."""
+    return sum(c.isalnum() for c in text) >= 2
+
+
 def click_label(lines, x, y, width):
     """Text of the button, link, or item at (x, y), from OCR lines (lists of
     (text, [x, y, w, h])). None when nothing readable is there."""
@@ -103,7 +109,7 @@ def click_label(lines, x, y, width):
         for wi, (text, (bx, by, bw, bh)) in enumerate(words):
             dx = max(bx - x, 0, x - (bx + bw))
             dy = max(by - y, 0, y - (by + bh))
-            if dy > reach or dx > reach * 2:
+            if not _is_word(text) or dy > reach or dx > reach * 2:
                 continue
             d = dx + dy * 2
             if best is None or d < best[0]:
@@ -120,7 +126,7 @@ def nearby_label(lines, x, y, width):
     best = None
     for li, words in enumerate(lines):
         for wi, (text, (bx, by, bw, bh)) in enumerate(words):
-            if not (by - bh <= y <= by + 2 * bh):
+            if not _is_word(text) or not (by - bh <= y <= by + 2 * bh):
                 continue
             gap = x - (bx + bw)
             if 0 <= gap <= reach and (best is None or gap < best[0]):
@@ -130,13 +136,33 @@ def nearby_label(lines, x, y, width):
     return _phrase(lines[best[1]], best[2], leftward=True)
 
 
+def right_label(lines, x, y, width):
+    """Text just right of (x, y), such as the label of a checkbox or option
+    button that was clicked on its box. None when there is none."""
+    reach = max(60, width // 16)
+    best = None
+    for li, words in enumerate(lines):
+        for wi, (text, (bx, by, bw, bh)) in enumerate(words):
+            if not _is_word(text) or not (by - bh <= y <= by + 2 * bh):
+                continue
+            gap = bx - x
+            if 0 <= gap <= reach and (best is None or gap < best[0]):
+                best = (gap, li, wi)
+    if best is None:
+        return None
+    return _phrase(lines[best[1]], best[2])
+
+
 def _phrase(words, wi, leftward=False):
     """The run of closely spaced words around words[wi], cleaned up."""
+    def joins(a, b):    # a symbol-only token (|, <, >) is an edge between two buttons
+        return _gap_ok(words[a][1], words[b][1]) and \
+            any(c.isalnum() for c in words[a][0]) and any(c.isalnum() for c in words[b][0])
     lo = hi = wi
-    while lo > 0 and _gap_ok(words[lo - 1][1], words[lo][1]) and hi - lo + 1 < LABEL_WORDS:
+    while lo > 0 and joins(lo - 1, lo) and hi - lo + 1 < LABEL_WORDS:
         lo -= 1
-    while not leftward and hi + 1 < len(words) and \
-            _gap_ok(words[hi][1], words[hi + 1][1]) and hi - lo + 1 < LABEL_WORDS:
+    while not leftward and hi + 1 < len(words) and joins(hi, hi + 1) and \
+            hi - lo + 1 < LABEL_WORDS:
         hi += 1
     text = " ".join(w for w, _ in words[lo:hi + 1])
     text = text.strip(" .:;,|>»<«*_-—–\"'`()[]{}")
@@ -266,6 +292,26 @@ def words_at(ffmpeg, tesseract, video, t, area, tmp, psm=11):
             for words in lines]
 
 
+LOOK_BACK = 1.0     # seconds; the pointer is usually not on the words yet
+
+
+def fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp):
+    """The pointer often covers part of the clicked words ("Ne" for "Next").
+    Read the same place a moment earlier and take that reading when it holds
+    this one, so a screen that changed in between cannot give a wrong label."""
+    if a["t"] < LOOK_BACK:
+        return label
+    try:
+        before = words_at(ffmpeg, tesseract, video, a["t"] - LOOK_BACK, area, tmp)
+    except (RuntimeError, OSError):
+        return label
+    earlier = click_label(before, a["x"], a["y"], width) or \
+        right_label(before, a["x"], a["y"], width)
+    if earlier and len(earlier) > len(label) and label.lower() in earlier.lower():
+        return earlier
+    return label
+
+
 def label_actions(acts, video, ffmpeg, tesseract, width, height, extra, tmp):
     """Add "label" (the words clicked) or "near" (the words beside an empty
     spot) to clicks and drags."""
@@ -278,8 +324,11 @@ def label_actions(acts, video, ffmpeg, tesseract, width, height, extra, tmp):
         except (RuntimeError, OSError) as exc:
             log.debug("  Reading the words at a click failed: %s", exc)
             continue
-        label = click_label(lines, a["x"], a["y"], width)
-        if not label:
+        label = click_label(lines, a["x"], a["y"], width) or \
+            right_label(lines, a["x"], a["y"], width)
+        if label:
+            label = fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp)
+        else:
             try:
                 tight = words_at(ffmpeg, tesseract, video, a["t"],
                                  tight_area(a["x"], a["y"], width, height), tmp, psm=7)

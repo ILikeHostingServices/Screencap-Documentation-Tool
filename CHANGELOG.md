@@ -1,8 +1,19 @@
-CHANGELOG.md v1.34.1 (Last Rev: 2026-10-13)
+CHANGELOG.md v1.35.0 (Last Rev: 2026-10-13)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.31.2 - Better click captions, and screenshots in the store listings (2026-10-13)
+
+**Fixed**
+- First-draft captions name the clicked button even when the mouse pointer covers part of its words: the same place is read a moment before the click too, and the fuller reading is used when it holds the shorter one (so `Click "Ne".` is now `Click "Next".`).
+- A checkbox or option button clicked on its box gets its label from the words to the right of it (`Click "Create a desktop shortcut".`), instead of "the marked spot".
+- Text box borders and the text cursor, which OCR reads as `|` or `I`, no longer hide the label of an empty text box (`Click next to "Product key"`), and the border between two buttons no longer joins their words (`Click "Back | Next"`).
+
+**New**
+- Screenshots of the app in the README and in the Linux software center listing (GNOME Software, KDE Discover), plus a Snap Store button and download and Homebrew badges at the top of the README.
+- `packaging/screenshots/make_screenshots.sh` makes the screenshots again after interface changes: it records a made-up setup wizard with the built-in recorder on a virtual display, so the click rings, blurring, and captions in the pictures are the tool's own.
 
 ## v1.31.1 - Snap Store fix (2026-10-13)
 
