@@ -39,6 +39,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.31.1" date="2026-10-13">
+      <description>
+        <p>Snap Store fix: the snap asks for audio playback together with the microphone.</p>
+      </description>
+    </release>
     <release version="1.31.0" date="2026-10-13">
       <description>
         <p>A built-in screen recorder that notes clicks and keys, for click rings and first-draft captions.</p>
