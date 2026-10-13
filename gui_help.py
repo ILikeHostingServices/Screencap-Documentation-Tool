@@ -39,7 +39,7 @@ TOPICS = [
 The original screenshots are always kept, so every edit can be changed again later.
 
 More settings (timing, image format, extra blur patterns, dry run) are under View > Advanced Settings. View > Light Theme, Dark Theme, or System Theme changes the look."""),
-    ("Recording the Screen", """\
+    ("Recording The Screen", """\
 Record (above the list of recordings, or File > Record Screen, Ctrl+R) records the screen like Windows Steps Recorder did, but as a video:
 
 1. Choose a microphone if you want to talk through the steps (your words can become captions with Captions From Narration), and whether keys are noted.
