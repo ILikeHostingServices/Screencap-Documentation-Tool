@@ -1,8 +1,13 @@
-CHANGELOG.md v1.34.0 (Last Rev: 2026-10-13)
+CHANGELOG.md v1.34.1 (Last Rev: 2026-10-13)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.31.1 - Snap Store fix (2026-10-13)
+
+**Fixed**
+- The snap of v1.31.0 was held for manual review by the Snap Store, which asks for the audio-playback permission together with the microphone (audio-record) permission the recorder added. The snap now has both, so it is published to the Snap Store again. Nothing else changed; the other downloads are the same as v1.31.0.
 
 ## v1.31.0 - Built-in screen recorder (2026-10-13)
 

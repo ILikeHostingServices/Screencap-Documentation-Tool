@@ -1,6 +1,6 @@
 # snapcraft.yaml
 # 2026-10-12
-# Version: v1.2.0
+# Version: v1.2.1
 #
 # PURPOSE:
 # Snap package for the Snap Store (Ubuntu and any distribution with snapd).
@@ -45,8 +45,9 @@ apps:
     desktop: usr/share/applications/io.github.ILikeHostingServices.ScreencapDocumentationTool.desktop
     common-id: io.github.ILikeHostingServices.ScreencapDocumentationTool
     extensions: [gnome]
-    # audio-record: the microphone while recording (snap connect it once)
-    plugs: [home, removable-media, network, audio-record]
+    # audio-record: the microphone while recording (snap connect it once);
+    # the Snap Store asks for audio-playback with it
+    plugs: [home, removable-media, network, audio-playback, audio-record]
     environment: &env
       # Tkinter, Tcl/Tk, FFmpeg, and Tesseract staged in the snap
       PYTHONPATH: $SNAP/usr/lib/python3.12:$SNAP/usr/lib/python3.12/lib-dynload:$SNAP/usr/lib/python3/dist-packages
@@ -57,7 +58,7 @@ apps:
   cli:
     command: usr/bin/screencap
     extensions: [gnome]
-    plugs: [home, removable-media, network, audio-record]
+    plugs: [home, removable-media, network, audio-playback, audio-record]
     environment: *env
 
 parts:
