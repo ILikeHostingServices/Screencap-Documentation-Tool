@@ -2,12 +2,14 @@
 #
 # test_gui.py
 # 2026-10-12
-# Version: v1.6.0
+# Version: v1.7.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
 # Videos list, then checks the Steps tab (arrow-key navigation, reordering,
-# captions, annotations, saving, captions from narration), the version in
+# captions, annotations, saving, captions from narration), recording the
+# screen with the Record button and stopping it from the Recording window,
+# the version in
 # the title, the Help menu (help, About, links, update check), the light,
 # dark, and system themes, and the Advanced Settings window. Skipped when Tkinter or a
 # display is not available (on Linux CI it runs under xvfb-run).
@@ -21,13 +23,19 @@ from unittest import mock
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
-from helpers import FFMPEG, FFPROBE, ROOT, fake_whisper, make_video
+from helpers import FFMPEG, FFPROBE, ROOT, fake_click, fake_whisper, make_video
 
 try:
     import tkinter as tk
     from tkinter import messagebox, simpledialog
 except ImportError:   # Python without Tcl/Tk
     tk = None
+
+def recorder_ready():
+    import ctypes.util
+    import recorder
+    return recorder.unsupported_reason() is None and bool(ctypes.util.find_library("Xtst"))
+
 
 HAS_DISPLAY = os.name == "nt" or bool(os.environ.get("DISPLAY")) or os.uname().sysname == "Darwin"
 
@@ -286,6 +294,54 @@ class GuiTests(unittest.TestCase):
         self.assertTrue(ed.save(wait=True))
         self.pump()
         self.assertIsNotNone(clips.clip_path(ed.out_dir, ed.current_step()))
+        self.assertEqual(self.errors, [])
+
+    @unittest.skipUnless(os.name == "nt" or recorder_ready(), "this desktop cannot be recorded")
+    def test_record_button_records_and_processes(self):
+        source, output = self.tmp / "rec-source", self.tmp / "rec-out"
+        self.app.v_source.set(str(source))
+        self.app.v_output.set(str(output))
+        target = tk.Toplevel(self.root)            # something to click while recording
+        target.geometry("300x200+40+40")
+        target.attributes("-topmost", True)
+        self.pump(0.5)
+
+        self.app.start_recording()
+        self.pump()
+        dialog = next(w for w in self.root.winfo_children()
+                      if isinstance(w, self.gui.gui_recorder.RecordDialog))
+        dialog.v_mic.set(self.gui.gui_recorder.NO_MIC)
+        dialog.start()
+        session = self.app.recording
+        end = time.monotonic() + 20
+        while not session.rec.recording():
+            self.assertLess(time.monotonic(), end, session.rec.error_text())
+            self.pump(0.1)
+        self.pump(2.5)
+        fake_click(target.winfo_rootx() + 150, target.winfo_rooty() + 100)
+        self.pump(2.5)
+        stop = session.bar.btn_stop                # the real Stop button, clicked
+        fake_click(stop.winfo_rootx() + stop.winfo_width() // 2,
+                   stop.winfo_rooty() + stop.winfo_height() // 2)
+        end = time.monotonic() + 30
+        while self.app.recording is not None:
+            self.assertLess(time.monotonic(), end, "the recording did not stop")
+            self.pump(0.2)
+        self.wait_for_worker()
+        target.destroy()
+
+        videos = list(source.glob("Recording *.mkv"))
+        self.assertEqual(len(videos), 1, self.dialogs)
+        events = self.gui.gui_recorder.recorder.load_events(videos[0])
+        clicks = [e for e in events["events"] if e["type"] == "click"]
+        self.assertEqual(len(clicks), 1, "the click on Stop is left out")
+        rows = [self.app.tree.set(i, "status") for i in self.app.tree.get_children()]
+        self.assertEqual(rows, ["Done"], self.dialogs)
+        doc = self.app.editor.doc
+        self.assertIsNotNone(doc, "the new recording is open in the Steps tab")
+        rings = [a for st in doc["steps"] for a in st.get("annotations") or []
+                 if a["kind"] == "click"]
+        self.assertEqual(len(rings), 1)
         self.assertEqual(self.errors, [])
 
     def test_toolbars_wrap_instead_of_cutting_buttons_off(self):

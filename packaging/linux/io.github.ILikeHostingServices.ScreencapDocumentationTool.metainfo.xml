@@ -17,6 +17,7 @@
       how-to guides.
     </p>
     <ul>
+      <li>A built-in recorder that notes your clicks: each step gets a red ring and a first-draft caption such as Click "Next"</li>
       <li>Presets for installers, the desktop, web consoles, terminals, remote desktops, and more</li>
       <li>Review the steps: reorder, delete, crop, and write a caption for each one</li>
       <li>Arrows, numbered markers, text labels, a zoomed inset, and animated GIF clips</li>
@@ -38,6 +39,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.31.0" date="2026-10-13">
+      <description>
+        <p>A built-in screen recorder that notes clicks and keys, for click rings and first-draft captions.</p>
+      </description>
+    </release>
     <release version="1.30.0" date="2026-10-12">
       <description>
         <p>Animated GIF clips of single steps.</p>

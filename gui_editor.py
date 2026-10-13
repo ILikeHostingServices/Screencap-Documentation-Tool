@@ -486,6 +486,7 @@ class StepEditor(ttk.Frame):
         text = self.caption.get("1.0", "end").strip()
         if text != (step.get("caption") or ""):
             step["caption"] = text
+            step.pop("caption_auto", None)     # edited by hand now
             self.set_dirty()
             i = self.current_index()
             label = f"{i + 1:03d}  {stepdoc.fmt_ts(step['time'])}  {text.replace(chr(10), ' ')[:30]}"
@@ -1064,11 +1065,12 @@ class StepEditor(ttk.Frame):
                 step["annotations"].remove(ann)
                 message = "Marker removed."
         else:
-            if not messagebox.askyesno(self.app.name, "Remove this arrow?", parent=parent):
+            what = "click ring" if ann["kind"] == "click" else "arrow"
+            if not messagebox.askyesno(self.app.name, f"Remove this {what}?", parent=parent):
                 self.schedule_preview()
                 return
             step["annotations"].remove(ann)
-            message = "Arrow removed."
+            message = f"{what.capitalize()} removed."
         self.set_dirty()
         self.v_view.set("final")
         self.app.set_status(message + " Click Save Changes to keep it.")
@@ -1203,7 +1205,11 @@ class StepEditor(ttk.Frame):
                                         outline=ANNOTATION_COLOR, width=2)
                 self.canvas.create_text(cx, cy, text=str(ann.get("n", 1)),
                                         fill=ANNOTATION_COLOR)
-            else:
+            elif ann["kind"] == "click":
+                (cx, cy), r = pt(ann["at"]), max(8, annotate.ring_radius(sz) * scale)
+                self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r,
+                                        outline=ANNOTATION_COLOR, width=3)
+            elif ann["kind"] == "text":
                 x, y = pt(ann["at"])
                 w, h = annotate.label_size(ann["text"], self.doc["width"])
                 self.canvas.create_rectangle(x, y, x + w * scale, y + h * scale,

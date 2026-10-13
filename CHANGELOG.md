@@ -1,8 +1,25 @@
-CHANGELOG.md v1.33.1 (Last Rev: 2026-10-12)
+CHANGELOG.md v1.34.0 (Last Rev: 2026-10-13)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.31.0 - Built-in screen recorder (2026-10-13)
+
+**New**
+- **Record:** a built-in screen recorder, like Windows Steps Recorder but as a video. Click **Record** above the list of recordings (or **File > Record Screen...**, Ctrl+R), choose a microphone if you want to narrate, and click **Start Recording**. The main window minimizes and a small **Recording** window shows a timer, **Stop**, and **Discard**. When you click **Stop**, the recording is saved in the Recordings folder and the screenshots are made straight away.
+- **Clicks and keys are noted while recording:** where and when you click (double-clicks, right-clicks, and drags too) and keys such as Enter, Tab, Esc, arrows, function keys, and shortcuts like Ctrl+S. **Typed text is never saved:** letters and digits only count as "type the text". They are kept next to the recording in `<name>.events.json`.
+- **Click rings:** each click gets a red ring on its step's screenshot, and a drag gets an arrow. They are ordinary annotations, so **Annotate > Edit or Remove** takes one off.
+- **First-draft captions:** empty captions are filled from the clicks and keys, for example `Click "Next".` or `Click next to "User name", type the text, then press Tab.` The words of the clicked button are read from the recording at the moment of the click with Tesseract OCR; words that look sensitive (the same patterns that are blurred) are left out. Captions you type are never changed, and Captions From Narration replaces a draft you have not edited.
+- Command line: `--record` (stop with Enter, or after `--record-seconds N`), `--microphone NAME` and `--list-microphones`, `--no-key-log`, `--ignore-clicks`, and `--no-click-marks`.
+
+**By system**
+- Windows: all monitors are recorded, and the Recording window is left out of the video.
+- macOS: the main display is recorded. Allow the app (or Terminal) under System Settings > Privacy & Security > Screen Recording, and Input Monitoring for keys.
+- Linux: X11 sessions. Wayland desktops do not let other programs record the screen; the app explains this and suggests the desktop's own recorder. In the snap, connect the microphone once with `sudo snap connect screencap-documentation-tool:audio-record`.
+
+**Changed**
+- The Linux packages recommend libXtst, which lets the recorder see every click, even very short ones. The snap includes it.
 
 ## v1.30.0 - Animated clips of single steps (2026-10-12)
 

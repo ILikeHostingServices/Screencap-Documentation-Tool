@@ -2,14 +2,16 @@
 #
 # screencap.py
 # 2026-10-12
-# Version: v1.12.0
+# Version: v1.13.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
 # scene detection to find the moments where the screen changes, and saves a
 # screenshot of each step plus a Markdown index for writing documentation.
 # Full frames are kept in originals/ so steps can be edited and re-rendered
-# (see stepdoc.py and the GUI step editor).
+# (see stepdoc.py and the GUI step editor). --record records the screen
+# first with the built-in recorder, noting clicks and keys so steps get
+# click marks and first-draft captions (see recorder.py and actions.py).
 #
 # Requires: Python 3.8+ and FFmpeg (ffmpeg + ffprobe). Standard library only.
 # Works on Windows 11, Linux, and macOS.
@@ -28,10 +30,12 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
+import actions  # noqa: E402
 import apppaths  # noqa: E402
 import export  # noqa: E402
 import imaging  # noqa: E402
 import presets  # noqa: E402
+import recorder  # noqa: E402
 import redact  # noqa: E402
 import stepdoc  # noqa: E402
 import transcribe  # noqa: E402
@@ -39,7 +43,7 @@ import version  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.12.0"
+VERSION = "1.13.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -288,7 +292,8 @@ def settings_snapshot(args):
     return {k: getattr(args, k) for k in
             ("threshold", "debounce", "capture_point", "settle", "lead",
              "max_wait", "min_gap", "analyze_fps", "analyze_width", "format",
-             "no_dedup", "dedup_threshold", "no_highlight", "zoom", "crop", "no_redact")}
+             "no_dedup", "dedup_threshold", "no_highlight", "zoom", "crop", "no_redact",
+             "ignore_clicks", "no_click_marks")}
 
 
 def clear_previous_output(out_dir):
@@ -387,6 +392,10 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     if doc["deleted_steps"]:
         log.info("  %d duplicate screenshot(s) removed (restore them in the Steps tab)",
                  len(doc["deleted_steps"]))
+    # Clicks and keys noted by the built-in recorder: click marks and captions
+    if not args.ignore_clicks:
+        actions.apply_recording(out_dir, doc, video, redact.find_tesseract(args.tesseract),
+                                mark=not args.no_click_marks, ffmpeg=ffmpeg)
     # Always analyze, so highlighting can be switched on later in the editor
     stepdoc.ensure_change_boxes(out_dir, doc, ffmpeg)
 
@@ -566,6 +575,25 @@ def parse_args(argv):
     p.add_argument("--zoom", action="store_true",
                    help="Add a zoomed inset of what changed when it is small (it can also "
                         "be switched on later in the GUI's step editor)")
+    p.add_argument("--record", action="store_true",
+                   help="Record the screen first (press Enter to stop), save the recording "
+                        "in the source folder, and process it. Clicks and keys are noted "
+                        "for click marks and captions")
+    p.add_argument("--record-seconds", type=float, metavar="N",
+                   help="With --record: stop by itself after N seconds")
+    p.add_argument("--microphone", metavar="NAME",
+                   help="With --record: also record this microphone, for captions from "
+                        "narration (see --list-microphones)")
+    p.add_argument("--list-microphones", action="store_true",
+                   help="List the microphones --microphone can use, then exit")
+    p.add_argument("--no-key-log", action="store_true",
+                   help="With --record: do not note keys pressed (by default Enter, Tab, "
+                        "shortcuts and the like are noted by name; typed text never is)")
+    p.add_argument("--ignore-clicks", action="store_true",
+                   help="Do not use the clicks and keys noted by the built-in recorder")
+    p.add_argument("--no-click-marks", action="store_true",
+                   help="Use noted clicks for captions only, without red rings on the "
+                        "screenshots")
     p.add_argument("-f", "--format", choices=("png", "jpg"), default="png",
                    help="Screenshot image format (default: png)")
     p.add_argument("--force", action="store_true",
@@ -605,6 +633,8 @@ def parse_args(argv):
             re.compile(rx)
         except re.error as exc:
             p.error(f"--redact-pattern {rx!r} is not a valid regular expression: {exc}")
+    if args.record_seconds is not None and args.record_seconds <= 0:
+        p.error("--record-seconds must be more than 0")
     for name in ("debounce", "settle", "lead", "max_wait", "min_gap",
                  "analyze_fps", "dedup_threshold"):
         if getattr(args, name) < 0:
@@ -648,6 +678,35 @@ def setup_logging(output, verbose):
         _cli_handlers.append(fh)
 
 
+def record_cli(ffmpeg, source, args):
+    """Record the screen until Enter is pressed (or --record-seconds pass).
+    Returns the recording's path."""
+    dest = source / recorder.default_name()
+    rec = recorder.Recorder(ffmpeg, dest, microphone=args.microphone,
+                            keys=not args.no_key_log, log=log)
+    rec.start()
+    deadline = time.monotonic() + 15
+    while not rec.recording():
+        if not rec.running() or time.monotonic() > deadline:
+            rec.cancel()
+            raise recorder.RecorderError("FFmpeg could not start recording:\n" +
+                                         rec.error_text())
+        time.sleep(0.05)
+    try:
+        if args.record_seconds:
+            log.info("Recording for %g seconds...", args.record_seconds)
+            time.sleep(args.record_seconds)
+        else:
+            log.info("Recording the screen. Press Enter here to stop.")
+            input()
+    except (KeyboardInterrupt, EOFError):
+        pass
+    path = rec.stop()
+    log.info("Saved the recording to %s (%d click(s) and key(s) noted)", path,
+             len(recorder.load_events(path)["events"]))
+    return path
+
+
 def main(argv=None):
     args = parse_args(argv)
     if args.create_word_template:
@@ -677,12 +736,32 @@ def main(argv=None):
         log.error(transcribe.WHISPER_MISSING_HELP)
         return EXIT_SETUP_ERROR
 
+    if args.list_microphones:
+        mics = recorder.list_microphones(ffmpeg)
+        for label, spec in mics:
+            print(spec if spec == label else f"{spec}    ({label})")
+        if not mics:
+            print("No microphones found.")
+        return EXIT_OK
+
+    recorded = None
+    if args.record:
+        source.mkdir(parents=True, exist_ok=True)
+        try:
+            recorded = record_cli(ffmpeg, source, args)
+        except recorder.RecorderError as exc:
+            log.error("Recording failed: %s", exc)
+            return EXIT_SETUP_ERROR
+
     if not source.is_dir():
         source.mkdir(parents=True, exist_ok=True)
         log.info("Created source folder %s - put your .mp4/.mov/.mkv files there.", source)
         return EXIT_OK
 
     videos = discover_videos(source, args.recursive)
+    all_videos = videos
+    if recorded is not None:
+        videos = [v for v in videos if v.resolve() == recorded.resolve()] or [recorded]
     if not videos:
         log.info("No .mp4, .mov, or .mkv files found in %s", source)
         return EXIT_OK
@@ -690,7 +769,7 @@ def main(argv=None):
 
     results = {"ok": 0, "skipped": 0, "failed": 0}
     for video in videos:
-        out_dir = output_dir_for(video, source, output, videos)
+        out_dir = output_dir_for(video, source, output, all_videos)
         try:
             status, _ = process_video(ffmpeg, ffprobe, video, out_dir, args)
             results[status] += 1

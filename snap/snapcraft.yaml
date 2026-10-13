@@ -1,6 +1,6 @@
 # snapcraft.yaml
 # 2026-10-12
-# Version: v1.1.1
+# Version: v1.2.0
 #
 # PURPOSE:
 # Snap package for the Snap Store (Ubuntu and any distribution with snapd).
@@ -16,7 +16,9 @@ title: Screencap Documentation Tool
 summary: Turn screen recordings into step-by-step screenshot documentation
 description: |
   A free Steps Recorder replacement. Finds every step in a screen recording
-  with FFmpeg scene detection and saves a screenshot of each one. Review the
+  with FFmpeg scene detection and saves a screenshot of each one. The
+  built-in recorder (X11 sessions) notes your clicks, so each step gets a red
+  ring where you clicked and a first-draft caption. Review the
   steps, add captions, arrows, and labels, crop, blur sensitive information,
   and export to HTML or Word. Everything runs locally, with no telemetry.
 
@@ -43,7 +45,8 @@ apps:
     desktop: usr/share/applications/io.github.ILikeHostingServices.ScreencapDocumentationTool.desktop
     common-id: io.github.ILikeHostingServices.ScreencapDocumentationTool
     extensions: [gnome]
-    plugs: [home, removable-media, network]
+    # audio-record: the microphone while recording (snap connect it once)
+    plugs: [home, removable-media, network, audio-record]
     environment: &env
       # Tkinter, Tcl/Tk, FFmpeg, and Tesseract staged in the snap
       PYTHONPATH: $SNAP/usr/lib/python3.12:$SNAP/usr/lib/python3.12/lib-dynload:$SNAP/usr/lib/python3/dist-packages
@@ -54,7 +57,7 @@ apps:
   cli:
     command: usr/bin/screencap
     extensions: [gnome]
-    plugs: [home, removable-media, network]
+    plugs: [home, removable-media, network, audio-record]
     environment: *env
 
 parts:
@@ -89,3 +92,5 @@ parts:
       - pandoc
       - xdg-utils
       - fonts-dejavu-core   # text and numbers on annotations
+      - libx11-6            # the built-in recorder: mouse and keys
+      - libxtst6

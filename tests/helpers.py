@@ -2,18 +2,22 @@
 #
 # helpers.py
 # 2026-10-03
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # Shared test helpers: puts the repository on the import path, finds FFmpeg,
 # builds short synthetic screen recordings with FFmpeg so every test works
 # on real files without shipping any videos, and provides a stand-in for
-# faster-whisper so the narration features can be tested without a model.
+# faster-whisper so the narration features can be tested without a model,
+# and a real mouse click for the recorder tests.
 
 import contextlib
+import ctypes
+import ctypes.util
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,3 +95,30 @@ def fake_whisper(folder, segments, installed=True):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+def fake_click(x, y):
+    """Click the real mouse at screen point (x, y)."""
+    if os.name == "nt":
+        user32 = ctypes.windll.user32
+        user32.SetCursorPos(int(x), int(y))
+        time.sleep(0.05)
+        user32.mouse_event(0x0002, 0, 0, 0, 0)      # left down
+        time.sleep(0.02)
+        user32.mouse_event(0x0004, 0, 0, 0, 0)      # left up
+        return
+    x11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11"))
+    xtst = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Xtst"))
+    x11.XOpenDisplay.restype = ctypes.c_void_p
+    x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    x11.XFlush.argtypes = x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    xtst.XTestFakeMotionEvent.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
+                                          ctypes.c_int, ctypes.c_ulong]
+    xtst.XTestFakeButtonEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int,
+                                          ctypes.c_ulong]
+    dpy = x11.XOpenDisplay(None)
+    xtst.XTestFakeMotionEvent(dpy, -1, int(x), int(y), 0)
+    xtst.XTestFakeButtonEvent(dpy, 1, 1, 0)
+    xtst.XTestFakeButtonEvent(dpy, 1, 0, 0)      # pressed and released at once
+    x11.XFlush(dpy)
+    x11.XCloseDisplay(dpy)

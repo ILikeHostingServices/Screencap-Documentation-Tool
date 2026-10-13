@@ -2,11 +2,11 @@
 #
 # annotate.py
 # 2026-10-12
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Annotations drawn on a screenshot in the step editor: arrows, numbered
-# markers, and text labels. Arrows and the round markers are drawn here in
+# markers, text labels, and click rings (added by the built-in recorder). Arrows and the round markers are drawn here in
 # plain Python into a transparent PAM image the size of the original frame
 # (no Pillow or NumPy), which FFmpeg lays over the screenshot. The numbers
 # and the label text are drawn by FFmpeg's drawtext filter with a font found
@@ -16,6 +16,8 @@
 #   {"kind": "arrow", "from": [x, y], "to": [x, y]}     tip at "to"
 #   {"kind": "number", "at": [x, y], "n": 1}            centered on "at"
 #   {"kind": "text", "at": [x, y], "text": "Click here"} top-left corner at "at"
+#   {"kind": "click", "at": [x, y]}                     a ring around a click
+# Annotations made automatically from a recording also have "auto": true.
 
 import hashlib
 import json
@@ -26,7 +28,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-KINDS = ("arrow", "number", "text")
+KINDS = ("arrow", "number", "text", "click")
 OVERLAY_DIR = "overlays"           # cached arrow/marker images, inside each output folder
 FILL = (0xE5, 0x39, 0x35)          # red, the same as the "what changed" box
 OUTLINE = (0xFF, 0xFF, 0xFF)       # white edge, so red shows on red or dark screens
@@ -131,7 +133,7 @@ def valid(ann):
     kind = ann.get("kind")
     if kind == "arrow":
         return len(ann.get("from") or []) == 2 and len(ann.get("to") or []) == 2
-    if kind == "number":
+    if kind in ("number", "click"):
         return len(ann.get("at") or []) == 2
     if kind == "text":
         return len(ann.get("at") or []) == 2 and bool((ann.get("text") or "").strip())
@@ -233,6 +235,32 @@ class _Circle:
         return self.c[0] - half, self.c[0] + half
 
 
+class _Ring:
+    """A circle outline (a click)."""
+
+    def __init__(self, c, r, thickness):
+        self.c, self.r, self.half = c, r, thickness / 2
+
+    def sdist(self, x, y):
+        return abs(math.hypot(x - self.c[0], y - self.c[1]) - self.r) - self.half
+
+    def bounds(self, grow):
+        r = self.r + self.half + grow
+        return self.c[0] - r, self.c[1] - r, self.c[0] + r, self.c[1] + r
+
+    def row_span(self, y, grow):
+        r = self.r + self.half + grow
+        dy = y - self.c[1]
+        if abs(dy) > r:
+            return None
+        half = math.sqrt(r * r - dy * dy)
+        return self.c[0] - half, self.c[0] + half
+
+
+def ring_radius(sz):
+    return sz["marker"] * 1.25
+
+
 def arrow_shapes(start, tip, sz):
     """Shaft and head of an arrow from start to tip."""
     dx, dy = tip[0] - start[0], tip[1] - start[1]
@@ -264,6 +292,8 @@ def shape_groups(annotations, width):
                 groups.append(shapes)
         elif ann["kind"] == "number":
             groups.append([_Circle(tuple(ann["at"]), sz["marker"])])
+        elif ann["kind"] == "click":
+            groups.append([_Ring(tuple(ann["at"]), ring_radius(sz), sz["line"])])
     return groups
 
 
@@ -319,7 +349,7 @@ def write_pam(path, width, height, rgba):
 
 
 def _shapes(annotations):
-    return [a for a in annotations if a["kind"] in ("arrow", "number")]
+    return [a for a in annotations if a["kind"] in ("arrow", "number", "click")]
 
 
 def overlay_name(width, height, annotations):
@@ -415,6 +445,8 @@ def hit(ann, x, y, width):
         d = _Capsule(tuple(ann["from"]), tuple(ann["to"]), 0).sdist(x, y)
     elif ann["kind"] == "number":
         d = _Circle(tuple(ann["at"]), sz["marker"]).sdist(x, y)
+    elif ann["kind"] == "click":
+        d = max(0.0, _Circle(tuple(ann["at"]), ring_radius(sz)).sdist(x, y))
     else:
         w, h = label_size(ann["text"], width)
         ax, ay = ann["at"]

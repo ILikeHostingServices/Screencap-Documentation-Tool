@@ -2,7 +2,7 @@
 #
 # redact.py
 # 2026-10-04
-# Version: v1.0.1
+# Version: v1.1.0
 #
 # PURPOSE:
 # Finds sensitive information in screenshots so it can be blurred: reads the
@@ -78,10 +78,12 @@ def find_tesseract(explicit=None):
     return None
 
 
-def read_words(tesseract, image):
-    """OCR an image. Returns lines: lists of (text, [x, y, w, h])."""
+def read_words(tesseract, image, psm=3, min_conf=0):
+    """OCR an image. Returns lines: lists of (text, [x, y, w, h]). psm 11
+    (sparse text) suits a small crop of buttons and labels; min_conf drops
+    words Tesseract is unsure of (0-100)."""
     with tempfile.TemporaryDirectory(prefix="screencap_ocr_") as tmp:
-        res = subprocess.run([tesseract, str(image), str(Path(tmp) / "ocr"), "--psm", "3",
+        res = subprocess.run([tesseract, str(image), str(Path(tmp) / "ocr"), "--psm", str(psm),
                               "tsv"],
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              errors="replace", stdin=subprocess.DEVNULL,
@@ -96,7 +98,7 @@ def read_words(tesseract, image):
         if len(cols) < 12 or not cols[11].strip():
             continue
         try:
-            if float(cols[10]) < 0:
+            if float(cols[10]) < max(min_conf, 0):
                 continue
             key = (int(cols[2]), int(cols[3]), int(cols[4]))
             box = [int(cols[6]), int(cols[7]), int(cols[8]), int(cols[9])]

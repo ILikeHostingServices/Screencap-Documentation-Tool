@@ -2,15 +2,15 @@
 #
 # transcribe.py
 # 2026-10-04
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # Turns spoken narration in a recording into first-draft captions. FFmpeg
 # pulls the audio out, whisper_worker.py transcribes it offline with
 # faster-whisper (in the optional whisper-env Python environment), and each
 # spoken sentence is attached to the step that was on screen while it was
-# said. Only empty captions are filled, so nothing typed by hand is ever
-# replaced. The full transcript is saved as transcript.txt.
+# said. Only empty captions (and ones written from the recorder's clicks)
+# are filled, so nothing typed by hand is ever replaced. The full transcript is saved as transcript.txt.
 
 import importlib.util
 import json
@@ -171,8 +171,11 @@ def apply(doc, segments, overwrite=False):
         if not text:
             continue
         step["narration"] = text
-        if overwrite or not (step.get("caption") or "").strip():
+        # a caption written from the recorder's clicks gives way to the
+        # narrator's own words
+        if overwrite or not (step.get("caption") or "").strip() or step.get("caption_auto"):
             step["caption"] = text
+            step.pop("caption_auto", None)
             filled += 1
     return filled
 
