@@ -44,9 +44,8 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 | **Record** the task: every click is noted. | Choose a microphone for narration, or none. |
 | ![The Annotate menu with a numbered marker, an arrow, and a text label drawn on a step](docs/screenshots/02-annotate-menu.png) | ![The dark theme](docs/screenshots/04-dark-theme.png) |
 | Add arrows, numbers, and labels. | Light, dark, or the system's theme. |
-| ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | |
-| Export the steps as one HTML, Word, or PDF document. | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
-| | Or as a PowerPoint presentation, one slide per step. |
+| ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
+| Export the steps as one HTML, Word, or PDF document. | Or as a PowerPoint presentation, one slide per step. |
 
 The screenshots show a made-up "Example App" setup wizard recorded with the built-in recorder; `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
 
