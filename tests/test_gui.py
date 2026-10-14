@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-10-12
-# Version: v1.8.0
+# 2026-10-14
+# Version: v1.9.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 import time
 import unittest
 from unittest import mock
@@ -25,6 +26,8 @@ from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 from helpers import FFMPEG, FFPROBE, ROOT, fake_click, fake_whisper, make_video
+
+import stepdoc  # noqa: E402
 
 try:
     import tkinter as tk
@@ -206,6 +209,34 @@ class GuiTests(unittest.TestCase):
         self.pump()
         md = (self.tmp / "caption" / "Demo" / "steps.md").read_text(encoding="utf-8")
         self.assertIn("Open the installer.", md)
+        self.assertEqual(self.errors, [])
+
+    def test_edit_during_save_stays_unsaved(self):
+        """A change made while Save Changes is still running is not marked
+        as saved."""
+        ed = self.process("racing")
+        ed.caption.insert("1.0", "First caption.")
+        ed.caption.event_generate("<<Modified>>")
+        self.pump()
+        real_render, release = stepdoc.render, threading.Event()
+
+        def slow_render(*a, **k):
+            release.wait(10)
+            real_render(*a, **k)
+        with mock.patch.object(stepdoc, "render", slow_render):
+            self.assertTrue(ed.save())       # runs in the background
+            ed.caption.insert("end", " Then wait.")   # typed while it saves
+            ed.caption.event_generate("<<Modified>>")
+            self.pump()
+            release.set()
+            ed.render_thread.join(10)
+            self.pump()
+            deadline = time.monotonic() + 10
+            while str(ed.btn_save.cget("state")) == "disabled" and time.monotonic() < deadline:
+                self.pump()
+        self.assertTrue(ed.dirty)
+        self.assertTrue(ed.save(wait=True))   # saving again clears it
+        self.assertFalse(ed.dirty)
         self.assertEqual(self.errors, [])
 
     def test_annotations_are_added_edited_and_saved(self):

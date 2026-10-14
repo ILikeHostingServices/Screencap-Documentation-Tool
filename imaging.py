@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # imaging.py
-# 2026-10-02
-# Version: v1.1.0
+# 2026-10-14
+# Version: v1.2.0
 #
 # PURPOSE:
 # Small image comparisons done with FFmpeg and the Python standard library
@@ -40,16 +40,34 @@ def thumbnail(ffmpeg, path, size=DEDUP_SIZE):
     return res.stdout
 
 
-def changed_percent(a, b, delta=PIXEL_DELTA):
+def changed_rows(a, b, width):
+    """Start offsets of the rows that differ at all. Comparing whole rows is
+    done in C, so the pixel loops below only visit rows that changed (on a
+    screen recording, most rows of two steps are identical)."""
+    return [i for i in range(0, len(a), width) if a[i:i + width] != b[i:i + width]]
+
+
+def changed_count(a, b, width, delta=PIXEL_DELTA, limit=None):
+    """Pixels whose gray level differs by more than delta, counting stops
+    once it passes limit."""
+    changed = 0
+    for i in changed_rows(a, b, width):
+        changed += sum(1 for x, y in zip(a[i:i + width], b[i:i + width]) if abs(x - y) > delta)
+        if limit is not None and changed > limit:
+            break
+    return changed
+
+
+def changed_percent(a, b, delta=PIXEL_DELTA, width=DEDUP_SIZE[0]):
     """Percentage of pixels whose gray level differs by more than delta."""
-    changed = sum(1 for x, y in zip(a, b) if abs(x - y) > delta)
-    return 100.0 * changed / max(len(a), 1)
+    return 100.0 * changed_count(a, b, width, delta) / max(len(a), 1)
 
 
-def find_duplicate(thumb, kept_thumbs, threshold_percent):
+def find_duplicate(thumb, kept_thumbs, threshold_percent, width=DEDUP_SIZE[0]):
     """Index of the first kept thumbnail that thumb is a duplicate of, or None."""
+    limit = threshold_percent / 100.0 * len(thumb)
     for i, other in enumerate(kept_thumbs):
-        if changed_percent(thumb, other) <= threshold_percent:
+        if changed_count(thumb, other, width, limit=limit) <= limit:
             return i
     return None
 
@@ -63,9 +81,11 @@ def change_box(prev, cur, full_w, full_h, size=CHANGE_SIZE):
     cols, rows = (w + CELL - 1) // CELL, (h + CELL - 1) // CELL
     counts = [[0] * cols for _ in range(rows)]
     extents = {}   # cell -> [min x, min y, max x, max y] of its strongly changed pixels
-    for i, (a, b) in enumerate(zip(prev, cur)):
-        d = abs(a - b)
-        if d > PIXEL_DELTA:
+    for start in changed_rows(prev, cur, w):
+        for i in range(start, start + w):
+            d = abs(prev[i] - cur[i])
+            if d <= PIXEL_DELTA:
+                continue
             y, x = divmod(i, w)
             cell = (y // CELL, x // CELL)
             counts[cell[0]][cell[1]] += 1

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # redact.py
-# 2026-10-04
-# Version: v1.1.0
+# 2026-10-14
+# Version: v1.2.0
 #
 # PURPOSE:
 # Finds sensitive information in screenshots so it can be blurred: reads the
@@ -22,6 +22,10 @@ import tempfile
 from pathlib import Path
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+# One thread per Tesseract: its own threads make a single image slower,
+# and several copies running at once (see workers.py) with their own
+# threads can stall for minutes when the CPU is busy
+OCR_ENV = dict(os.environ, OMP_THREAD_LIMIT="1")
 import apppaths  # noqa: E402
 
 SCRIPT_DIR = apppaths.APP_DIR
@@ -87,7 +91,7 @@ def read_words(tesseract, image, psm=3, min_conf=0):
                               "tsv"],
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              errors="replace", stdin=subprocess.DEVNULL,
-                             creationflags=NO_WINDOW)
+                             creationflags=NO_WINDOW, env=OCR_ENV)
         tsv = Path(tmp) / "ocr.tsv"
         if res.returncode != 0 or not tsv.is_file():
             raise RuntimeError(f"Tesseract failed: {res.stderr.strip()[-300:]}")

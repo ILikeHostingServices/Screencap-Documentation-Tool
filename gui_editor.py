@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_editor.py
-# 2026-10-12
-# Version: v2.5.0
+# 2026-10-14
+# Version: v2.5.1
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -442,6 +442,8 @@ class StepEditor(ttk.Frame):
 
     def set_dirty(self, dirty=True):
         self.dirty = dirty
+        if dirty:   # counts edits, so a save knows whether more came in meanwhile
+            self.edits = getattr(self, "edits", 0) + 1
         self.v_dirty.set("Unsaved changes" if dirty else "")
 
     def fit_info(self):
@@ -1278,7 +1280,7 @@ class StepEditor(ttk.Frame):
         if not self.doc or (self.render_thread and self.render_thread.is_alive()):
             return False
         doc, out_dir = self.doc, self.out_dir
-        result = {}
+        result = {"edits": getattr(self, "edits", 0)}
 
         def work():
             try:
@@ -1312,6 +1314,12 @@ class StepEditor(ttk.Frame):
             messagebox.showerror(self.app.name, f"Saving failed:\n{result['error']}",
                                  parent=self.winfo_toplevel())
             return False
+        if getattr(self, "edits", 0) != result["edits"]:
+            # Edited while saving: those changes are not in the saved files yet
+            self.app.q.put(("status", "Saved. Newer changes are not saved yet: "
+                                      "click Save Changes again."))
+            self.app.on_steps_saved(self.out_dir)
+            return True
         self.set_dirty(False)
         # Through the queue so it lands after any queued progress messages
         self.app.q.put(("status", f"Saved {len(self.doc['steps'])} step(s) to {self.out_dir.name}"))
