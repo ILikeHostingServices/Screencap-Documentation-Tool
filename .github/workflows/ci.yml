@@ -1,12 +1,13 @@
 # ci.yml
-# 2026-10-13
-# Version: v1.2.0
+# 2026-10-14
+# Version: v1.3.0
 #
 # PURPOSE:
 # Runs the automated tests on real Windows and Linux machines for every push
 # and pull request: code checks, the full test suite (engine, blurring,
 # export, presets, VLC, captions from narration with a real speech model,
-# the built-in recorder recording real clicks),
+# the built-in recorder recording real clicks, PowerPoint files checked
+# with Microsoft's Open XML SDK),
 # and the GUI test that drives the real window.
 # Every optional tool is installed, and the run fails if any test was
 # skipped, so a missing tool can never let a test pass silently.
@@ -92,6 +93,21 @@ jobs:
             echo "SCREENCAP_TEST_WHISPER=1"
             echo "SCREENCAP_TEST_SPEECH=$SPEECH"
           } >> "$GITHUB_ENV"
+
+      - name: Install the PowerPoint checks (python-pptx and the Open XML SDK)
+        run: |
+          # python-pptx reads the exported presentations back; the Open XML
+          # SDK checks them against the rules Office itself uses
+          python -m pip install --disable-pip-version-check --quiet python-pptx
+          T="$RUNNER_TEMP"
+          [ "$RUNNER_OS" = "Windows" ] && T="$(cygpath -u "$RUNNER_TEMP")"
+          dotnet build tests/ooxml -c Release -o "$T/ooxml" --nologo -v quiet
+          DLL="$T/ooxml/OoxmlValidator.dll"
+          [ "$RUNNER_OS" = "Windows" ] && DLL="$(cygpath -m "$DLL")"
+          echo "SCREENCAP_OOXML_VALIDATOR=dotnet \"$DLL\"" >> "$GITHUB_ENV"
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+          DOTNET_NOLOGO: "1"
 
       - name: Check code
         run: |

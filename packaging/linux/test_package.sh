@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # test_package.sh
-# 2026-10-11
-# Version: v1.0.0
+# 2026-10-14
+# Version: v1.0.1
 #
 # PURPOSE:
 # Installs one built Linux package in a clean system (a container), then
@@ -35,7 +35,10 @@ case "$family" in
     # FFmpeg is not in RHEL; RPM Fusion has it (needs EPEL and CRB)
     dnf install -y epel-release dnf-plugins-core
     dnf config-manager --set-enabled crb
-    dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm"
+    # mirrors.rpmfusion.org redirects to one mirror, which is sometimes down;
+    # fall back to RPM Fusion's own server
+    dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm" ||
+      dnf install -y "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm"
     dnf install -y "./$pkg"/*.rpm xorg-x11-server-Xvfb ;;
   suse)
     zypper --non-interactive install --allow-unsigned-rpm "./$pkg"/*.rpm xorg-x11-server-Xvfb dejavu-fonts ;;

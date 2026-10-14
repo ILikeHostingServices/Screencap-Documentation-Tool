@@ -1,6 +1,6 @@
 # snapcraft.yaml
 # 2026-10-12
-# Version: v1.2.1
+# Version: v1.2.2
 #
 # PURPOSE:
 # Snap package for the Snap Store (Ubuntu and any distribution with snapd).
@@ -20,7 +20,8 @@ description: |
   built-in recorder (X11 sessions) notes your clicks, so each step gets a red
   ring where you clicked and a first-draft caption. Review the
   steps, add captions, arrows, and labels, crop, blur sensitive information,
-  and export to HTML or Word. Everything runs locally, with no telemetry.
+  and export to HTML, Word, or PowerPoint. Everything runs locally, with
+  no telemetry.
 
   Recordings and output go in Documents/Screencap Documentation Tool in your
   home folder by default; any folder in your home or on a removable drive

@@ -2,7 +2,7 @@
 #
 # gui_help.py
 # 2026-10-12
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -34,7 +34,7 @@ TOPICS = [
 
 4. Review. Select a processed video to open its steps in the Steps tab. Reorder, delete, crop, blur, and write a caption for each step, then click Save Changes.
 
-5. Export. Fill in the document title, version, and author, then export to HTML, Word, or PDF.
+5. Export. Fill in the document title, version, and author, then export to HTML, Word, PDF, or PowerPoint.
 
 The original screenshots are always kept, so every edit can be changed again later.
 
@@ -76,7 +76,7 @@ In the Steps tab:
 - Annotate menu: draw arrows, numbered markers, and text labels on the screenshot. Edit or Remove changes or removes one, including the click rings added by the recorder.
 - Screenshot / Original frame compares the edited picture with the untouched capture.
 - Open menu: the screenshot, steps.md, or the output and export folders.
-- Export: HTML, Word, or PDF. Logo and Template chooses a company logo and a Word template (its styles and page header and footer) for every export.
+- Export: HTML, Word, PDF, or PowerPoint. Logo and Template chooses a company logo and a Word template (its styles and page header and footer) for every export.
 - Save Changes re-renders the screenshots and steps.md from the originals. Discard Changes goes back to the last save.
 - Play in VLC opens the recording just before the selected step. Captions From Narration (next to Caption) fills empty captions from what you said."""),
     ("Blurring Sensitive Information", """\
@@ -94,6 +94,7 @@ Export turns the saved steps into one document:
 - HTML: a single file with the screenshots built in. Works everywhere.
 - Word (.docx): needs Pandoc.
 - PDF: needs Microsoft Edge, Google Chrome, or Chromium.
+- PowerPoint (.pptx): a title slide, then one widescreen slide per step with its screenshot and caption. Narration goes in the speaker notes, and animated clips get their own slide. Needs nothing else.
 
 Files are written to the export folder inside the recording's output folder; Open Exports shows it. Unsaved edits are saved first."""),
     ("Keyboard Shortcuts", """\

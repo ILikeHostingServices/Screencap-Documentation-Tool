@@ -2,7 +2,7 @@
 #
 # build_packages.py
 # 2026-10-12
-# Version: v1.0.2
+# Version: v1.0.3
 #
 # PURPOSE:
 # Builds the .deb (Debian, Ubuntu, Mint, Pop!_OS) and .rpm (Fedora, RHEL
@@ -37,8 +37,8 @@ DESCRIPTION = (
     "screenshot of each one, like a Steps Recorder for any operating system.\n"
     "The built-in recorder notes your clicks for click rings and captions.\n"
     "Review the steps, add captions, arrows, and labels, crop, blur\n"
-    "sensitive information, and export to HTML, Word, or PDF. Everything runs\n"
-    "locally, with no telemetry.")
+    "sensitive information, and export to HTML, Word, PDF, or PowerPoint.\n"
+    "Everything runs locally, with no telemetry.")
 
 # Package names differ between distributions; rpm "rich" dependencies
 # (A or B) cover Fedora/RHEL and openSUSE in one package

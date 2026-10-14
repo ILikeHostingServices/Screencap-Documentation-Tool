@@ -2,7 +2,7 @@
 #
 # make_screenshots.sh
 # 2026-10-13
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Makes the screenshots used in the README, the Linux software center
@@ -12,12 +12,14 @@
 #      the tool's own),
 #   2. processes it, cropped to the wizard window,
 #   3. opens the GUI on it and takes the screenshots (gui_shots.py),
-#   4. exports the steps as HTML and takes a picture of the document.
+#   4. exports the steps as HTML and PowerPoint and takes pictures of them
+#      (the slides are drawn by LibreOffice Impress).
 # The screenshots go to docs/screenshots/.
 #
 # Needs (Linux): Xvfb (xvfb-run), openbox, xdotool, ImageMagick (import),
-# Tesseract, FFmpeg, Python 3 with Tkinter, and Chromium or Google Chrome
-# (set CHROME to its path if it is not on the PATH).
+# Tesseract, FFmpeg, Python 3 with Tkinter, Chromium or Google Chrome
+# (set CHROME to its path if it is not on the PATH), LibreOffice Impress,
+# and pdftoppm (poppler-utils).
 #
 # Usage: packaging/screenshots/make_screenshots.sh
 
@@ -76,4 +78,16 @@ if [ -n "$CHROME" ]; then
 else
     echo "Chromium was not found (set CHROME): skipped 06-export-html.png" >&2
 fi
+echo "Taking the PowerPoint screenshot..."
+deck="$(cat "$OUT/pptx.path")"
+rm -f "$OUT/pptx.path"
+mkdir -p "$WORK/slides"
+cp "$deck" "$WORK/slides/deck.pptx"
+( cd "$WORK/slides" && soffice --headless --norestore --convert-to pdf deck.pptx >/dev/null 2>&1 )
+pdftoppm -r 60 -png -f 1 -l 4 "$WORK/slides/deck.pdf" "$WORK/slides/s"
+# The first four slides in a 2 x 2 grid, the size of the other screenshots
+montage "$WORK"/slides/s-*.png -tile 2x2 -geometry 768x432+12+12 -background "#2b5d7a" \
+    -bordercolor "#d0d7de" -border 1 "$WORK/slides/grid.png"
+convert "$WORK/slides/grid.png" -gravity center -background "#2b5d7a" -extent 1600x972 \
+    "$OUT/07-powerpoint.png"
 ls -la "$OUT"

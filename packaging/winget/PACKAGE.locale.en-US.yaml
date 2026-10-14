@@ -17,7 +17,7 @@ ShortDescription: A free Steps Recorder replacement that turns screen recordings
 Description: |-
   Screencap Documentation Tool finds every step in a screen recording with FFmpeg scene detection and saves a screenshot of each one.
   A free replacement for Windows Steps Recorder (psr.exe), which Microsoft has deprecated: its built-in recorder notes every click, so each step gets a red ring where you clicked and a first-draft caption such as Click "Next". Typed text is never saved.
-  Review the steps, add captions, arrows, and labels, crop, blur sensitive information automatically, and export the result as HTML, Word, or PDF documentation with your own logo and Word template.
+  Review the steps, add captions, arrows, and labels, crop, blur sensitive information automatically, and export the result as HTML, Word, PDF, or PowerPoint documentation with your own logo and Word template.
   Everything runs locally on the PC, with no telemetry.
 Moniker: screencap-doc-tool
 Tags:

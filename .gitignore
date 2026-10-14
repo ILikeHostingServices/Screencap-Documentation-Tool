@@ -45,3 +45,7 @@ whisper-env/
 # Packaged Windows app builds (PyInstaller)
 build/
 dist/
+
+# Build output of the Office file checker used by the tests
+tests/ooxml/bin/
+tests/ooxml/obj/

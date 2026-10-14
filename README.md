@@ -1,4 +1,4 @@
-README.md v1.38.0 (Last Rev: 2026-10-13)
+README.md v1.39.0 (Last Rev: 2026-10-14)
 
 # Screencap Documentation Tool
 
@@ -12,7 +12,7 @@ README.md v1.38.0 (Last Rev: 2026-10-13)
 
 **A free Steps Recorder replacement for Windows, Linux, and macOS.** Click **Record**, install or configure a program as usual, click **Stop**, and this tool pulls out a screenshot of every step for you, marks where you clicked, and writes a first draft of each step's caption. Recordings from any other recorder work too. No more scrubbing through video to find the right frames.
 
-Microsoft deprecated Windows' built-in Steps Recorder (`psr.exe`) in 2023: it gets no more updates and is to be removed in a future Windows release. This tool does the same job and more: full resolution screenshots, captions, arrows and labels, automatic blurring of passwords and keys, and finished HTML, Word, or PDF documents. See [Coming From Steps Recorder](#coming-from-steps-recorder).
+Microsoft deprecated Windows' built-in Steps Recorder (`psr.exe`) in 2023: it gets no more updates and is to be removed in a future Windows release. This tool does the same job and more: full resolution screenshots, captions, arrows and labels, automatic blurring of passwords and keys, and finished HTML, Word, PDF, or PowerPoint documents. See [Coming From Steps Recorder](#coming-from-steps-recorder).
 
 For each recording you get:
 
@@ -32,7 +32,7 @@ For each recording you get:
 - Saved presets: built-in settings for installer wizards, general desktop use, web consoles, terminals, remote desktops, forms, slideshows, video meetings, and fast clicking, plus your own.
 - **Play in VLC** opens the recording a few seconds before any step, to see exactly what was clicked or typed.
 - Optional **Captions From Narration**: if you talk while you record, what you said becomes the first-draft caption of each step. Speech recognition runs offline on your PC.
-- One-click export to a finished document: HTML (a single file with the images inside), Word, or PDF, each with a title, version, date, and author header, and optionally your company logo and Word template. Every original frame is kept, so nothing you do in the editor is permanent.
+- One-click export to a finished document: HTML (a single file with the images inside), Word, PDF, or a PowerPoint presentation (one slide per step, narration in the speaker notes), each with a title, version, date, and author header, and optionally your company logo and Word template. Every original frame is kept, so nothing you do in the editor is permanent.
 
 You can run it from a desktop GUI or from the command line. Both use the same engine and produce the same output. It works with `.mp4`, `.mov`, and `.mkv` recordings and runs on Windows 11 (the primary target), Linux, and macOS. It needs Python 3.8+ and [FFmpeg](https://ffmpeg.org/), plus the optional [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for automatic blurring and [Pandoc](https://pandoc.org/) for Word export. PDF export uses Microsoft Edge (included with Windows 11) or Google Chrome/Chromium. All are free and open source, and the installers set them up for you.
 
@@ -44,8 +44,8 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 | **Record** the task: every click is noted. | Choose a microphone for narration, or none. |
 | ![The Annotate menu with a numbered marker, an arrow, and a text label drawn on a step](docs/screenshots/02-annotate-menu.png) | ![The dark theme](docs/screenshots/04-dark-theme.png) |
 | Add arrows, numbers, and labels. | Light, dark, or the system's theme. |
-| ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | |
-| Export the steps as one HTML, Word, or PDF document. | |
+| ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
+| Export the steps as one HTML, Word, or PDF document. | Or as a PowerPoint presentation, one slide per step. |
 
 The screenshots show a made-up "Example App" setup wizard recorded with the built-in recorder; `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
 
@@ -61,7 +61,7 @@ Steps Recorder watched your mouse and keyboard and took a small screenshot at ev
 | Auto-written text ("User left click on "Next (button)" in "Setup"") | A first draft in plain words (`Click "Next".`), a first draft from what you said while recording ([Captions From Narration](#captions-from-narration)), or your own captions |
 | Every key you typed could end up in the file | Keys such as Enter, Tab, and Ctrl+S are noted by name; typed text is never saved |
 | Comments | Captions and text labels on the screenshot |
-| Saved as a `.zip` holding an `.mht` web archive, best viewed in Internet Explorer | HTML (one self-contained file), Word, or PDF with your logo and Word template, plus `steps.md` |
+| Saved as a `.zip` holding an `.mht` web archive, best viewed in Internet Explorer | HTML (one self-contained file), Word, PDF, or PowerPoint, with your logo and Word template, plus `steps.md` |
 | Everything on screen was recorded, passwords and keys included | Passwords, keys, tokens, and addresses are blurred automatically (an unblurred copy is kept separately) |
 | Windows only | Windows 11 (x64 and ARM), Linux (including Raspberry Pi), and macOS |
 | A short animation was not possible | An animated GIF clip of any step |
@@ -101,7 +101,9 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `updates.py` | Project links and the update check (asks GitHub for the newest release). |
 | `presets.py` | Built-in and saved presets (named sets of settings), shared by the GUI and `--preset`. |
 | `player.py` | Opens the recording in VLC media player at a given moment. |
-| `export.py` | Exports steps to HTML, Word (via Pandoc), or PDF (via a headless Edge, Chrome, or Chromium). |
+| `export.py` | Exports steps to HTML, Word (via Pandoc), PDF (via a headless Edge, Chrome, or Chromium), or PowerPoint (via `pptxwriter.py`). |
+| `pptxwriter.py` | Writes PowerPoint presentations (.pptx) with the Python standard library only. |
+| `tests/ooxml/` | A small checker that runs exported presentations through Microsoft's Open XML SDK (the rules Office uses); CI runs it. |
 | `redact.py` | Finds sensitive text to blur, using Tesseract OCR and a list of patterns. |
 | `transcribe.py` | Captions From Narration: pulls the audio out with FFmpeg, runs the speech recognition, and matches each sentence to the step that was on screen. |
 | `apppaths.py` | Decides where the program and its default `source` and `output` folders live, for the Python install and for the packaged Windows app. |
@@ -391,7 +393,7 @@ Select a processed recording in the **Recordings** list and the **Steps** tab sh
 | **Whole recording: Blur sensitive info / Highlight changes / Zoomed inset** (top right) | Turn blurring, the red box, or the zoomed inset on or off for the whole recording. The **zoomed inset** is a magnified copy (up to 2.5 times) of a small change, such as a ticked checkbox or a short field, placed in the corner of the screenshot farthest from it, so it stays readable when the document shows the screenshot small. Steps where the change is already big enough to read, or where nothing changed, get no inset. It is made from the blurred screenshot, so it never shows anything that is blurred. |
 | **Caption** | The text shown under the step in `steps.md` and in exports, replacing the `_Notes:_` placeholder. It is also the screenshot's alt text (with the step number and the text of any labels), which screen readers read aloud. |
 | **Document title / Version / Author** | The header of exported documents. The title defaults to the recording's name and the version to `v1.0.0`; the date is the day you export. |
-| **Export: HTML / Word / PDF** | Save the steps as a finished document in `export/` and open it. Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. **Logo and Template...** chooses a company logo and a Word template used for every export (see [Logo And Word Template](#logo-and-word-template)). |
+| **Export: HTML / Word / PDF / PowerPoint** | Save the steps as a finished document in `export/` and open it (see [PowerPoint Presentations](#powerpoint-presentations)). Unsaved edits are saved first. **Unblurred copy** exports the unblurred screenshots instead (asks for confirmation; the file name gets `-UNREDACTED` and a warning). **Open Exports** opens the `export/` folder. **Logo and Template...** chooses a company logo and a Word template used for every export (see [Logo And Word Template](#logo-and-word-template)). |
 | **Open** menu | Open the screenshot, `steps.md`, the recording's output folder, or the exports folder. |
 | **Play in VLC** | Open the original recording in VLC 3 seconds before the selected step's screen appeared, so you can watch the click or keystroke that led to it. Needs [VLC](https://www.videolan.org/) and the recording still in its source folder. |
 | **Captions From Narration** | Fill the empty captions from what was said in the recording (see [Captions From Narration](#captions-from-narration)). |
@@ -406,11 +408,24 @@ For a step a still picture cannot show well, such as dragging something, a menu 
 
 Clips are made from the original recording, so it must still be in its source folder when you save. They are cropped like the screenshot and blurred with the blur boxes of this step and the next one. The clip also shows the moments in between, so before sharing, play the clip of any screen with sensitive information. The red box, the zoomed inset, and annotations are not drawn on clips.
 
+#### PowerPoint Presentations
+
+**PowerPoint** in the Export box (command line: `--export pptx`) saves the steps as a widescreen (16:9) presentation, for training sessions and handovers:
+
+- A title slide with the document title, version, date, author, and your logo.
+- One slide per step: "Step N" with its time in the recording, the screenshot as large as fits, and the caption under it. Long captions get a smaller font.
+- The screenshot's alt text, for screen readers, as in the other exports.
+- What was said during the step (from [Captions From Narration](#captions-from-narration)) in the slide's **speaker notes**, so the presenter has the script.
+- A step with an animated clip gets one more slide with the clip, which plays in the slide show.
+- Your logo (PNG, JPG, or GIF; PowerPoint cannot show an SVG logo) in the corner of every slide.
+
+No other program is needed: the presentation is written by the tool itself and opens in PowerPoint, Keynote, LibreOffice Impress, and Google Slides. The **Unblurred copy** option works as for the other exports and puts the warning on the title slide.
+
 #### Logo And Word Template
 
 Click **Logo and Template...** in the Export box to make exports look like your own documents. Both are remembered and used for every export until you clear them.
 
-- **Logo**: a PNG, JPG, GIF, or SVG picture shown at the top of HTML, PDF, and Word exports, next to (HTML, PDF) or above (Word) the title.
+- **Logo**: a PNG, JPG, GIF, or SVG picture shown at the top of HTML, PDF, and Word exports, next to (HTML, PDF) or above (Word) the title, and on every PowerPoint slide (except an SVG logo).
 - **Word template**: a Word document whose look is copied into Word exports: the fonts, colors, and spacing of its styles (Title, Heading 2 for the step headings, Normal for captions), its margins and page size, and its page header and footer. Word's own templates (`.dotx`) are not used directly; save a `.docx` instead.
 - **Create Starter Template...** saves the standard template (it needs Pandoc). Open it in Word, change its styles (right-click a style in the Styles gallery, then **Modify**) and add your logo or a confidentiality note to the page header or footer, save it, and choose it as the Word template. Leave the text in it alone: only its styles, page layout, header, and footer are used.
 
@@ -584,6 +599,8 @@ Tests that need a missing tool (for example Tesseract) are skipped and say why. 
 
 Each release is an annotated git tag (`v1.12.1`, for example) with notes on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases) and in `CHANGELOG.md`. The tag is the version of the project as a whole, and it is what the GUI shows in its title bar and footer and what `screencap.py --version` prints. It is set in `version.py`. Each script also carries its own version in its header, which only changes when that script changes; the Log tab lists them at startup.
 
+Every release that adds a feature or changes how the app looks also updates the screenshots in `docs/screenshots/` (run `packaging/screenshots/make_screenshots.sh`, and add a picture of the new feature when it has none), so the README, the software center listings, and the store pages always show the current app. The tests must pass on every supported system first.
+
 To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them. For the newest release it then builds the packaged Windows app from that tag and attaches the installer, the zip, and `SHA256SUMS.txt`, unless they are attached already.
 
 To build the packaged Windows app yourself (on Windows, from the repository folder): `py -3 -m pip install pyinstaller`, then `py -3 packaging\make_version_info.py build\version_info.txt` and `py -3 -m PyInstaller packaging\screencap.spec --noconfirm --clean`. The app is in `dist\Screencap-Documentation-Tool\`. For the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and run `iscc /DAppVersion=X.Y.Z packaging\installer.iss`; it is written to `release\`.
@@ -622,7 +639,7 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--analyze-width` | `640` | Width used for analysis only. `0` uses full size. Screenshots are always full resolution. |
 | `--no-dedup` | off | Keep screenshots that look identical to an earlier one. |
 | `--dedup-threshold` | `0.01` | Two screenshots are duplicates when at most this percent of the picture differs. The default only matches virtually identical screens, so small changes such as a ticked checkbox are kept. Removed duplicates are kept as deleted steps and can be restored in the Steps tab. |
-| `--export` | none | After processing, export each recording: any of `html`, `docx`, `pdf`, comma separated (for example `--export html,pdf`). Recordings that were already processed are exported too, so this also works for re-exporting. |
+| `--export` | none | After processing, export each recording: any of `html`, `docx`, `pdf`, `pptx`, comma separated (for example `--export html,pptx`). Recordings that were already processed are exported too, so this also works for re-exporting. |
 | `--doc-author`, `--doc-version` | none, `v1.0.0` | Author and version in the header of exported documents (saved for next time). |
 | `--logo` | none | A picture (PNG, JPG, GIF, or SVG) shown at the top of exported documents. |
 | `--word-template` | none | A Word `.docx` whose styles, margins, and page header and footer are used for Word exports. |
