@@ -2,13 +2,14 @@
 #
 # gui_shots.py
 # 2026-10-13
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Opens the GUI on the demo recording made by make_screenshots.sh and takes
 # the store screenshots: the Steps tab, the Annotate menu, the Record
 # window, the dark theme, and a recording in progress. Also exports the
-# demo as HTML for the document screenshot. Run by make_screenshots.sh.
+# demo as HTML and as PowerPoint (with a made-up logo) for the document
+# screenshots. Run by make_screenshots.sh.
 #
 # Usage: gui_shots.py DEMO_DOCUMENTS_FOLDER OUTPUT_FOLDER
 
@@ -98,4 +99,15 @@ root.deiconify(); pump(1)
 import export  # noqa: E402
 html = export.export(ed.out_dir, ed.doc, "html")
 (OUT / "export.path").write_text(str(html))
+logo = OUT.parent / "demo-logo.png"
+import annotate  # noqa: E402
+font = annotate.find_font()
+font_opt = f"fontfile={annotate.filter_path(font)}:" if font else ""
+subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=0x1f4e8c:s=560x120",
+                "-vf", f"drawtext={font_opt}text='EXAMPLE CORP':fontcolor=white:fontsize=50:"
+                "x=(w-text_w)/2:y=(h-text_h)/2", "-frames:v", "1", str(logo)], check=True)
+ed.doc["steps"][0]["narration"] = "Start the setup program from the software share."
+deck = export.export(ed.out_dir, ed.doc, "pptx", logo=logo)
+logo.unlink()
+(OUT / "pptx.path").write_text(str(deck))
 app.on_close()

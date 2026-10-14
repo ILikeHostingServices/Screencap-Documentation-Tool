@@ -2,7 +2,7 @@
 #
 # test_gui.py
 # 2026-10-12
-# Version: v1.7.0
+# Version: v1.8.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -15,6 +15,7 @@
 # display is not available (on Linux CI it runs under xvfb-run).
 
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -280,6 +281,24 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(exported.get("logo"), str(logo))
         self.assertIsNone(exported.get("template"))
         self.app.settings_extra.pop("export_logo", None)
+        self.assertEqual(self.errors, [])
+
+    def test_powerpoint_button_exports_a_presentation(self):
+        import zipfile
+        ed = self.process("pptx")
+        opened = []
+        self.app.open_path = opened.append
+        button = [b for b in ed.export_buttons if b.cget("text") == "PowerPoint"][0]
+        button.invoke()
+        end = time.monotonic() + 60
+        while not opened and time.monotonic() < end:
+            self.pump(0.2)
+        self.assertEqual(len(opened), 1, self.dialogs)
+        self.assertEqual(opened[0].suffix, ".pptx")
+        with zipfile.ZipFile(opened[0]) as z:
+            slides = [n for n in z.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)]
+        self.assertEqual(len(slides), len(ed.doc["steps"]) + 1)
+        self.assertIn("Exported", self.app.v_status.get())
         self.assertEqual(self.errors, [])
 
     def test_animated_clip_is_made_on_save(self):

@@ -2,7 +2,7 @@
 #
 # gui_editor.py
 # 2026-10-12
-# Version: v2.4.1
+# Version: v2.5.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -14,7 +14,7 @@
 # can be blurred (detected automatically, or drawn by hand) with an
 # unblurred copy kept alongside. Arrows, numbered markers, and text labels
 # can be drawn on each screenshot, and a zoomed inset can show a small
-# change up close. Finished steps export to HTML, Word, or PDF,
+# change up close. Finished steps export to HTML, Word, PDF, or PowerPoint,
 # Play in VLC opens the recording just before the selected step, and
 # Captions From Narration fills empty captions from what was said. A
 # company logo and a Word template can be chosen for every export.
@@ -25,6 +25,7 @@ from pathlib import Path
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import font as tkfont
 
 import annotate
 import clips
@@ -101,6 +102,7 @@ class StepEditor(ttk.Frame):
         self.preview_job = None
         self.render_thread = None
         self.v_info = tk.StringVar(value="Select a processed video to edit its steps.")
+        self.v_info_shown = tk.StringVar(value=self.v_info.get())
         self.v_title = tk.StringVar(value="")
         self.v_view = tk.StringVar(value="final")
         self.v_dirty = tk.StringVar(value="")
@@ -257,10 +259,13 @@ class StepEditor(ttk.Frame):
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
         self.winfo_toplevel().bind("<Escape>", lambda e: self.cancel_draw(), add="+")
 
-        info = ttk.Label(right, textvariable=self.v_info, style="Muted.TLabel", anchor="w",
-                         justify="left")
+        # One line, shortened to fit, so the picture keeps the room
+        info = ttk.Label(right, textvariable=self.v_info_shown, style="Muted.TLabel",
+                         anchor="w", width=1)
         info.grid(row=2, column=0, sticky="ew", pady=(6, 0))
-        right.bind("<Configure>", lambda e: info.configure(wraplength=max(200, e.width - 10)))
+        self.info_label = info
+        info.bind("<Configure>", lambda e: self.fit_info())
+        self.v_info.trace_add("write", lambda *a: self.fit_info())
         heading = ttk.Frame(right)
         heading.grid(row=3, column=0, sticky="ew", pady=(6, 2))
         ttk.Label(heading, text="Caption", style="Heading.TLabel").pack(side="left")
@@ -279,35 +284,47 @@ class StepEditor(ttk.Frame):
         lower.columnconfigure(0, weight=1)
         doc = ttk.Frame(lower, style="Card.TFrame", padding=10)
         doc.grid(row=0, column=0, sticky="nsew")
-        doc.columnconfigure(0, weight=1)
-        for col, text in enumerate(("Document title", "Version", "Author")):
-            ttk.Label(doc, text=text, style="Card.Muted.TLabel").grid(
-                row=0, column=col, sticky="w", padx=(0 if col == 0 else 8, 0))
-        self.entry_title = ttk.Entry(doc, textvariable=self.v_doc_title, width=40,
+        doc.columnconfigure(1, weight=1)
+        doc.columnconfigure(3, weight=2)
+        # The title on its own row, so it keeps its room when the window is small
+        ttk.Label(doc, text="Document title", style="Card.Muted.TLabel").grid(
+            row=0, column=0, columnspan=4, sticky="w")
+        self.entry_title = ttk.Entry(doc, textvariable=self.v_doc_title, width=20,
                                      font=self.app.theme.fonts["heading"]
                                      if hasattr(self.app, "theme") else None)
-        self.entry_title.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+        self.entry_title.grid(row=1, column=0, columnspan=4, sticky="ew", pady=(2, 6))
+        ttk.Label(doc, text="Version", style="Card.Muted.TLabel").grid(
+            row=2, column=0, sticky="w", padx=(0, 6))
         ttk.Entry(doc, textvariable=self.v_doc_version, width=8).grid(
-            row=1, column=1, sticky="nsew", padx=(8, 0), pady=(2, 0))
-        ttk.Entry(doc, textvariable=self.v_doc_author, width=14).grid(
-            row=1, column=2, sticky="nsew", padx=(8, 0), pady=(2, 0))
+            row=2, column=1, sticky="ew")
+        ttk.Label(doc, text="Author", style="Card.Muted.TLabel").grid(
+            row=2, column=2, sticky="w", padx=(12, 6))
+        ttk.Entry(doc, textvariable=self.v_doc_author, width=12).grid(
+            row=2, column=3, sticky="ew")
         for var in (self.v_doc_title, self.v_doc_version, self.v_doc_author):
             var.trace_add("write", lambda *a: self.on_meta_changed())
         exp = ttk.Frame(lower, style="Card.TFrame", padding=10)
         exp.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
-        ttk.Label(exp, text="Export", style="Card.Muted.TLabel").grid(row=0, column=0,
-                                                                       sticky="w")
-        ttk.Button(exp, text="Logo and Template...", style="Card.Link.TButton",
-                   command=self.open_branding).grid(row=0, column=1, columnspan=2, sticky="e")
+        exp.columnconfigure(0, weight=1)
+        exp_head = ttk.Frame(exp, style="Card.TFrame")
+        exp_head.grid(row=0, column=0, sticky="ew")
+        ttk.Label(exp_head, text="Export", style="Card.Muted.TLabel").pack(side="left")
+        ttk.Button(exp_head, text="Logo and Template...", style="Card.Link.TButton",
+                   command=self.open_branding).pack(side="right")
+        buttons = ttk.Frame(exp, style="Card.TFrame")
+        buttons.grid(row=1, column=0, sticky="w", pady=(2, 6))
         self.export_buttons = []
-        for col, (fmt, text) in enumerate((("html", "HTML"), ("docx", "Word"), ("pdf", "PDF"))):
-            b = ttk.Button(exp, text=text, width=6, command=lambda f=fmt: self.export(f))
-            b.grid(row=1, column=col, padx=(0 if col == 0 else 4, 0), pady=(2, 6))
+        for fmt, text in (("html", "HTML"), ("docx", "Word"), ("pdf", "PDF"),
+                          ("pptx", "PowerPoint")):
+            b = ttk.Button(buttons, text=text, width=0, command=lambda f=fmt: self.export(f))
+            b.pack(side="left", padx=(0, 4))
             self.export_buttons.append(b)
-        ttk.Checkbutton(exp, text="Unblurred copy", variable=self.v_export_unredacted,
-                        style="Card.TCheckbutton").grid(row=2, column=0, columnspan=2, sticky="w")
-        ttk.Button(exp, text="Open Exports", style="Card.Link.TButton",
-                   command=self.open_export_folder).grid(row=2, column=2, sticky="e")
+        options = ttk.Frame(exp, style="Card.TFrame")
+        options.grid(row=2, column=0, sticky="ew")
+        ttk.Checkbutton(options, text="Unblurred copy", variable=self.v_export_unredacted,
+                        style="Card.TCheckbutton").pack(side="left")
+        ttk.Button(options, text="Open Exports", style="Card.Link.TButton",
+                   command=self.open_export_folder).pack(side="right")
 
         # Bottom bar: navigation and actions on the left, saving on the right
         bar = ttk.Frame(self)
@@ -426,6 +443,25 @@ class StepEditor(ttk.Frame):
     def set_dirty(self, dirty=True):
         self.dirty = dirty
         self.v_dirty.set("Unsaved changes" if dirty else "")
+
+    def fit_info(self):
+        """Show the step details on one line, cut short with ... when the
+        window is too narrow for all of it."""
+        label = getattr(self, "info_label", None)
+        text = self.v_info.get()
+        if label is None:
+            return
+        width = label.winfo_width()
+        try:
+            font = tkfont.nametofont(str(label.cget("font")) or "TkDefaultFont")
+        except tk.TclError:
+            font = tkfont.nametofont("TkDefaultFont")
+        if width > 1 and font.measure(text) > width:
+            while text and font.measure(text + "\u2026") > width:
+                text = text[:-1]
+            text = text.rstrip(" |") + "\u2026"
+        if self.v_info_shown.get() != text:
+            self.v_info_shown.set(text)
 
     def on_select(self):
         step = self.current_step()

@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-10-12
-# Version: v1.13.0
+# Version: v1.14.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -43,7 +43,7 @@ import version  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.13.0"
+VERSION = "1.14.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -543,7 +543,7 @@ def parse_args(argv):
     p.add_argument("--tesseract", help="Path to the tesseract executable (OCR)")
     p.add_argument("--export", type=parse_formats, metavar="FORMATS",
                    help="After processing, export each recording as a document: any "
-                        "of html, docx, pdf, comma separated (e.g. html,pdf). Already "
+                        "of html, docx, pdf, pptx, comma separated (e.g. html,pptx). Already "
                         "processed recordings are exported too")
     p.add_argument("--transcribe", action="store_true",
                    help="Turn spoken narration into captions for steps that have none, "

@@ -1,8 +1,22 @@
-CHANGELOG.md v1.35.0 (Last Rev: 2026-10-13)
+CHANGELOG.md v1.36.0 (Last Rev: 2026-10-14)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.32.0 - PowerPoint export (2026-10-14)
+
+**New**
+- **Export to PowerPoint:** **PowerPoint** in the Export box (command line: `--export pptx`) saves the steps as a widescreen presentation for training sessions and handovers: a title slide with the title, version, date, author, and logo, then one slide per step with "Step N", the screenshot as large as fits, and the caption under it.
+- What was said during a step (Captions From Narration) goes in that slide's speaker notes, so the presenter has the script; screenshots keep their alt text; a step with an animated clip gets one more slide where the clip plays.
+- The logo (PNG, JPG, or GIF) is on every slide. The Unblurred copy option works as for the other exports and puts the warning on the title slide.
+- No other program is needed: the presentation is written by the tool itself (`pptxwriter.py`, Python standard library only) and opens in PowerPoint, Keynote, LibreOffice Impress, and Google Slides.
+
+**Testing**
+- Every exported presentation in the tests is checked with Microsoft's Open XML SDK (the rules Office itself uses, for Office 2007, 2016, and Microsoft 365) and read back with python-pptx, on Windows and Linux.
+
+**Changed**
+- The screenshots in the README and the software center listing show the PowerPoint button, and a new one shows an exported presentation. From now on, every feature release updates the screenshots.
 
 ## v1.31.2 - Better click captions, and screenshots in the store listings (2026-10-13)
 

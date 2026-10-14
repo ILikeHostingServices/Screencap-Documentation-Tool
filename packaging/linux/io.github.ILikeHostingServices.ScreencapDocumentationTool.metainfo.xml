@@ -22,7 +22,7 @@
       <li>Review the steps: reorder, delete, crop, and write a caption for each one</li>
       <li>Arrows, numbered markers, text labels, a zoomed inset, and animated GIF clips</li>
       <li>Blur passwords, keys, and addresses automatically, with an unblurred copy kept</li>
-      <li>Export to HTML, Word, or PDF, with your logo and Word template and alt text on every picture</li>
+      <li>Export to HTML, Word, PDF, or PowerPoint, with your logo and alt text on every picture</li>
       <li>Light and dark themes; everything runs locally, with no telemetry</li>
     </ul>
   </description>
@@ -44,6 +44,10 @@
       <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/06-export-html.png</image>
     </screenshot>
     <screenshot>
+      <caption>The steps as a PowerPoint presentation, one slide per step</caption>
+      <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/07-powerpoint.png</image>
+    </screenshot>
+    <screenshot>
       <caption>The dark theme</caption>
       <image>https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/main/docs/screenshots/04-dark-theme.png</image>
     </screenshot>
@@ -61,6 +65,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.32.0" date="2026-10-14">
+      <description>
+        <p>Export to PowerPoint: one slide per step, with narration in the speaker notes.</p>
+      </description>
+    </release>
     <release version="1.31.2" date="2026-10-13">
       <description>
         <p>Better first-draft captions from clicks, and screenshots in the software center listing.</p>

@@ -2,12 +2,13 @@
 #
 # export.py
 # 2026-10-12
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
-# self-contained HTML file (images embedded), a Word .docx (via Pandoc), or
-# a PDF (printed by a headless Microsoft Edge, Google Chrome, or Chromium).
+# self-contained HTML file (images embedded), a Word .docx (via Pandoc), a
+# PDF (printed by a headless Microsoft Edge, Google Chrome, or Chromium), or
+# a PowerPoint .pptx (written by pptxwriter.py, no other program needed).
 # Each document starts with a header block: title, version, date, author,
 # and optionally a company logo. Word exports can use a Word template (a
 # "reference document": its fonts, colors, margins, and page header and
@@ -27,12 +28,15 @@ import tempfile
 import time
 from pathlib import Path
 
+import logging
+
 import clips
+import pptxwriter
 import stepdoc
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 EXPORT_DIR = "export"
-FORMATS = ("html", "docx", "pdf")
+FORMATS = ("html", "docx", "pdf", "pptx")
 TOOL_NAME = "Screencap Documentation Tool"
 LOGO_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
               ".gif": "image/gif", ".svg": "image/svg+xml"}
@@ -273,6 +277,30 @@ def build_markdown(out_dir, doc, unredacted=False, logo=None):
     return "\n".join(lines)
 
 
+def build_pptx(out_dir, doc, dest, unredacted=False, logo=None):
+    """A PowerPoint presentation: a title slide, then one slide per step
+    (and one more for a step's animated clip). Narration goes in the speaker
+    notes."""
+    meta = metadata(doc)
+    if logo is not None and logo.suffix.lower() not in pptxwriter.IMAGE_TYPES:
+        logging.getLogger("screencap").warning(
+            "PowerPoint cannot show the %s logo; it is left out (use a PNG, JPG, or GIF).",
+            logo.suffix.lower().lstrip(".").upper())
+        logo = None
+    deck = pptxwriter.Deck()
+    pptxwriter.title_slide(deck, meta, logo=logo, warning=warning_text() if unredacted else None)
+    for i, step in enumerate(doc["steps"], 1):
+        img = image_path(out_dir, step, unredacted)
+        notes = (step.get("narration") or "").strip() or None
+        pptxwriter.step_slide(deck, i, stepdoc.fmt_ts(step["time"]), img, stepdoc.alt_text(step, i),
+                        step.get("caption"), notes=notes, logo=logo)
+        clip = clips.clip_path(out_dir, step)
+        if clip:
+            pptxwriter.step_slide(deck, i, None, clip, f"Animated clip of step {i}", None, logo=logo,
+                            heading=f"Step {i}: animation")
+    return deck.write(dest, title=meta["title"], author=meta["author"])
+
+
 # ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
@@ -313,6 +341,8 @@ def export(out_dir, doc, fmt, unredacted=False, pandoc=None, browser=None, logo=
             if template:
                 cmd.append(f"--reference-doc={template}")
             _run(cmd, "Pandoc")
+    elif fmt == "pptx":
+        build_pptx(out_dir, doc, dest, unredacted, logo=logo)
     elif fmt == "pdf":
         browser = browser or find_browser()
         if not browser:
