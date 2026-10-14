@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # annotate.py
-# 2026-10-12
-# Version: v1.1.0
+# 2026-10-14
+# Version: v1.1.1
 #
 # PURPOSE:
 # Annotations drawn on a screenshot in the step editor: arrows, numbered
@@ -26,6 +26,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 KINDS = ("arrow", "number", "text", "click")
@@ -343,7 +344,8 @@ def draw_rgba(width, height, annotations):
 def write_pam(path, width, height, rgba):
     header = (f"P7\nWIDTH {width}\nHEIGHT {height}\nDEPTH 4\nMAXVAL 255\n"
               "TUPLTYPE RGB_ALPHA\nENDHDR\n").encode("ascii")
-    tmp = Path(str(path) + ".tmp")
+    # unique per thread, so two renders drawing the same image cannot clash
+    tmp = Path(f"{path}.{os.getpid()}-{threading.get_ident()}.tmp")
     tmp.write_bytes(header + rgba)
     os.replace(tmp, path)
 

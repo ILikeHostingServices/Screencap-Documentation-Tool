@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # actions.py
-# 2026-10-12
-# Version: v1.1.0
+# 2026-10-14
+# Version: v1.2.0
 #
 # PURPOSE:
 # Uses the clicks and keys noted by the built-in recorder (recorder.py) to
@@ -17,12 +17,14 @@
 # same patterns that are blurred) are never put in a caption.
 
 import logging
+import os
 import subprocess
 import tempfile
 from pathlib import Path
 
 import recorder
 import redact
+import workers
 
 log = logging.getLogger("screencap")
 
@@ -275,7 +277,9 @@ def words_at(ffmpeg, tesseract, video, t, area, tmp, psm=11):
     """OCR lines in area of the recording at time t, in frame pixels. Gray,
     enlarged pixels read best, even with the mouse pointer over a letter."""
     x, y, w, h = area
-    image = Path(tmp) / f"click_{t:.3f}_{psm}.png"
+    fd, image = tempfile.mkstemp(prefix="click_", suffix=".png", dir=tmp)
+    os.close(fd)   # a name of its own, so reads running at the same time never mix
+    image = Path(image)
     res = subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
                           "-ss", f"{max(t - 0.05, 0):.3f}", "-i", str(video),
                           "-frames:v", "1", "-vf",
@@ -314,34 +318,38 @@ def fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp):
 
 def label_actions(acts, video, ffmpeg, tesseract, width, height, extra, tmp):
     """Add "label" (the words clicked) or "near" (the words beside an empty
-    spot) to clicks and drags."""
-    for a in acts:
-        if a["type"] not in ("click", "drag"):
-            continue
-        area = crop_around(a["x"], a["y"], width, height)
+    spot) to clicks and drags, reading several at once."""
+    clicks = [a for a in acts if a["type"] in ("click", "drag")]
+    workers.run_all(lambda a: label_action(a, video, ffmpeg, tesseract, width, height,
+                                           extra, tmp), clicks)
+
+
+def label_action(a, video, ffmpeg, tesseract, width, height, extra, tmp):
+    """label_actions() for one click or drag."""
+    area = crop_around(a["x"], a["y"], width, height)
+    try:
+        lines = words_at(ffmpeg, tesseract, video, a["t"], area, tmp)
+    except (RuntimeError, OSError) as exc:
+        log.debug("  Reading the words at a click failed: %s", exc)
+        return
+    label = click_label(lines, a["x"], a["y"], width) or \
+        right_label(lines, a["x"], a["y"], width)
+    if label:
+        label = fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp)
+    else:
         try:
-            lines = words_at(ffmpeg, tesseract, video, a["t"], area, tmp)
+            tight = words_at(ffmpeg, tesseract, video, a["t"],
+                             tight_area(a["x"], a["y"], width, height), tmp, psm=7)
+            label = click_label(tight, a["x"], a["y"], width)
         except (RuntimeError, OSError) as exc:
             log.debug("  Reading the words at a click failed: %s", exc)
-            continue
-        label = click_label(lines, a["x"], a["y"], width) or \
-            right_label(lines, a["x"], a["y"], width)
-        if label:
-            label = fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp)
-        else:
-            try:
-                tight = words_at(ffmpeg, tesseract, video, a["t"],
-                                 tight_area(a["x"], a["y"], width, height), tmp, psm=7)
-                label = click_label(tight, a["x"], a["y"], width)
-            except (RuntimeError, OSError) as exc:
-                log.debug("  Reading the words at a click failed: %s", exc)
-        label = safe_label(label, extra)
-        if label:
-            a["label"] = label
-        elif a["type"] == "click":
-            near = safe_label(nearby_label(lines, a["x"], a["y"], width), extra)
-            if near:
-                a["near"] = near
+    label = safe_label(label, extra)
+    if label:
+        a["label"] = label
+    elif a["type"] == "click":
+        near = safe_label(nearby_label(lines, a["x"], a["y"], width), extra)
+        if near:
+            a["near"] = near
 
 
 def apply(out_dir, doc, events, tesseract=None, mark=True, video=None, ffmpeg=None):
@@ -357,14 +365,13 @@ def apply(out_dir, doc, events, tesseract=None, mark=True, video=None, ffmpeg=No
     extra = doc.get("redact_patterns") or []
     filled = 0
     read = bool(tesseract and video and ffmpeg)
-    with tempfile.TemporaryDirectory(prefix="screencap_clicks_") as tmp:
-        for step in steps:
-            acts = per_step.get(id(step), [])
-            if not acts:
-                continue
-            if read:
-                label_actions(acts[:MAX_ACTIONS + 1], video, ffmpeg, tesseract, width, height,
-                              extra, tmp)
+    if read:
+        wanted = [a for step in steps for a in per_step.get(id(step), [])[:MAX_ACTIONS + 1]]
+        with tempfile.TemporaryDirectory(prefix="screencap_clicks_") as tmp:
+            label_actions(wanted, video, ffmpeg, tesseract, width, height, extra, tmp)
+    for step in steps:
+        acts = per_step.get(id(step), [])
+        if acts:
             filled += _describe_step(step, acts, mark)
     return filled
 

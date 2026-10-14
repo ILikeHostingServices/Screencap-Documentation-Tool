@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # recorder.py
-# 2026-10-12
-# Version: v1.0.0
+# 2026-10-14
+# Version: v1.0.1
 #
 # PURPOSE:
 # The built-in screen recorder. FFmpeg records the screen (and, if chosen,
@@ -740,8 +740,12 @@ class Recorder:
         poll = threading.Thread(target=self._poll, daemon=True)
         self._threads.append(poll)
         poll.start()
-        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
-                                     stderr=subprocess.PIPE, creationflags=NO_WINDOW)
+        try:
+            self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                         stderr=subprocess.PIPE, creationflags=NO_WINDOW)
+        except OSError as exc:
+            self._finish(2)   # stop reading clicks and keys again
+            raise RecorderError(f"FFmpeg could not be started: {exc}") from exc
         reader = threading.Thread(target=self._read_stderr, daemon=True)
         self._threads.append(reader)
         reader.start()

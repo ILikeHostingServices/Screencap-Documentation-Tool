@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # stepdoc.py
-# 2026-10-12
-# Version: v1.7.0
+# 2026-10-14
+# Version: v1.8.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -32,6 +32,7 @@ import annotate
 import clips
 import imaging
 import redact
+import workers
 
 SCHEMA = 2
 INDEX_NAME = "steps.md"
@@ -46,8 +47,8 @@ log = logging.getLogger("screencap")
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
-class Cancelled(Exception):
-    """Raised when the user cancels a run from the GUI."""
+# Raised when the user cancels a run from the GUI
+Cancelled = workers.Cancelled
 
 
 def fmt_ts(seconds, sep=":"):
@@ -355,18 +356,14 @@ def ensure_change_boxes(out_dir, doc, ffmpeg):
         return
     ensure_frame_size(out_dir, doc, ffmpeg)
     out_dir = Path(out_dir)
-    thumbs = {}
-
-    def thumb(i):
-        if i not in thumbs:
-            thumbs[i] = imaging.thumbnail(ffmpeg, out_dir / doc["steps"][i]["original"],
-                                          imaging.CHANGE_SIZE)
-        return thumbs[i]
-
+    needed = sorted({j for i in pending if i > 0 for j in (i - 1, i)})
+    thumbs = dict(zip(needed, workers.run_all(
+        lambda j: imaging.thumbnail(ffmpeg, out_dir / doc["steps"][j]["original"],
+                                    imaging.CHANGE_SIZE), needed)))
     for i in pending:
         step = doc["steps"][i]
         step["change_box"] = None if i == 0 else imaging.change_box(
-            thumb(i - 1), thumb(i), doc["width"], doc["height"])
+            thumbs[i - 1], thumbs[i], doc["width"], doc["height"])
 
 
 def render_image(ffmpeg, src, dest, step, doc, run, redacted=True, work_dir=None):
@@ -412,14 +409,18 @@ def ensure_redactions(out_dir, doc, ffmpeg, tesseract, progress=None, cancel=Non
                         "automatically. Manual blur boxes still work.")
         return
     ensure_frame_size(out_dir, doc, ffmpeg)
-    for i, step in enumerate(pending, 1):
-        if cancel is not None and cancel.is_set():
-            raise Cancelled()
-        if progress is not None:
-            progress((i - 1) / len(pending), f"Scanning for sensitive text {i}/{len(pending)}")
-        step["auto_redactions"] = redact.scan_image(
-            tesseract, Path(out_dir) / step["original"], doc["width"], doc["height"],
-            doc.get("redact_patterns", []))
+    if progress is not None:
+        progress(0.0, f"Scanning for sensitive text 0/{len(pending)}")
+    found = workers.run_all(
+        lambda step: redact.scan_image(tesseract, Path(out_dir) / step["original"],
+                                       doc["width"], doc["height"],
+                                       doc.get("redact_patterns", [])),
+        pending, cancel,
+        done=(lambda n, total: progress(n / total, f"Scanning for sensitive text {n}/{total}"))
+        if progress is not None else None)
+    # Stored only once every scan worked, so a failed or cancelled run scans again
+    for step, regions in zip(pending, found):
+        step["auto_redactions"] = regions
     found = sum(len(s["auto_redactions"]) for s in pending)
     log.info("  Sensitive text scan: %d area(s) to blur in %d screenshot(s)", found, len(pending))
 
@@ -443,20 +444,30 @@ def render(out_dir, doc, ffmpeg, progress=None, cancel=None, tesseract=None):
         unredacted.mkdir(exist_ok=True)
     steps = doc["steps"]
     for i, step in enumerate(steps, 1):
-        if cancel is not None and cancel.is_set():
-            raise Cancelled()
-        if progress is not None:
-            progress((i - 1) / max(len(steps), 1), f"Rendering screenshot {i}/{len(steps)}")
         src = out_dir / step["original"]
         if not src.is_file():
             raise RuntimeError(f"Original image missing: {src}")
-        name = rendered_name(i, step, ext)
+        step["file"] = rendered_name(i, step, ext)
+        keep.add(step["file"])
+        # Drawn here, one at a time, so two jobs never write the same image
+        annotate.filters(step, doc.get("width"), doc.get("height"), out_dir)
+
+    def render_step(step):
+        src, name = out_dir / step["original"], step["file"]
         render_image(ffmpeg, src, out_dir / name, step, doc, run_quiet, work_dir=out_dir)
         if redacting:
-            render_image(ffmpeg, src, unredacted / name, step, doc, run_quiet, redacted=False,
-                         work_dir=out_dir)
-        step["file"] = name
-        keep.add(name)
+            if redaction_boxes(step, doc):
+                render_image(ffmpeg, src, unredacted / name, step, doc, run_quiet,
+                             redacted=False, work_dir=out_dir)
+            else:   # nothing blurred: the unblurred copy is the same picture
+                shutil.copyfile(out_dir / name, unredacted / name)
+
+    if progress is not None:
+        progress(0.0, f"Rendering screenshot 0/{len(steps)}")
+    workers.run_all(render_step, steps, cancel,
+                    done=(lambda n, total: progress(n / total,
+                                                    f"Rendering screenshot {n}/{total}"))
+                    if progress is not None else None)
     for folder in (out_dir, unredacted):
         for stale in folder.glob("step_*"):
             if stale.is_file() and stale.suffix.lower() in (".png", ".jpg") and \

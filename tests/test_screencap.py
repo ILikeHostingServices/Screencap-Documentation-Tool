@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-12
-# Version: v1.12.0
+# 2026-10-14
+# Version: v1.13.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -457,6 +457,12 @@ class RedactionTests(unittest.TestCase):
         self.assertNotEqual(blurred.read_bytes(), plain.read_bytes())
         self.assertIn("UNREDACTED COPY",
                       (folder / stepdoc.UNREDACTED_INDEX).read_text(encoding="utf-8"))
+        # A step with nothing to blur gets an identical copy, without a second render
+        clean = [s for s in doc["steps"] if not stepdoc.redaction_boxes(s, doc)]
+        self.assertTrue(clean)
+        for s in clean:
+            self.assertEqual((folder / s["file"]).read_bytes(),
+                             (folder / stepdoc.UNREDACTED_DIR / s["file"]).read_bytes())
 
         for r in step["auto_redactions"]:      # un-blur everything detected
             r["ignored"] = True

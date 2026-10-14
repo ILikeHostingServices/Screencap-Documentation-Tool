@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-10-12
-# Version: v1.14.0
+# 2026-10-14
+# Version: v1.15.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -40,10 +40,11 @@ import redact  # noqa: E402
 import stepdoc  # noqa: E402
 import transcribe  # noqa: E402
 import version  # noqa: E402
+import workers  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.14.0"
+VERSION = "1.15.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -362,12 +363,9 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
     doc["redact_patterns"] = list(args.redact_pattern or [])
     kept_thumbs = []
 
-    def dedup_check(new, image):
+    def dedup_check(new, thumb):
         """Mark new as a duplicate of an earlier kept step, if it is one.
         The final step is always kept so the end result is documented."""
-        if args.no_dedup:
-            return False
-        thumb = imaging.thumbnail(ffmpeg, image)
         dup = imaging.find_duplicate(thumb, kept_thumbs, args.dedup_threshold)
         if dup is not None and new["reason"] != "end":
             new["deleted_reason"] = "duplicate"
@@ -377,15 +375,22 @@ def process_video(ffmpeg, ffprobe, video, out_dir, args, progress=None, cancel=N
             return True
         kept_thumbs.append(thumb)
         return False
-    for i, step in enumerate(steps, 1):
-        if cancel is not None and cancel.is_set():
-            raise Cancelled()
-        report(0.85 + 0.10 * (i - 1) / len(steps), f"Saving screenshot {i}/{len(steps)}")
+
+    def save_frame(step):
+        """Extract one frame (and its comparison thumbnail): one job per step."""
         orig = f"{ORIGINALS_DIR}/{stepdoc.capture_name(step['time'], args.format)}"
         extract_frame(ffmpeg, video, step["time"], out_dir / orig, args)
+        thumb = None if args.no_dedup else imaging.thumbnail(ffmpeg, out_dir / orig)
+        return orig, thumb
+
+    report(0.85, f"Saving screenshot 0/{len(steps)}")
+    frames = workers.run_all(
+        save_frame, steps, cancel,
+        done=lambda n, total: report(0.85 + 0.10 * n / total, f"Saving screenshot {n}/{total}"))
+    for step, (orig, thumb) in zip(steps, frames):
         new = stepdoc.new_step(step["time"], orig, step["still_from"], step["still_to"],
                                step["score"], step["reason"])
-        if dedup_check(new, out_dir / orig):
+        if thumb is not None and dedup_check(new, thumb):
             doc["deleted_steps"].append(new)
         else:
             doc["steps"].append(new)
@@ -490,7 +495,8 @@ def parse_crop(text):
 def parse_args(argv):
     p = argparse.ArgumentParser(
         description="Automatically capture a screenshot of every step in screen "
-                    "recordings using FFmpeg scene detection.")
+                    "recordings using FFmpeg scene detection, or record the screen "
+                    "first with --record.")
     p.add_argument("-s", "--source", type=Path, default=apppaths.SOURCE_DIR,
                    help="Folder containing videos (default: ./source)")
     p.add_argument("-o", "--output", type=Path, default=apppaths.OUTPUT_DIR,

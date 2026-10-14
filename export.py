@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # export.py
-# 2026-10-12
-# Version: v1.4.0
+# 2026-10-14
+# Version: v1.4.1
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
@@ -369,9 +369,13 @@ def export(out_dir, doc, fmt, unredacted=False, pandoc=None, browser=None, logo=
 
 
 def _run(cmd, what, timeout=300):
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                         errors="replace", stdin=subprocess.DEVNULL, creationflags=NO_WINDOW,
-                         timeout=timeout)
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                             errors="replace", stdin=subprocess.DEVNULL,
+                             creationflags=NO_WINDOW, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"{what} did not finish within {timeout // 60} minutes "
+                           "and was stopped.") from None
     if res.returncode != 0:
         raise RuntimeError(f"{what} failed: {res.stderr.strip()[-400:]}")
     return res

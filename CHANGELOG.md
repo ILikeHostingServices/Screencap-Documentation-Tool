@@ -1,8 +1,23 @@
-CHANGELOG.md v1.36.0 (Last Rev: 2026-10-14)
+CHANGELOG.md v1.37.0 (Last Rev: 2026-10-14)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.33.0 - Faster processing and fixes (2026-10-14)
+
+**Faster**
+- Processing is about three times faster on a 4-core PC: a 3-minute, 1080p recording with 40 steps now takes 27 seconds instead of 81, and a recording made with the built-in recorder 4 seconds instead of 11. The results are the same, screenshot for screenshot.
+- Saving the screenshots, reading the clicked words for captions, scanning for sensitive text, and rendering now run on all CPU cores (up to 8 at once) instead of one screenshot at a time. **Save Changes** in the step editor is faster for the same reason.
+- An unblurred copy of a screenshot with nothing to blur is now copied instead of being rendered a second time, and screenshots are compared row by row, skipping the rows that did not change.
+- `SCREENCAP_WORKERS` (an environment variable) sets how many cores to use; `SCREENCAP_WORKERS=1` does everything one at a time.
+
+**Fixed**
+- Tesseract OCR could stall for minutes on a busy PC: its own threads compete for the CPU with each other. It now runs one thread per scan, which is also faster on its own.
+- A change made in the step editor while **Save Changes** was still running was marked as saved even though it was not in the saved files, so it could be lost on closing. It now stays marked as unsaved, and the status bar says to save again.
+- If FFmpeg could not be started for a recording, the tool kept reading clicks and keys in the background until it was closed.
+- A Word or PDF export that hangs now ends with a clear message ("did not finish within 3 minutes") instead of an internal error.
+- `screencap.py --help` mentions `--record`.
 
 ## v1.32.0 - PowerPoint export (2026-10-14)
 

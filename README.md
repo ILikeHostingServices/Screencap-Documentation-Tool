@@ -1,4 +1,4 @@
-README.md v1.39.0 (Last Rev: 2026-10-14)
+README.md v1.40.0 (Last Rev: 2026-10-14)
 
 # Screencap Documentation Tool
 
@@ -111,6 +111,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `whisper_worker.py` | Runs the speech recognition (faster-whisper) in the optional `whisper-env` Python environment. |
 | `whisper-env/` | Optional. Created by the installer's speech recognition option (`-WithWhisper` or `SCREENCAP_WITH_WHISPER=1`). Not in git. |
 | `imaging.py` | Image comparisons (duplicate detection and the "what changed" box) using FFmpeg and the Python standard library. |
+| `workers.py` | Runs the per-screenshot work (FFmpeg and Tesseract) on several CPU cores at once. |
 | `clips.py` | Animated GIF clips of single steps, made with FFmpeg from the original recording. |
 | `annotate.py` | Annotations (arrows, numbered markers, text labels, click rings): draws them and gives FFmpeg the filters that put them on the screenshot. |
 | `recorder.py` | The built-in screen recorder: records with FFmpeg and notes clicks and keys with the system's own functions. |
@@ -476,6 +477,8 @@ The defaults are tuned for typical setup wizards. If a recording gives you too m
 | Screenshots show a half-drawn window | **Screenshot taken**: Finished state, or raise **Settle after change** | `--capture-point end`, or raise `--settle` |
 
 After changing settings, reprocess with **Reprocess videos that are already done** ticked (command line: `--force`).
+
+**Speed.** Saving the screenshots, reading clicked words, scanning for sensitive text, and rendering run on all CPU cores (up to 8 at once), so a 3-minute recording with 40 steps takes about a third of the time it did before v1.33.0. Finding the steps reads the whole video once and is limited by how fast FFmpeg decodes it. To use fewer cores (for example on a shared server), set the `SCREENCAP_WORKERS` environment variable to the number to use; `SCREENCAP_WORKERS=1` does everything one at a time.
 
 ### Recording Tips For Best Results
 
