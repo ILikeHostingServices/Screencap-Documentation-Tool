@@ -351,6 +351,10 @@ def start_installer(setup, app_dir=None, relaunch=True):
         raise UpdateError("Installing updates is only possible on Windows.")
     setup = Path(setup)
     log = setup.with_suffix(".log")
+    try:
+        log.unlink()      # a fresh log for this update, not one from an earlier try
+    except OSError:
+        pass
     args = subprocess.list2cmdline(installer_args(install_scope(app_dir), log, relaunch))
     try:
         # ShellExecute, so Windows can show the administrator prompt
