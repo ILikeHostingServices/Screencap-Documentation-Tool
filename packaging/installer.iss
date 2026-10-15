@@ -1,6 +1,6 @@
 ; installer.iss
-; 2026-10-11
-; Version: v1.5.0
+; 2026-10-15
+; Version: v1.6.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
@@ -139,6 +139,9 @@ Filename: "{cmd}"; Parameters: "/c winget install --id Gyan.FFmpeg -e --accept-s
 Filename: "{cmd}"; Parameters: "/c winget install --id UB-Mannheim.TesseractOCR -e --accept-source-agreements --accept-package-agreements"; StatusMsg: "Installing Tesseract OCR with winget..."; Flags: runhidden waituntilterminated; Tasks: extras
 Filename: "{cmd}"; Parameters: "/c winget install --id JohnMacFarlane.Pandoc -e --accept-source-agreements --accept-package-agreements --scope {code:WingetScope}"; StatusMsg: "Installing Pandoc with winget..."; Flags: runhidden waituntilterminated; Tasks: extras
 Filename: "{app}\{#AppExe}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent
+; Update Now in the app runs setup silently with /RELAUNCH=1: open the app
+; again afterwards, as the signed-in user (not as administrator)
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: RelaunchAfterUpdate
 
 [Code]
 function FfmpegFound: Boolean;
@@ -393,6 +396,12 @@ function GetFoldersStamp(Param: String): String;
 begin
   DecideFolders;
   Result := FinalStamp;
+end;
+
+{ Update Now in the app (silent setup with /RELAUNCH=1) }
+function RelaunchAfterUpdate: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1');
 end;
 
 { True when both folders are inside the install folder (the defaults) }

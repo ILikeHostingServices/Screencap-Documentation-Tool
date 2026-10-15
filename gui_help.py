@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 #
 # gui_help.py
-# 2026-10-12
-# Version: v1.4.0
+# 2026-10-15
+# Version: v1.5.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
 # shortcuts, troubleshooting), the About window (version, license, links,
 # and the details to paste into a problem report), and the update check
-# (manual, or automatic once a day when the user turned it on).
+# (manual, or automatic once a day when the user turned it on), with
+# Update Now for copies installed with the Windows installer.
 
 import datetime
 import platform
+import queue
 import sys
 import threading
 import webbrowser
@@ -113,7 +115,7 @@ F1                   This help"""),
 - Word export unavailable: install Pandoc (winget install --id JohnMacFarlane.Pandoc -e).
 - Too many or too few screenshots: try another preset, or change Sensitivity.
 - Something else: the Log tab and screencap.log in the output folder show what happened. Help > Report a Problem opens the issue form on GitHub; Help > About can copy the details it asks for.
-- Update check: the right end of the status bar shows whether you have the latest version; click it to check again."""),
+- Update check: the right end of the status bar shows whether you have the latest version; click it to check again. On a copy installed with the Windows installer, Update Now in the update window downloads, checks, and installs the new version, then opens the app again."""),
 ]
 
 
@@ -356,19 +358,8 @@ class UpdateChecker:
         self.offer(result)
 
     def offer(self, result):
-        """Ask whether to download a newer version (also from the status bar)."""
-        app = self.app
-        notes = updates.release_notes_excerpt(result["notes"])
-        answer = messagebox.askyesnocancel(
-            version.APP_NAME,
-            f"Version {result['version']} is available (released {result['published']}). "
-            f"You have v{version.RELEASE}.\n\n{notes}\n\n{updates.how_to_update()}\n\n"
-            "Open the download now?\n(Yes: download. No: remind me later. "
-            "Cancel: skip this version.)", parent=app.root)
-        if answer:
-            app.open_url(updates.download_for(result))
-        elif answer is None:
-            app.settings_extra["skip_version"] = result["version"]
+        """Show the update window (also from the status bar)."""
+        UpdateDialog(self.app, result)
 
     def startup(self):
         """Automatic check, at most once a day, only when the user turned it
@@ -387,3 +378,186 @@ class UpdateChecker:
         if extra.get("check_updates") and \
                 extra.get("last_update_check") != datetime.date.today().isoformat():
             self.start(manual=False)
+
+
+class UpdateDialog(tk.Toplevel):
+    """A newer version is out: its notes, and Update Now (Windows installer
+    copies: download, check, install, reopen) or how to update this kind of
+    install, with the command to copy."""
+    WIDTH = 520
+
+    def __init__(self, app, result):
+        super().__init__(app.root)
+        self.app, self.result = app, result
+        self.kind = updates.install_kind()
+        self.cancel = threading.Event()
+        self.events = queue.Queue()
+        self.busy = False
+        self.title("Update Available")
+        self.resizable(False, False)
+        self.transient(app.root)
+        body = ttk.Frame(self, padding=(22, 18))
+        body.pack(fill="both", expand=True)
+        body.columnconfigure(0, weight=1)
+        ttk.Label(body, text=f"Version {result['version']} is available",
+                  style="Heading.TLabel").grid(row=0, column=0, sticky="w")
+        released = f"Released {result['published']}. " if result.get("published") else ""
+        ttk.Label(body, text=f"{released}You have version {version.RELEASE}.",
+                  style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(2, 10))
+
+        notes = tk.Text(body, width=64, height=10, wrap="word", relief="flat",
+                        padx=10, pady=8, takefocus=False, font="TkDefaultFont")
+        notes.insert("1.0", updates.release_notes_excerpt(result["notes"]) or
+                     "See the release notes on GitHub.")
+        notes.configure(state="disabled")
+        notes.grid(row=2, column=0, sticky="ew")
+        ttk.Button(body, text="Full release notes", style="Link.TButton", takefocus=False,
+                   command=lambda: app.open_url(result["url"])).grid(row=3, column=0, sticky="w")
+
+        self.installable = updates.can_install(self.kind)
+        if self.installable:
+            how = ("Update Now downloads the new installer, checks it, and installs it. "
+                   "This window closes while it updates, then the app opens again. Your "
+                   "settings, folders, and recordings are kept.")
+            if updates.install_scope() == "ALLUSERS":
+                how += " Windows asks for administrator permission, because this copy is " \
+                       "installed for everyone."
+        else:
+            how = updates.how_to_update(self.kind)
+        self.how = ttk.Label(body, text=how, wraplength=self.WIDTH, justify="left")
+        self.how.grid(row=4, column=0, sticky="w", pady=(10, 0))
+
+        self.command = None if self.installable else \
+            updates.update_command(self.kind, result["version"])
+        if self.command:
+            row = ttk.Frame(body)
+            row.grid(row=5, column=0, sticky="ew", pady=(8, 0))
+            row.columnconfigure(0, weight=1)
+            self.v_command = tk.StringVar(value=self.command)
+            entry = ttk.Entry(row, textvariable=self.v_command, state="readonly")
+            entry.grid(row=0, column=0, sticky="ew")
+            ttk.Button(row, text="Copy", command=self.copy).grid(row=0, column=1, padx=(8, 0))
+
+        self.progress = ttk.Progressbar(body, maximum=1000, length=self.WIDTH)
+        self.v_status = tk.StringVar()
+        self.status = ttk.Label(body, textvariable=self.v_status, style="Muted.TLabel")
+
+        btns = ttk.Frame(body)
+        btns.grid(row=8, column=0, sticky="ew", pady=(16, 0))
+        self.btn_skip = ttk.Button(btns, text="Skip This Version", command=self.skip)
+        self.btn_skip.pack(side="left")
+        if self.installable:
+            self.btn_main = ttk.Button(btns, text="Update Now", style="Accent.TButton",
+                                       command=self.update_now)
+        else:
+            self.btn_main = ttk.Button(btns, text="Open Download", style="Accent.TButton",
+                                       command=self.open_download)
+        self.btn_main.pack(side="right")
+        self.btn_later = ttk.Button(btns, text="Remind Me Later", command=self.close)
+        self.btn_later.pack(side="right", padx=(0, 8))
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Escape>", lambda e: self.close())
+        if hasattr(app, "theme"):
+            app.theme.style_widgets(self)
+        self.btn_main.focus_set()
+        self.update_idletasks()     # centered over the main window
+        root = app.root
+        x = root.winfo_rootx() + (root.winfo_width() - self.winfo_reqwidth()) // 2
+        y = root.winfo_rooty() + (root.winfo_height() - self.winfo_reqheight()) // 3
+        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+
+    # -- buttons
+
+    def copy(self):
+        self.clipboard_clear()
+        self.clipboard_append(self.command)
+        self.app.set_status("Copied the update command.")
+
+    def open_download(self):
+        self.app.open_url(updates.download_for(self.result, self.kind))
+        self.destroy()
+
+    def skip(self):
+        self.app.settings_extra["skip_version"] = self.result["version"]
+        self.destroy()
+
+    def close(self):
+        """Remind Me Later, or Cancel while downloading."""
+        if self.busy:
+            self.cancel.set()
+            return
+        self.destroy()
+
+    def update_now(self):
+        app = self.app
+        if getattr(app, "recording", None) is not None or \
+                (getattr(app, "worker", None) and app.worker.is_alive()):
+            messagebox.showinfo(version.APP_NAME, "Finish or cancel the recording or the "
+                                "processing first, then click Update Now again.", parent=self)
+            return
+        editor = getattr(app, "editor", None)
+        if editor is not None and not editor.confirm_discard():
+            return
+        self.busy = True
+        for b in (self.btn_main, self.btn_skip):
+            b.configure(state="disabled")
+        self.btn_later.configure(text="Cancel")
+        self.progress.grid(row=6, column=0, sticky="ew", pady=(14, 0))
+        self.status.grid(row=7, column=0, sticky="w", pady=(4, 0))
+        self.v_status.set("Downloading the installer...")
+
+        def work():
+            try:
+                path = updates.download_installer(
+                    self.result, cancel=self.cancel,
+                    progress=lambda done, total: self.events.put(("progress", done, total)))
+                self.events.put(("done", path))
+            except updates.UpdateError as exc:
+                self.events.put(("error", exc))
+
+        threading.Thread(target=work, daemon=True).start()
+        self.after(100, self.poll)
+
+    def poll(self):
+        try:
+            while True:
+                event = self.events.get_nowait()
+                if event[0] == "progress":
+                    done, total = event[1], event[2]
+                    if total:
+                        self.progress["value"] = 1000 * done / total
+                        self.v_status.set(f"Downloading the installer... "
+                                          f"{done / 1048576:.1f} of {total / 1048576:.1f} MB")
+                elif event[0] == "done":
+                    self.install(event[1])
+                    return
+                else:
+                    self.failed(event[1])
+                    return
+        except queue.Empty:
+            pass
+        self.after(100, self.poll)
+
+    def install(self, path):
+        self.v_status.set("Checked. Starting the installer...")
+        self.progress["value"] = 1000
+        try:
+            updates.start_installer(path)
+        except updates.UpdateError as exc:
+            self.failed(exc)
+            return
+        self.app.close_for_update()
+
+    def failed(self, exc):
+        self.busy = False
+        if isinstance(exc, updates.UpdateCancelled):
+            self.destroy()
+            return
+        self.progress.grid_remove()
+        self.status.grid_remove()
+        self.btn_later.configure(text="Remind Me Later")
+        for b in (self.btn_main, self.btn_skip):
+            b.configure(state="normal")
+        if messagebox.askyesno(version.APP_NAME, f"The update could not be installed.\n\n{exc}"
+                               "\n\nOpen the download page instead?", parent=self):
+            self.open_download()

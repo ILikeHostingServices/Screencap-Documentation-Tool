@@ -1,8 +1,19 @@
-CHANGELOG.md v1.37.0 (Last Rev: 2026-10-14)
+CHANGELOG.md v1.38.0 (Last Rev: 2026-10-15)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.34.0 - Update Now (2026-10-15)
+
+**New**
+- **Update Now:** on a copy installed with the Windows installer, the update window has an **Update Now** button. It downloads the new installer for your PC (x64 or ARM64), checks it against the release's `SHA256SUMS.txt`, closes the app, installs the update silently for the same scope (just you, or everyone on the PC), and opens the app again. Settings, presets, folders, and recordings are kept.
+- A download that does not match the checksum list is deleted and never run, and only this project's own GitHub release files are downloaded. A copy installed for everyone still needs administrator rights, so Windows shows its permission prompt.
+- The update window shows the release notes, with **Remind Me Later** and **Skip This Version**. For other installs it shows the command to copy (Homebrew, apt, dnf, the AUR, snap) or opens the download (the portable zip).
+- `SCREENCAP_NO_UPDATE_CHECK=1` turns Update Now off along with the update check, for PCs where updates are deployed centrally.
+
+**Testing**
+- On real Windows machines (x64 and ARM64), for one user and for everyone: v1.33.0 is installed, the new updater downloads this release from a local test server, checks it, installs it silently, and the updated app opens again with the folders kept.
 
 ## v1.33.0 - Faster processing and fixes (2026-10-14)
 

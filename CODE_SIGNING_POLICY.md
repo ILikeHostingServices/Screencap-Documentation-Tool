@@ -1,4 +1,4 @@
-CODE_SIGNING_POLICY.md v2.1.1 (Last Rev: 2026-10-11)
+CODE_SIGNING_POLICY.md v2.2.0 (Last Rev: 2026-10-15)
 
 # Code Signing Policy
 
@@ -25,7 +25,7 @@ The result must match the line for that file in `SHA256SUMS.txt` (ignoring upper
 
 This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 
-In practice: recordings, screenshots, captions, and settings stay on the PC. The program only goes online when the person using it asks for something that needs it: the installers download the tool and its prerequisites (FFmpeg, and optionally Tesseract OCR, Pandoc, and speech recognition), the optional Captions From Narration feature downloads its speech model once from Hugging Face, and the update check asks GitHub for the newest release number, only when the user clicks **Check for Updates** or has turned on automatic checks (at most once a day; the GUI asks before turning it on). Speech recognition itself runs offline. There is no telemetry or analytics, and no information about the PC or its files is sent. Administrators can turn update checks off with the environment variable `SCREENCAP_NO_UPDATE_CHECK=1`.
+In practice: recordings, screenshots, captions, and settings stay on the PC. The program only goes online when the person using it asks for something that needs it: the installers download the tool and its prerequisites (FFmpeg, and optionally Tesseract OCR, Pandoc, and speech recognition), the optional Captions From Narration feature downloads its speech model once from Hugging Face, and the update check asks GitHub for the newest release number, only when the user clicks **Check for Updates** or has turned on automatic checks (at most once a day; the GUI asks before turning it on). **Update Now** downloads the new installer from this project's GitHub release only when the user clicks it, and runs it only after its SHA-256 checksum matches the release's `SHA256SUMS.txt`. Speech recognition itself runs offline. There is no telemetry or analytics, and no information about the PC or its files is sent. Administrators can turn update checks and Update Now off with the environment variable `SCREENCAP_NO_UPDATE_CHECK=1`.
 
 ## Reporting Problems
 

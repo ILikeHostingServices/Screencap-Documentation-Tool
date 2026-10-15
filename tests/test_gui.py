@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-10-14
-# Version: v1.9.0
+# 2026-10-15
+# Version: v1.10.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -237,6 +237,71 @@ class GuiTests(unittest.TestCase):
         self.assertTrue(ed.dirty)
         self.assertTrue(ed.save(wait=True))   # saving again clears it
         self.assertFalse(ed.dirty)
+        self.assertEqual(self.errors, [])
+
+    def update_result(self):
+        return {"version": "9.8.7", "url": "https://example.test/release",
+                "published": "2030-01-02", "notes": "**New**\n- Something.", "assets": {}}
+
+    def test_update_now_downloads_installs_and_closes(self):
+        import gui_help
+        import updates
+        started, closed = [], []
+        setup = self.tmp / "Screencap-Documentation-Tool-v9.8.7-windows-x64-setup.exe"
+
+        def fake_download(latest, progress=None, cancel=None, **kw):
+            progress(512, 1024)
+            progress(1024, 1024)
+            return setup
+        with mock.patch.object(updates, "can_install", return_value=True), \
+                mock.patch.object(updates, "install_scope", return_value="ALLUSERS"), \
+                mock.patch.object(updates, "download_installer", fake_download), \
+                mock.patch.object(updates, "start_installer", started.append), \
+                mock.patch.object(self.app, "close_for_update", lambda: closed.append(True)):
+            dlg = gui_help.UpdateDialog(self.app, self.update_result())
+            self.pump()
+            self.assertEqual(str(dlg.btn_main.cget("text")), "Update Now")
+            self.assertIn("administrator permission", str(dlg.how.cget("text")))
+            dlg.btn_main.invoke()
+            deadline = time.monotonic() + 10
+            while not closed and time.monotonic() < deadline:
+                self.pump(0.1)
+        self.assertEqual(started, [setup])
+        self.assertEqual(closed, [True])
+        self.assertEqual(dlg.progress["value"], 1000)
+        dlg.destroy()
+        self.assertEqual(self.errors, [])
+
+    def test_update_now_failure_and_other_install_kinds(self):
+        import gui_help
+        import updates
+
+        def failing(latest, **kw):
+            raise updates.UpdateError("The downloaded installer does not match")
+        with mock.patch.object(updates, "can_install", return_value=True), \
+                mock.patch.object(updates, "install_scope", return_value="CURRENTUSER"), \
+                mock.patch.object(updates, "download_installer", failing), \
+                mock.patch.object(messagebox, "askyesno", return_value=False) as ask:
+            dlg = gui_help.UpdateDialog(self.app, self.update_result())
+            dlg.btn_main.invoke()
+            deadline = time.monotonic() + 10
+            while dlg.busy and time.monotonic() < deadline:
+                self.pump(0.1)
+            self.assertIn("does not match", ask.call_args[0][1])
+            self.assertEqual(str(dlg.btn_main.cget("state")), "normal")   # can try again
+            dlg.btn_skip.invoke()
+        self.assertEqual(self.app.settings_extra.get("skip_version"), "9.8.7")
+
+        # A .deb install: the command to copy, and Open Download
+        with mock.patch.object(updates, "install_kind", return_value="deb"):
+            dlg = gui_help.UpdateDialog(self.app, self.update_result())
+            self.pump()
+            self.assertEqual(str(dlg.btn_main.cget("text")), "Open Download")
+            self.assertEqual(dlg.v_command.get(),
+                             "sudo apt install ./screencap-documentation-tool_9.8.7-1_all.deb")
+            dlg.copy()
+            self.assertEqual(self.root.clipboard_get(), dlg.v_command.get())
+            dlg.close()
         self.assertEqual(self.errors, [])
 
     def test_annotations_are_added_edited_and_saved(self):
@@ -498,8 +563,12 @@ class GuiTests(unittest.TestCase):
                   "url": "https://example.test/release", "published": "2030-01-01",
                   "notes": "Big update", "assets": {}}
         opened = self.run_update_check(latest)
-        self.assertEqual([d for d, _ in self.dialogs], ["askyesnocancel"])
-        self.assertIn("99.0.0", self.dialogs[0][1])
+        import gui_help
+        dlg = next(w for w in self.root.winfo_children() if isinstance(w, gui_help.UpdateDialog))
+        self.assertEqual(dlg.result["version"], "99.0.0")
+        # A Python install: no Update Now, the download (here the release page) instead
+        self.assertEqual(str(dlg.btn_main.cget("text")), "Open Download")
+        dlg.btn_main.invoke()
         self.assertEqual(opened, ["https://example.test/release"])
         self.assertEqual(self.app.update_state, "available")
         self.assertIn("99.0.0", self.app.lbl_update.cget("text"))

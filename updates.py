@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # updates.py
-# 2026-10-11
-# Version: v1.3.0
+# 2026-10-15
+# Version: v1.4.0
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -12,15 +12,26 @@
 # nothing about the PC or its files: it is a plain request for the public
 # release list, like opening the Releases page in a browser.
 #
+# A copy installed with the Windows installer can also update itself:
+# Update Now downloads the new installer from this project's GitHub release,
+# checks it against the release's SHA256SUMS.txt (a damaged or altered file
+# is refused and never run), and starts it silently for the same scope (just
+# me or everyone). The installer replaces this copy in place, keeping the
+# settings and folders, and opens the app again.
+#
 # Administrators can switch update checks off for everyone by setting the
 # environment variable SCREENCAP_NO_UPDATE_CHECK=1 (for example with Group
 # Policy or an Intune configuration profile).
 
+import hashlib
 import json
 import os
 import re
+import subprocess
+import tempfile
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import apppaths
 import version
@@ -38,6 +49,11 @@ SECURITY_URL = f"{REPO_URL}/security/policy"
 LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
 WINGET_ID = "ILHS.ScreencapDocumentationTool"
 TIMEOUT = 10
+# Update Now only downloads from this project's own release files
+DOWNLOAD_PREFIX = f"{RELEASES_URL}/download/"
+CHECKSUMS_NAME = "SHA256SUMS.txt"
+MAX_DOWNLOAD = 500 * 1024 * 1024    # far bigger than any real installer
+UPDATE_DIR = Path(tempfile.gettempdir()) / "ScreencapUpdate"
 VERSION_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 
 
@@ -94,7 +110,7 @@ def check_latest(url=LATEST_API, timeout=TIMEOUT):
     })
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
-            data = json.loads(response.read().decode("utf-8"))
+            data = json.loads(response.read().decode("utf-8-sig"))
     except urllib.error.HTTPError as exc:
         raise UpdateError(f"GitHub answered {exc.code} {exc.reason}.") from exc
     except (urllib.error.URLError, OSError) as exc:
@@ -192,3 +208,187 @@ def release_notes_excerpt(notes, limit=900):
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", notes or "")
     text = re.sub(r"`([^`]*)`", r"\1", text).strip()
     return text if len(text) <= limit else text[:limit].rsplit("\n", 1)[0] + "\n..."
+
+
+# ---------------------------------------------------------------------------
+# Update Now (Windows installer copies)
+# ---------------------------------------------------------------------------
+
+class UpdateCancelled(UpdateError):
+    """The user cancelled the download."""
+
+
+def can_install(kind=None):
+    """True when Update Now can download and run the installer itself: a
+    copy installed with the Windows installer, and not switched off by the
+    administrator."""
+    return os.name == "nt" and (kind or install_kind()) == "installer" and \
+        not disabled_by_policy()
+
+
+def installer_asset(latest, arch=None):
+    """(file name, link) of the setup program for this PC, or None."""
+    arch = arch or windows_arch()
+    for a in dict.fromkeys((arch, "x64")):
+        for name, link in latest["assets"].items():
+            if name.endswith(f"-windows-{a}-setup.exe") and link:
+                return name, link
+    return None
+
+
+def read_checksums(text):
+    """{file name: sha256} from a sha256sum-style list ("<hash>  <name>",
+    or "<hash> *<name>")."""
+    sums = {}
+    for line in (text or "").splitlines():
+        m = re.match(r"^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$", line)
+        if m:
+            sums[m.group(2)] = m.group(1).lower()
+    return sums
+
+
+def _open(url, timeout, allowed):
+    if not url.startswith(allowed):
+        raise UpdateError(f"Refusing to download from an unexpected address: {url}")
+    request = urllib.request.Request(url, headers={
+        "User-Agent": f"ScreencapDocumentationTool/{version.RELEASE}"})
+    try:
+        return urllib.request.urlopen(request, timeout=timeout)  # noqa: S310
+    except urllib.error.HTTPError as exc:
+        raise UpdateError(f"The download failed: GitHub answered {exc.code} "
+                          f"{exc.reason}.") from exc
+    except (urllib.error.URLError, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        raise UpdateError(f"The download failed ({reason}). Check the internet "
+                          "connection or proxy.") from exc
+
+
+def download_installer(latest, progress=None, cancel=None, dest_dir=None, arch=None,
+                       allowed=DOWNLOAD_PREFIX, timeout=60):
+    """Download the new setup program and check it against the release's
+    SHA256SUMS.txt. Returns its path. progress(done_bytes, total_bytes) is
+    called as it downloads; cancel is a threading.Event. Raises UpdateError
+    (UpdateCancelled when cancelled) and never leaves a partial or
+    unverified installer behind."""
+    asset = installer_asset(latest, arch)
+    if not asset:
+        raise UpdateError("This release has no Windows installer.")
+    name, link = asset
+    sums_link = latest["assets"].get(CHECKSUMS_NAME)
+    if not sums_link:
+        raise UpdateError("This release has no checksum list, so the download "
+                          "could not be checked.")
+    with _open(sums_link, timeout, allowed) as response:
+        expected = read_checksums(response.read(1024 * 1024).decode("utf-8", "replace")).get(name)
+    if not expected:
+        raise UpdateError(f"{name} is not in the release's checksum list, so it "
+                          "could not be checked.")
+    dest_dir = Path(dest_dir or UPDATE_DIR)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / name
+    part = dest.with_name(name + ".part")
+    digest, done = hashlib.sha256(), 0
+    try:
+        with _open(link, timeout, allowed) as response, open(part, "wb") as out:
+            total = int(response.headers.get("Content-Length") or 0)
+            while True:
+                if cancel is not None and cancel.is_set():
+                    raise UpdateCancelled("The download was cancelled.")
+                chunk = response.read(256 * 1024)
+                if not chunk:
+                    break
+                done += len(chunk)
+                if done > MAX_DOWNLOAD:
+                    raise UpdateError("The download is far bigger than expected and was stopped.")
+                digest.update(chunk)
+                out.write(chunk)
+                if progress is not None:
+                    progress(done, total)
+        if digest.hexdigest() != expected:
+            raise UpdateError("The downloaded installer does not match the release's "
+                              "checksum, so it was deleted and not run. Try again later, "
+                              "or download it from the Releases page.")
+        os.replace(part, dest)
+    except (OSError, urllib.error.URLError) as exc:
+        if isinstance(exc, UpdateError):
+            raise
+        raise UpdateError(f"The download failed: {exc}") from exc
+    finally:
+        try:
+            part.unlink()
+        except OSError:
+            pass
+    return dest
+
+
+def install_scope(app_dir=None):
+    """'ALLUSERS' when this copy is in Program Files (installed for
+    everyone), else 'CURRENTUSER' (installed for one user)."""
+    app = os.path.normcase(os.path.abspath(str(app_dir or apppaths.APP_DIR)))
+    for var in ("ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"):
+        base = os.environ.get(var)
+        if base and app.startswith(os.path.normcase(os.path.abspath(base)).rstrip("\\/") + os.sep):
+            return "ALLUSERS"
+    return "CURRENTUSER"
+
+
+def installer_args(scope, log, relaunch=True):
+    """Command line for a silent update. The installer keeps the folders
+    and options chosen last time; /RELAUNCH=1 opens the app again after."""
+    args = ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+            f"/{scope}", f"/LOG={log}"]
+    if relaunch:
+        args.append("/RELAUNCH=1")
+    return args
+
+
+def start_installer(setup, app_dir=None, relaunch=True):
+    """Start the downloaded installer for this copy's scope and return its
+    log file. Windows asks for administrator permission when the copy is
+    installed for everyone. The app should close right after, so its files
+    can be replaced."""
+    if os.name != "nt":
+        raise UpdateError("Installing updates is only possible on Windows.")
+    setup = Path(setup)
+    log = setup.with_suffix(".log")
+    try:
+        log.unlink()      # a fresh log for this update, not one from an earlier try
+    except OSError:
+        pass
+    args = subprocess.list2cmdline(installer_args(install_scope(app_dir), log, relaunch))
+    try:
+        # ShellExecute, so Windows can show the administrator prompt
+        os.startfile(str(setup), "open", args)
+    except OSError as exc:
+        raise UpdateError(f"The installer could not be started: {exc}") from exc
+    return log
+
+
+def clean_downloads(folder=None):
+    """Remove installers left from an earlier update (best effort; one that
+    is still running is removed next time). The installers' logs are kept
+    for troubleshooting; each update overwrites its own."""
+    folder = Path(folder or UPDATE_DIR)
+    if folder.is_dir():
+        for f in folder.iterdir():
+            if f.suffix.lower() in (".exe", ".part"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+
+
+PACKAGE_NAME = "screencap-documentation-tool"
+
+
+def update_command(kind=None, new_version="X.Y.Z"):
+    """The command that updates this kind of install, for copying, or None."""
+    kind = kind or install_kind()
+    return {
+        "deb": f"sudo apt install ./{PACKAGE_NAME}_{new_version}-1_all.deb",
+        "rpm": f"sudo dnf install ./{PACKAGE_NAME}-{new_version}-1.noarch.rpm",
+        "arch": f"yay -Syu {PACKAGE_NAME}",
+        "snap": f"sudo snap refresh {PACKAGE_NAME}",
+        "brew": f"brew update && brew upgrade {PACKAGE_NAME}",
+        "installer": f"winget upgrade --id {WINGET_ID} -e",
+    }.get(kind)

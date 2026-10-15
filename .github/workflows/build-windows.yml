@@ -1,6 +1,6 @@
 # build-windows.yml
-# 2026-10-11
-# Version: v2.0.1
+# 2026-10-15
+# Version: v2.1.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -8,7 +8,8 @@
 # Windows machine of that kind, tests the built programs, packs them as a
 # portable zip and as an installer (Inno Setup, see packaging/installer.iss),
 # tests installing, updating in place, and uninstalling for one user and
-# for all users and upgrading from v1.16.0 (which used another folder), and
+# for all users and upgrading from v1.16.0 (which used another folder),
+# tests Update Now (the app's own updater) from v1.33.0, and
 # writes a SHA256SUMS.txt checksum file, and checks that the winget manifest
 # for the build is valid (winget.yml publishes it for releases).
 #   - Pull requests, pushes to main, and manual runs: build and test; the
@@ -325,6 +326,96 @@ jobs:
             Write-Host "Moved to $($case.New): $out"
             Start-Process (Join-Path $case.New 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
             for ($i = 0; $i -lt 60 -and (Test-Path $case.New); $i++) { Start-Sleep -Seconds 1 }
+          }
+
+      - name: Test Update Now (from v1.33.0, through the app's own updater)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = '${{ steps.version.outputs.version }}'
+          $arch = '${{ matrix.arch }}'
+          $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-$arch-setup.exe"
+          $name = 'Screencap Documentation Tool'
+          $old = Join-Path $env:RUNNER_TEMP 'update-old'
+          gh release download v1.33.0 --dir $old --pattern "*-windows-$arch-setup.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the v1.33.0 installer' }
+          $oldSetup = (Get-ChildItem $old -Filter '*-setup.exe' | Select-Object -First 1).FullName
+
+          # A stand-in for GitHub: the release answer, this build's installer, and its checksum
+          $site = Join-Path $env:RUNNER_TEMP 'update-site'
+          New-Item -ItemType Directory -Force $site | Out-Null
+          Copy-Item $setup $site
+          $file = Split-Path $setup -Leaf
+          "$((Get-FileHash $setup -Algorithm SHA256).Hash.ToLower())  $file" | Set-Content (Join-Path $site 'SHA256SUMS.txt') -Encoding ascii
+          $port = 8765
+          $base = "http://127.0.0.1:$port"
+          @{ tag_name = "v$v"; name = "v$v"; html_url = "$base/release"; published_at = '2026-10-15T00:00:00Z'; body = 'Test';
+             assets = @(@{ name = $file; browser_download_url = "$base/$file" },
+                        @{ name = 'SHA256SUMS.txt'; browser_download_url = "$base/SHA256SUMS.txt" }) } |
+            ConvertTo-Json -Depth 4 | Set-Content (Join-Path $site 'latest.json') -Encoding utf8
+          # The app's own code: check, download and verify, then start the installer
+          @(
+            'import os, sys',
+            'sys.path.insert(0, os.getcwd())',
+            'import updates',
+            'base = os.environ["SCREENCAP_TEST_BASE"]',
+            'latest = updates.check_latest(base + "/latest.json")',
+            'assert updates.is_newer(latest["version"], "1.33.0"), latest["version"]',
+            'setup = updates.download_installer(latest, allowed=base + "/", arch=os.environ["SCREENCAP_TEST_ARCH"])',
+            'print(updates.start_installer(setup, app_dir=os.environ["SCREENCAP_TEST_DIR"]))'
+          ) | Set-Content (Join-Path $env:RUNNER_TEMP 'update_now.py') -Encoding utf8
+          $server = Start-Process python -ArgumentList '-m', 'http.server', $port, '--bind', '127.0.0.1', '--directory', $site -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 2
+
+          try {
+            foreach ($scope in 'CURRENTUSER', 'ALLUSERS') {
+              Write-Host "=== $scope ($arch): v1.33.0, then Update Now to v$v ==="
+              if ($scope -eq 'CURRENTUSER') { $dir = Join-Path $env:LOCALAPPDATA 'Programs\ILHS\Screencap-Documentation-Tool' }
+              else { $dir = Join-Path $env:ProgramFiles 'ILHS\Screencap-Documentation-Tool' }
+              $mine = Join-Path $env:RUNNER_TEMP "update-folders-$scope"
+              $p = Start-Process $oldSetup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$scope", '/MERGETASKS=!ffmpeg', "/SOURCEDIR=`"$mine\rec`"", "/OUTPUTDIR=`"$mine\out`"" -Wait -PassThru
+              if ($p.ExitCode -ne 0) { throw "v1.33.0 setup failed ($($p.ExitCode))" }
+              $out = & (Join-Path $dir 'screencap.exe') --version
+              if ($out -notmatch 'v1\.33\.0') { throw "v1.33.0 is not installed in $dir`: $out" }
+
+              $env:SCREENCAP_TEST_BASE = $base
+              $env:SCREENCAP_TEST_DIR = $dir
+              $env:SCREENCAP_TEST_ARCH = $arch
+              $log = python (Join-Path $env:RUNNER_TEMP 'update_now.py')
+              if ($LASTEXITCODE -ne 0) { throw 'The updater failed' }
+              $log = "$log".Trim()
+              Write-Host "Installer started, log: $log"
+              for ($i = 0; $i -lt 300 -and -not ((Test-Path $log) -and (Select-String -Path $log -Pattern 'Log closed' -Quiet)); $i++) { Start-Sleep -Seconds 1 }
+              if (-not (Test-Path $log)) { throw 'The installer did not start' }
+              if (-not (Select-String -Path $log -Pattern 'Log closed' -Quiet)) { Get-Content $log -Tail 30; throw 'The installer did not finish' }
+              if (-not (Select-String -Path $log -Pattern 'Update mode: v1.33.0' -Quiet)) { Get-Content $log -Tail 30; throw 'The installer did not update the installed copy' }
+              # Updated for the same scope: one Apps & Features entry, in that scope's hive
+              $hive = if ($scope -eq 'CURRENTUSER') { 'HKCU:' } else { 'HKLM:' }
+              $entries = @(Get-ChildItem "$hive\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
+                           Get-ItemProperty | Where-Object DisplayName -eq $name)
+              if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne $v) { Get-Content $log -Tail 40; throw "Not updated for $scope`: $($entries | ForEach-Object DisplayVersion)" }
+              $out = & (Join-Path $dir 'screencap.exe') --version
+              if ($out -notmatch [regex]::Escape("v$v")) { throw "After Update Now the copy reports: $out" }
+              $root = if ($scope -eq 'CURRENTUSER') { 'HKCU:' } else { 'HKLM:' }
+              $f = Get-ItemProperty "$root\Software\ILHS\Screencap Documentation Tool"
+              if ($f.SourceDir -ne "$mine\rec" -or $f.OutputDir -ne "$mine\out") { throw "The chosen folders were not kept: $($f.SourceDir) $($f.OutputDir)" }
+              # ...and the app opened again
+              $gui = $null
+              for ($i = 0; $i -lt 30 -and -not $gui; $i++) {
+                $gui = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -like "$dir\*" -and $_.ProcessName -eq $name }
+                if (-not $gui) { Start-Sleep -Seconds 1 }
+              }
+              if (-not $gui) { Get-Content $log -Tail 20; throw 'The app was not opened again after the update' }
+              Write-Host "Updated to $out and reopened (process $($gui.Id))"
+              $gui | Stop-Process -Force
+              Start-Sleep -Seconds 2
+              Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+              for ($i = 0; $i -lt 60 -and (Test-Path $dir); $i++) { Start-Sleep -Seconds 1 }
+            }
+          } finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
           }
 
       - name: Screenshot every installer page
