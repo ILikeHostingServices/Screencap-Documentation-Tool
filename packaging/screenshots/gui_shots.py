@@ -2,7 +2,7 @@
 #
 # gui_shots.py
 # 2026-10-15
-# Version: v1.2.0
+# Version: v1.2.1
 #
 # PURPOSE:
 # Opens the GUI on the demo recording made by make_screenshots.sh and takes
@@ -89,10 +89,11 @@ import version  # noqa: E402
 from unittest import mock  # noqa: E402
 notes = (ROOT / ".github" / "releases" / f"v{version.RELEASE}.md").read_text(encoding="utf-8")
 new = version.RELEASE
-major, minor, _patch = new.split(".")
+major, minor, patch = (int(n) for n in new.split("."))
+previous = f"{major}.{minor}.{patch - 1}" if patch else f"{major}.{minor - 1}.0"
 with mock.patch.object(updates, "can_install", return_value=True), \
         mock.patch.object(updates, "install_scope", return_value="ALLUSERS"), \
-        mock.patch.object(gui_help.version, "RELEASE", f"{major}.{int(minor) - 1}.0"):
+        mock.patch.object(gui_help.version, "RELEASE", previous):
     upd = gui_help.UpdateDialog(app, {"version": new, "url": updates.LATEST_URL,
                                       "published": version.RELEASE_DATE,
                                       "notes": notes.split("\n", 2)[2], "assets": {}})

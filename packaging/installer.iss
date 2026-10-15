@@ -1,6 +1,6 @@
 ; installer.iss
 ; 2026-10-15
-; Version: v1.6.0
+; Version: v1.6.1
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of the packaged app (built
@@ -64,10 +64,12 @@ DirExistsWarning=no
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 ; All users by default (Program Files); the first page offers "Install for
-; me only" (no admin rights). /ALLUSERS or /CURRENTUSER on the command line.
+; me only" (no admin rights). An update keeps the choice of the installed
+; copy without asking again. /ALLUSERS or /CURRENTUSER on the command line
+; override both.
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
-UsePreviousPrivileges=no
+UsePreviousPrivileges=yes
 #if Arch == "arm64"
 ArchitecturesAllowed=arm64
 ArchitecturesInstallIn64BitMode=arm64

@@ -1,6 +1,6 @@
 # build-windows.yml
 # 2026-10-15
-# Version: v2.1.0
+# Version: v2.1.1
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -263,16 +263,21 @@ jobs:
               }
             }
 
-            Write-Host "=== Run setup again for $scope (update mode) ==="
+            Write-Host "=== Run setup again for $scope (update mode, no scope given) ==="
             $log2 = Join-Path $env:RUNNER_TEMP "reinstall-$scope.log"
-            # ...and choose other folders this time (as the folder page would)
+            # ...and choose other folders this time (as the folder page would).
+            # No /ALLUSERS or /CURRENTUSER: setup must reuse the installed copy's choice
             $mine = Join-Path $env:RUNNER_TEMP "folders-$scope"
-            $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$scope", "/LOG=`"$log2`"", "/SOURCEDIR=`"$mine\rec`"", "/OUTPUTDIR=`"$mine\out`"" -Wait -PassThru
+            $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$log2`"", "/SOURCEDIR=`"$mine\rec`"", "/OUTPUTDIR=`"$mine\out`"" -Wait -PassThru
             if ($p.ExitCode -ne 0) { Get-Content $log2 -Tail 30; throw "Reinstall failed for $scope ($($p.ExitCode))" }
             if (-not (Select-String -Path $log2 -Pattern ([regex]::Escape("Update mode: v$v is installed in")) -Quiet)) {
               Get-Content $log2 -Tail 30; throw 'Setup did not detect the installed copy'
             }
             Test-Shortcut $desk                     # the desktop shortcut chosen last time is kept
+            # ...for the same scope only: no second copy for the other scope
+            $other = if ($scope -eq 'CURRENTUSER') { 'HKLM:' } else { 'HKCU:' }
+            $twin = Get-ChildItem "$other\Software\Microsoft\Windows\CurrentVersion\Uninstall" | Get-ItemProperty | Where-Object DisplayName -eq $name
+            if ($twin) { Get-Content $log2 -Tail 30; throw "Updating without a scope installed a second copy for the other scope" }
             $f2 = Get-Folders $scope
             if ($f2.SourceDir -ne "$mine\rec" -or $f2.OutputDir -ne "$mine\out" -or $f2.FolderMode -ne 'custom') { throw "Chosen folders not recorded: $($f2.SourceDir) $($f2.OutputDir)" }
             if (-not (Test-Path "$mine\rec") -or -not (Test-Path "$mine\out")) { throw 'Chosen folders were not created' }
