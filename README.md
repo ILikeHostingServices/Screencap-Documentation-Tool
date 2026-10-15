@@ -1,4 +1,4 @@
-README.md v1.41.0 (Last Rev: 2026-10-15)
+README.md v1.42.0 (Last Rev: 2026-10-15)
 
 # Screencap Documentation Tool
 
@@ -209,7 +209,7 @@ The Windows programs are not code signed. See [CODE_SIGNING_POLICY.md](CODE_SIGN
 
 1. Download `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` and `SHA256SUMS.txt` from the latest release.
 2. Optional but recommended, check the download is intact: in PowerShell, `(Get-FileHash .\Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe).Hash` must match the line for that file in `SHA256SUMS.txt` (ignoring upper and lower case).
-3. Run it. It installs for all users in `C:\Program Files\ILHS\Screencap-Documentation-Tool` (Windows asks for admin rights). Without admin rights, choose **Install for me only** on the first page to install in `%LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool` instead. A copy from v1.16.0 or earlier (in `...\Screencap Documentation Tool`) is moved to the new folder automatically; settings are kept. If FFmpeg is not found it offers to install it with winget, and one tick also installs Tesseract OCR and Pandoc.
+3. Run it. It installs for all users in `C:\Program Files\ILHS\Screencap-Documentation-Tool` (Windows asks for admin rights). Without admin rights, choose **Install for me only** on the first page to install in `%LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool` instead. When a copy is already installed, setup updates it the same way (for everyone, or for you only) without asking again; to switch, run the installer with `/ALLUSERS` or `/CURRENTUSER`. A copy from v1.16.0 or earlier (in `...\Screencap Documentation Tool`) is moved to the new folder automatically; settings are kept. If FFmpeg is not found it offers to install it with winget, and one tick also installs Tesseract OCR and Pandoc.
    - **Recordings and Output Folders** page: keep the defaults, `source` and `output` inside the install folder (for example `C:\Program Files\ILHS\Screencap-Documentation-Tool\source`; for an all-users install setup makes these two folders writable for every user, since the rest of Program Files is read-only for them), or choose your own folders (setup creates them). The app uses them from its next start; both can be changed later in the app.
 4. Start the app from the Start Menu. To update, run the newer installer: it detects the installed copy and goes straight to **Ready to Update** (no license, folder, or options pages, unless FFmpeg is missing), keeping your desktop shortcut choice and the recordings and output folders chosen before. Updating from v1.23.2 or earlier asks for the folders once. To remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
 

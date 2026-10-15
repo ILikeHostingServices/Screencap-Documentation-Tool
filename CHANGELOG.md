@@ -1,8 +1,14 @@
-CHANGELOG.md v1.38.0 (Last Rev: 2026-10-15)
+CHANGELOG.md v1.39.0 (Last Rev: 2026-10-15)
 
 # Changelog
 
 Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.34.1 - Installer keeps the install mode (2026-10-15)
+
+**Fixed**
+- The Windows installer no longer asks "Install for all users or for me only?" when the tool is already installed: it updates the installed copy the same way (for everyone, or for you only). To switch, run the installer with `/ALLUSERS` or `/CURRENTUSER`.
+- A silent update without a scope (for example from a deployment tool) now updates a copy installed for one user in place, instead of installing a second copy for everyone.
 
 ## v1.34.0 - Update Now (2026-10-15)
 

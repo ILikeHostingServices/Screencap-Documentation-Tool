@@ -2,7 +2,7 @@
 #
 # version.py
 # 2026-10-15
-# Version: v1.34.0
+# Version: v1.34.1
 #
 # PURPOSE:
 # The release version of the Screencap Documentation Tool as a whole. It
@@ -14,6 +14,6 @@
 # Bump RELEASE, RELEASE_DATE, and the header above in the same commit that a
 # release tag will point at (see "Releases And Versions" in README.md).
 
-RELEASE = "1.34.0"
+RELEASE = "1.34.1"
 RELEASE_DATE = "2026-10-15"
 APP_NAME = "Screencap Documentation Tool"
