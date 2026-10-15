@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-10-12
-# Version: v2.4.0
+# 2026-10-15
+# Version: v2.5.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -150,6 +150,7 @@ class App:
         self.check_ffmpeg()
         self.poll_job = self.root.after(100, self.poll_queue)
         self.update_job = self.root.after(2500, self.updater.startup)
+        updates.clean_downloads()     # installers left from an earlier update
 
     # ------------------------------------------------------------------ UI
 
@@ -1233,14 +1234,19 @@ class App:
         messagebox.showerror(APP_NAME, f"Unexpected error: {exc}\n\nDetails are in the Log tab.",
                              parent=self.root)
 
-    def on_close(self):
-        if not self.editor.confirm_discard():
+    def close_for_update(self):
+        """Update Now started the installer: close at once (unsaved edits
+        were already handled), so it can replace this copy's files."""
+        self.on_close(ask=False)
+
+    def on_close(self, ask=True):
+        if ask and not self.editor.confirm_discard():
             return
         if self.recording is not None:
             self.recording.cancel_quietly()
         if self.worker and self.worker.is_alive():
-            if not messagebox.askyesno(APP_NAME, "Processing is still running. "
-                                       "Cancel it and exit?", parent=self.root):
+            if ask and not messagebox.askyesno(APP_NAME, "Processing is still running. "
+                                               "Cancel it and exit?", parent=self.root):
                 return
             self.cancel.set()
             self.worker.join(timeout=10)

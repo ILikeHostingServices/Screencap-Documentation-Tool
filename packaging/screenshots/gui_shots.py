@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 #
 # gui_shots.py
-# 2026-10-13
-# Version: v1.1.0
+# 2026-10-15
+# Version: v1.2.0
 #
 # PURPOSE:
 # Opens the GUI on the demo recording made by make_screenshots.sh and takes
 # the store screenshots: the Steps tab, the Annotate menu, the Record
-# window, the dark theme, and a recording in progress. Also exports the
+# window, the dark theme, a recording in progress, and the update window
+# (as a user of the previous release sees this one). Also exports the
 # demo as HTML and as PowerPoint (with a made-up logo) for the document
 # screenshots. Run by make_screenshots.sh.
 #
@@ -81,6 +82,28 @@ for _ in range(5): ed.step_by(1); pump(0.3)
 ed.v_view.set("final"); ed.on_select(); pump(2.5)
 shot("04-dark-theme")
 app.set_theme("light"); pump(1)
+# The update window, as someone on the previous release sees this release
+import gui_help  # noqa: E402
+import updates  # noqa: E402
+import version  # noqa: E402
+from unittest import mock  # noqa: E402
+notes = (ROOT / ".github" / "releases" / f"v{version.RELEASE}.md").read_text(encoding="utf-8")
+new = version.RELEASE
+major, minor, _patch = new.split(".")
+with mock.patch.object(updates, "can_install", return_value=True), \
+        mock.patch.object(updates, "install_scope", return_value="ALLUSERS"), \
+        mock.patch.object(gui_help.version, "RELEASE", f"{major}.{int(minor) - 1}.0"):
+    upd = gui_help.UpdateDialog(app, {"version": new, "url": updates.LATEST_URL,
+                                      "published": version.RELEASE_DATE,
+                                      "notes": notes.split("\n", 2)[2], "assets": {}})
+    pump(1.5)
+    # Just the window and its title bar, on the page background color
+    x, y = upd.winfo_rootx() - 2, upd.winfo_rooty() - 26
+    w, h = upd.winfo_width() + 4, upd.winfo_height() + 28
+    subprocess.run(["import", "-window", "root", "-crop", f"{w}x{h}+{max(x, 0)}+{max(y, 0)}",
+                    "+repage", str(OUT / "08-update.png")])
+    print("shot 08-update", flush=True)
+    upd.destroy(); pump()
 # Recording in progress: the wizard on screen, the Recording window in the corner
 env = dict(os.environ, WIZARD_MANUAL="1")
 wiz = subprocess.Popen([sys.executable, str(HERE / "demo_wizard.py")], env=env)

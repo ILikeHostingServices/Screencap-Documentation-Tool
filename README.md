@@ -1,4 +1,4 @@
-README.md v1.40.0 (Last Rev: 2026-10-14)
+README.md v1.41.0 (Last Rev: 2026-10-15)
 
 # Screencap Documentation Tool
 
@@ -97,8 +97,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `stepdoc.py` | The step document: loads and saves `steps.json`, renders screenshots from the originals, and writes `steps.md`. |
 | `gui_editor.py` | The GUI's Steps tab (step editor). |
 | `version.py` | The release version of the tool as a whole, shown in the GUI title bar and footer and by `screencap.py --version`. |
-| `gui_help.py` | The GUI's Help menu: built-in help, the About window, and the update check. |
-| `updates.py` | Project links and the update check (asks GitHub for the newest release). |
+| `gui_help.py` | The GUI's Help menu: built-in help, the About window, the update check, and the update window (Update Now). |
+| `updates.py` | Project links, the update check (asks GitHub for the newest release), and Update Now (downloads the installer, checks its SHA-256 checksum, and runs it silently). |
 | `presets.py` | Built-in and saved presets (named sets of settings), shared by the GUI and `--preset`. |
 | `player.py` | Opens the recording in VLC media player at a given moment. |
 | `export.py` | Exports steps to HTML, Word (via Pandoc), PDF (via a headless Edge, Chrome, or Chromium), or PowerPoint (via `pptxwriter.py`). |
@@ -371,10 +371,14 @@ The **Help** menu (or F1) has:
 - **Help** and **Keyboard Shortcuts**: short built-in guides to getting started, presets, editing, blurring, exporting, and troubleshooting. **Online Documentation** opens this README.
 - **Report a Problem...** and **Suggest an Idea...**: open the matching form on GitHub. **About** shows the version, the system, and each helper program on its own line (a green check mark when it is installed, a red cross when not, and what it is for), and can **Copy Details** (the same information as text, without any folder paths) to paste into the form.
 - **Project on GitHub** and **Release Notes**.
-- **Check for Updates...**: asks GitHub whether a newer release is out and, if so, shows what changed and opens the right download for your copy (the installer, the portable zip, or the Releases page for the Python install).
-- **Check for Updates Automatically**: the first time the GUI starts it asks whether to do this; when on, it checks at most once a day, in the background. **Cancel** on the update message skips that version.
+- **Check for Updates...**: asks GitHub whether a newer release is out and, if so, shows what changed and how to update this copy.
+- **Check for Updates Automatically**: the first time the GUI starts it asks whether to do this; when on, it checks at most once a day, in the background. **Skip This Version** in the update window stops the reminders for that version.
 
-The update check only asks GitHub for the public list of releases, the same as opening the Releases page in a browser; nothing about the PC or your files is sent. To turn update checks off for everyone on a PC (for example in a managed environment), set the environment variable `SCREENCAP_NO_UPDATE_CHECK=1` with Group Policy, Intune, or a login script.
+**Update Now (Windows installer).** On a copy installed with the Windows installer, the update window has an **Update Now** button. It downloads the new installer for your PC (x64 or ARM64) from this project's GitHub release, checks it against the release's `SHA256SUMS.txt` (a damaged or altered download is deleted and never run), closes the app, installs the update silently for the same scope (just you, or everyone on the PC), and opens the app again. Your settings, presets, folders, and recordings are kept. A copy installed for everyone needs administrator rights, so Windows shows its permission prompt. Other copies show the update command to copy (Homebrew, apt, dnf, the AUR, snap) or open the download (the portable zip). Snaps also update by themselves.
+
+![The update window: the release notes, and Update Now, which downloads, checks, and installs the new version](docs/screenshots/08-update.png)
+
+The update check only asks GitHub for the public list of releases, the same as opening the Releases page in a browser; nothing about the PC or your files is sent. **Update Now** downloads only from this project's own GitHub release files. To turn update checks and Update Now off for everyone on a PC (for example in a managed environment where updates are deployed centrally), set the environment variable `SCREENCAP_NO_UPDATE_CHECK=1` with Group Policy, Intune, or a login script.
 
 ### Editing Steps
 

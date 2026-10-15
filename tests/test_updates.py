@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 #
 # test_updates.py
-# 2026-10-10
-# Version: v1.1.0
+# 2026-10-15
+# Version: v1.2.0
 #
 # PURPOSE:
 # Tests for the update check (updates.py): version comparison, reading a
 # GitHub release answer from a local test server (no internet needed),
 # error handling, the right download for each kind of install, and the
-# administrator switch that turns checks off.
+# administrator switch that turns checks off, and Update Now: downloading
+# the installer, checking it against the release's checksum list, and the
+# silent installer command for each install scope.
 
+import hashlib
 import http.server
 import json
 import os
+import shutil
+import tempfile
 import threading
+from pathlib import Path
 import unittest
 from unittest import mock
 
@@ -44,6 +50,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         status, body = self.routes.get(self.path, (404, b'{"message": "Not Found"}'))
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -131,6 +138,146 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(updates.install_kind(), "python")
         self.assertIn("Quick Start", updates.how_to_update("python"))
         self.assertIn("winget upgrade", updates.how_to_update("installer"))
+
+
+SETUP_NAME = "Screencap-Documentation-Tool-v9.8.7-windows-x64-setup.exe"
+SETUP = b"MZ" + bytes(range(256)) * 4000    # about 1 MB, so progress is reported
+
+
+class UpdateNowTests(unittest.TestCase):
+    """Downloading and checking the installer, from a local test server."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.env = mock.patch.dict(os.environ, {"NO_PROXY": "127.0.0.1,localhost",
+                                               "no_proxy": "127.0.0.1,localhost"})
+        cls.env.start()
+        good = hashlib.sha256(SETUP).hexdigest()
+        Handler.routes.update({
+            "/dl/setup.exe": (200, SETUP),
+            "/dl/sums": (200, f"{good}  {SETUP_NAME}\n{'0' * 64}  other.zip\n".encode()),
+            "/dl/badsums": (200, f"{'1' * 64}  {SETUP_NAME}\n".encode()),
+            "/dl/othersums": (200, f"{good}  something-else.exe\n".encode()),
+        })
+        cls.server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.env.stop()
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="screencap_update_"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def latest(self, sums="/dl/sums"):
+        return {"version": "9.8.7", "url": "https://example.test/release", "assets": {
+            SETUP_NAME: self.base + "/dl/setup.exe",
+            updates.CHECKSUMS_NAME: self.base + sums}}
+
+    def download(self, latest, **kw):
+        kw.setdefault("allowed", self.base + "/dl/")
+        return updates.download_installer(latest, dest_dir=self.tmp, arch="x64", **kw)
+
+    def test_downloads_and_checks_the_installer(self):
+        seen = []
+        path = self.download(self.latest(), progress=lambda d, t: seen.append((d, t)))
+        self.assertEqual(path.name, SETUP_NAME)
+        self.assertEqual(path.read_bytes(), SETUP)
+        self.assertEqual(seen[-1], (len(SETUP), len(SETUP)))
+        self.assertEqual([f.name for f in self.tmp.iterdir()], [SETUP_NAME])
+
+    def test_a_file_that_does_not_match_is_never_kept(self):
+        with self.assertRaisesRegex(updates.UpdateError, "does not match"):
+            self.download(self.latest("/dl/badsums"))
+        self.assertEqual(list(self.tmp.iterdir()), [])
+        with self.assertRaisesRegex(updates.UpdateError, "not in the release's checksum list"):
+            self.download(self.latest("/dl/othersums"))
+        latest = self.latest()
+        del latest["assets"][updates.CHECKSUMS_NAME]
+        with self.assertRaisesRegex(updates.UpdateError, "no checksum list"):
+            self.download(latest)
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_only_this_projects_release_files_are_downloaded(self):
+        with self.assertRaisesRegex(updates.UpdateError, "unexpected address"):
+            updates.download_installer(self.latest(), dest_dir=self.tmp, arch="x64")
+        self.assertTrue(updates.DOWNLOAD_PREFIX.startswith(
+            "https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/"))
+
+    def test_cancel_leaves_nothing_behind(self):
+        cancel = threading.Event()
+        with self.assertRaises(updates.UpdateCancelled):
+            self.download(self.latest(), cancel=cancel, progress=lambda d, t: cancel.set())
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_missing_installer_and_server_errors(self):
+        latest = self.latest()
+        latest["assets"] = {updates.CHECKSUMS_NAME: self.base + "/dl/sums"}
+        with self.assertRaisesRegex(updates.UpdateError, "no Windows installer"):
+            self.download(latest)
+        latest = self.latest()
+        latest["assets"][SETUP_NAME] = self.base + "/dl/missing.exe"
+        with self.assertRaisesRegex(updates.UpdateError, "404"):
+            self.download(latest)
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_checksum_list_formats(self):
+        h = "A" * 64
+        sums = updates.read_checksums(f"{h}  one.exe\n{h.lower()} *two.zip\nnot a line\n\n")
+        self.assertEqual(sums, {"one.exe": "a" * 64, "two.zip": "a" * 64})
+
+    def test_arm_pcs_get_the_arm_installer_when_there_is_one(self):
+        latest = self.latest()
+        self.assertEqual(updates.installer_asset(latest, "arm64")[0], SETUP_NAME)
+        arm = SETUP_NAME.replace("x64", "arm64")
+        latest["assets"][arm] = "https://example.test/arm"
+        self.assertEqual(updates.installer_asset(latest, "arm64")[0], arm)
+        self.assertEqual(updates.installer_asset(latest, "x64")[0], SETUP_NAME)
+
+    def test_scope_follows_where_this_copy_is_installed(self):
+        pf = Path(self.tmp, "Program Files")
+        env = {"ProgramFiles": str(pf), "ProgramW6432": str(pf), "ProgramFiles(x86)": ""}
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(updates.install_scope(pf / "ILHS" / "Screencap-Documentation-Tool"),
+                             "ALLUSERS")
+            self.assertEqual(updates.install_scope(Path(self.tmp, "Users", "me", "AppData", "Local",
+                                                        "Programs", "ILHS")), "CURRENTUSER")
+            self.assertEqual(updates.install_scope(Path(str(pf) + " Extra", "x")), "CURRENTUSER")
+        args = updates.installer_args("ALLUSERS", "C:\\t\\setup.log")
+        for flag in ("/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/ALLUSERS", "/RELAUNCH=1"):
+            self.assertIn(flag, args)
+        self.assertNotIn("/RELAUNCH=1", updates.installer_args("CURRENTUSER", "x", relaunch=False))
+
+    def test_installer_relaunches_after_a_silent_update(self):
+        script = (ROOT / "packaging" / "installer.iss").read_text(encoding="utf-8")
+        self.assertIn("Check: RelaunchAfterUpdate", script)
+        self.assertIn("runasoriginaluser", script)
+        self.assertIn("{param:RELAUNCH|0}", script)
+
+    def test_who_gets_update_now(self):
+        with mock.patch.object(updates.os, "name", "nt"):
+            self.assertTrue(updates.can_install("installer"))
+            for kind in ("portable", "deb", "snap", "brew", "python"):
+                self.assertFalse(updates.can_install(kind))
+            with mock.patch.dict(os.environ, {"SCREENCAP_NO_UPDATE_CHECK": "1"}):
+                self.assertFalse(updates.can_install("installer"))
+        if os.name != "nt":
+            self.assertFalse(updates.can_install("installer"))
+            with self.assertRaises(updates.UpdateError):
+                updates.start_installer(self.tmp / "setup.exe")
+
+    def test_update_commands(self):
+        self.assertEqual(updates.update_command("deb", "9.8.7"),
+                         "sudo apt install ./screencap-documentation-tool_9.8.7-1_all.deb")
+        self.assertIn("9.8.7-1.noarch.rpm", updates.update_command("rpm", "9.8.7"))
+        self.assertIn("snap refresh", updates.update_command("snap"))
+        self.assertIn("brew upgrade", updates.update_command("brew"))
+        self.assertIsNone(updates.update_command("portable"))
+        self.assertIsNone(updates.update_command("python"))
 
 
 if __name__ == "__main__":
