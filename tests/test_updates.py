@@ -270,6 +270,13 @@ class UpdateNowTests(unittest.TestCase):
             with self.assertRaises(updates.UpdateError):
                 updates.start_installer(self.tmp / "setup.exe")
 
+    def test_old_installers_are_removed_but_logs_kept(self):
+        for name in ("old-setup.exe", "old-setup.exe.part", "old-setup.log"):
+            (self.tmp / name).write_bytes(b"x")
+        updates.clean_downloads(self.tmp)
+        self.assertEqual(sorted(f.name for f in self.tmp.iterdir()), ["old-setup.log"])
+        updates.clean_downloads(self.tmp / "missing")   # nothing to clean
+
     def test_update_commands(self):
         self.assertEqual(updates.update_command("deb", "9.8.7"),
                          "sudo apt install ./screencap-documentation-tool_9.8.7-1_all.deb")

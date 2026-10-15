@@ -360,15 +360,18 @@ def start_installer(setup, app_dir=None, relaunch=True):
     return log
 
 
-def clean_downloads():
-    """Remove installers left from an earlier update (best effort; the one
-    that is still running is kept until next time)."""
-    if UPDATE_DIR.is_dir():
-        for f in UPDATE_DIR.iterdir():
-            try:
-                f.unlink()
-            except OSError:
-                pass
+def clean_downloads(folder=None):
+    """Remove installers left from an earlier update (best effort; one that
+    is still running is removed next time). The installers' logs are kept
+    for troubleshooting; each update overwrites its own."""
+    folder = Path(folder or UPDATE_DIR)
+    if folder.is_dir():
+        for f in folder.iterdir():
+            if f.suffix.lower() in (".exe", ".part"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
 
 
 PACKAGE_NAME = "screencap-documentation-tool"
