@@ -65,6 +65,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.35.1" date="2026-10-16">
+      <description>
+        <p>Security and privacy fixes: characters typed with AltGr or Option are never noted as shortcuts, administrators can switch off noting keys, and captions in Word exports are shown exactly as typed.</p>
+      </description>
+    </release>
     <release version="1.35.0" date="2026-10-16">
       <description>
         <p>Screencap Documentation Tool is now called ScreenCap Docs. Settings, folders, and commands are unchanged.</p>
