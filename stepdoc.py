@@ -215,6 +215,10 @@ BLUR_BLOCK = 12   # pixelation block size before blurring (makes text unreadable
 # The smallest box blurred: FFmpeg's blur cannot work on a box under about
 # 5 pixels, and a smaller box would hide nothing anyway
 MIN_BLUR_BOX = 8
+# Blur radius 2, made smaller for small boxes: FFmpeg needs the radius under
+# half of each plane's size, and the color planes are half size in yuv420p
+BLUR = ("boxblur=luma_radius='min(2,floor((min(w,h)-1)/2))'"
+        ":chroma_radius='min(2,floor((min(cw,ch)-1)/2))'")
 
 ZOOM_MAX = 2.5        # largest magnification of the zoomed inset
 ZOOM_MIN = 1.4        # below this the change is big enough to read without one
@@ -312,7 +316,7 @@ def blur_graph(boxes):
         w, h = max(MIN_BLUR_BOX, int(w)), max(MIN_BLUR_BOX, int(h))
         graph.append(f"[r{i}]crop={w}:{h}:{int(x)}:{int(y)},"
                      f"scale=w='max(1,iw/{BLUR_BLOCK})':h='max(1,ih/{BLUR_BLOCK})',"
-                     f"scale={w}:{h}:flags=neighbor,boxblur=2[b{i}]")
+                     f"scale={w}:{h}:flags=neighbor,{BLUR}[b{i}]")
         out = f"o{i}"
         graph.append(f"[{prev}][b{i}]overlay={int(x)}:{int(y)}" + ("" if i == n - 1 else f"[{out}]"))
         prev = out
