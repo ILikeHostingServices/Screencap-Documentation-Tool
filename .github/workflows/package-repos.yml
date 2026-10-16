@@ -52,7 +52,7 @@ jobs:
     name: Build and sign the repositories
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install the repository tools
         run: |
@@ -101,7 +101,7 @@ jobs:
           path: site/
           retention-days: 7
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site/
 
@@ -120,7 +120,7 @@ jobs:
           - { name: Rocky Linux 9, image: "rockylinux/rockylinux:9", family: rhel }
           - { name: openSUSE Tumbleweed, image: "opensuse/tumbleweed:latest", family: suse }
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: package-repos
           path: site
@@ -176,4 +176,4 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
