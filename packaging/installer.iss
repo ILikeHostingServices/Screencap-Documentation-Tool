@@ -466,6 +466,10 @@ begin
     DefaultFoldersLabel.Caption := 'The default folders are:' + #13#10 +
       'Source:  ' + DefaultFolder('source') + #13#10 +
       'Output:  ' + DefaultFolder('output');
+  { A first install: Inno Setup's own text is one line too long for the label }
+  if (CurPageID = wpFinished) and not UpdateMode then
+    WizardForm.FinishedLabel.Caption := '{#AppName} v{#AppVersion} is installed. ' +
+      'Start it from the Start Menu.' + #13#10#13#10 + 'Click Finish to close Setup.';
   if not UpdateMode then
     Exit;
   Reinstall := CompareText(OldVersion, '{#AppVersion}') = 0;
