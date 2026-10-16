@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # actions.py
-# 2026-10-14
-# Version: v1.2.0
+# 2026-10-16
+# Version: v1.2.1
 #
 # PURPOSE:
 # Uses the clicks and keys noted by the built-in recorder (recorder.py) to
@@ -167,7 +167,7 @@ def _phrase(words, wi, leftward=False):
             hi - lo + 1 < LABEL_WORDS:
         hi += 1
     text = " ".join(w for w, _ in words[lo:hi + 1])
-    text = text.strip(" .:;,|>»<«*_-—–\"'`()[]{}")
+    text = text.strip(" .:;,|>\u00bb<\u00ab*_-\u2014\u2013\"'`()[]{}")
     if len(text) > LABEL_CHARS:
         text = text[:LABEL_CHARS].rsplit(" ", 1)[0]
     letters = sum(c.isalnum() for c in text)

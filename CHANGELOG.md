@@ -1,8 +1,20 @@
-CHANGELOG.md v1.39.0 (Last Rev: 2026-10-15)
+CHANGELOG.md v1.40.0 (Last Rev: 2026-10-16)
 
 # Changelog
 
-Every release of the Screencap Documentation Tool, newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35.0), newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.35.0 - New name: ScreenCap Docs (2026-10-16)
+
+**New name: ScreenCap Docs**
+- The app is now called **ScreenCap Docs** (formerly Screencap Documentation Tool): in the window title, the About window, the Start Menu and desktop shortcuts, Apps & Features, the installer, the Linux application menu and software centers, the Snap Store, the Homebrew app, and exported documents.
+- Only the shown name changed. The repository, the winget package `ILHS.ScreencapDocumentationTool`, the Linux and Homebrew package names, the Windows install folder, the program file `Screencap Documentation Tool.exe`, and the `screencap` and `screencap-gui` commands keep their names, so updates, scripts, taskbar pins, and application allow-lists keep working.
+- Updating replaces the old Start Menu and desktop shortcuts with ones under the new name. Settings, presets, and chosen folders are kept.
+- New installs keep recordings and output in `Documents\ScreenCap Docs`. A `Documents\Screencap Documentation Tool` folder from an earlier version keeps being used.
+- Homebrew: the app is now `ScreenCap Docs.app`. Run the `ln -sf` command from the README again, and remove the old link with `rm ~/Applications/"Screencap Documentation Tool.app"`.
+
+**Fixed**
+- The README no longer says the Arch package is on the AUR yet: it is published there as soon as the AUR reopens new account sign-ups. Until then, install the `.pkg.tar.zst` from the release with `sudo pacman -U`.
 
 ## v1.34.1 - Installer keeps the install mode (2026-10-15)
 

@@ -1,6 +1,6 @@
 # snapcraft.yaml
-# 2026-10-12
-# Version: v1.2.2
+# 2026-10-16
+# Version: v1.3.0
 #
 # PURPOSE:
 # Snap package for the Snap Store (Ubuntu and any distribution with snapd).
@@ -12,10 +12,10 @@
 # with 64-bit Raspberry Pi OS (arm64). 32-bit Raspberry Pi OS uses the .deb.
 
 name: screencap-documentation-tool
-title: Screencap Documentation Tool
+title: ScreenCap Docs
 summary: Turn screen recordings into step-by-step screenshot documentation
 description: |
-  A free Steps Recorder replacement. Finds every step in a screen recording
+  A free Steps Recorder replacement (formerly Screencap Documentation Tool). Finds every step in a screen recording
   with FFmpeg scene detection and saves a screenshot of each one. The
   built-in recorder (X11 sessions) notes your clicks, so each step gets a red
   ring where you clicked and a first-draft caption. Review the
@@ -23,8 +23,8 @@ description: |
   and export to HTML, Word, or PowerPoint. Everything runs locally, with
   no telemetry.
 
-  Recordings and output go in Documents/Screencap Documentation Tool in your
-  home folder by default; any folder in your home or on a removable drive
+  Recordings and output go in Documents/ScreenCap Docs in your home folder
+  by default (an existing Documents/Screencap Documentation Tool is kept); any folder in your home or on a removable drive
   can be chosen.
 license: MIT
 website: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool

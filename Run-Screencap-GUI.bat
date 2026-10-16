@@ -1,10 +1,10 @@
 @echo off
 REM Run-Screencap-GUI.bat
-REM 2026-10-01
-REM Version: v1.0.0
+REM 2026-10-16
+REM Version: v1.0.1
 REM
 REM PURPOSE:
-REM Double-click launcher for the Screencap Documentation Tool GUI on Windows.
+REM Double-click launcher for the ScreenCap Docs GUI on Windows.
 REM Starts screencap_gui.pyw without leaving a console window open.
 
 setlocal

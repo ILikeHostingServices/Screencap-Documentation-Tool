@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # install.sh
-# 2026-10-03
-# Version: v1.4.0
+# 2026-10-16
+# Version: v1.5.0
 #
 # PURPOSE:
-# One-step Linux and macOS installer for the Screencap Documentation Tool.
+# One-step Linux and macOS installer for ScreenCap Docs.
 # Installs FFmpeg, Python 3, Tkinter, and (optional) Tesseract OCR and Pandoc
 # if missing,
 # downloads the latest
@@ -30,7 +30,7 @@ set -euo pipefail
 REPO="ILikeHostingServices/Screencap-Documentation-Tool"
 REF="${SCREENCAP_REF:-HEAD}"
 WITH_WHISPER="${SCREENCAP_WITH_WHISPER:-0}"
-APP_NAME="Screencap Documentation Tool"
+APP_NAME="ScreenCap Docs"
 
 step() { printf '\033[36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mWARNING: %s\033[0m\n' "$*" >&2; }

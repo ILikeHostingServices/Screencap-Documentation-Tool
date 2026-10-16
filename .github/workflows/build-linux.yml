@@ -1,6 +1,6 @@
 # build-linux.yml
-# 2026-10-11
-# Version: v1.1.0
+# 2026-10-16
+# Version: v1.1.1
 #
 # PURPOSE:
 # Builds the Linux packages and tests each one on the distributions it is
@@ -254,7 +254,7 @@ jobs:
           sleep 3
           title="$(DISPLAY=:99 timeout 120 screencap-documentation-tool --smoke-test)"
           echo "Window title: $title"
-          [ "$title" = "Screencap Documentation Tool v$V" ]
+          [ "$title" = "ScreenCap Docs v$V" ]
           sudo snap remove screencap-documentation-tool
           mkdir -p release
           cp "$snap" "release/screencap-documentation-tool_${V}_${{ matrix.arch }}.snap"

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 #
 # version.py
-# 2026-10-15
-# Version: v1.34.1
+# 2026-10-16
+# Version: v1.35.0
 #
 # PURPOSE:
-# The release version of the Screencap Documentation Tool as a whole. It
+# The release version of ScreenCap Docs as a whole. It
 # matches the git tag and the GitHub release, and is shown in the GUI title
 # bar and footer and by screencap.py --version. Each script also keeps its
 # own version in its header, which only changes when that file changes;
@@ -14,6 +14,9 @@
 # Bump RELEASE, RELEASE_DATE, and the header above in the same commit that a
 # release tag will point at (see "Releases And Versions" in README.md).
 
-RELEASE = "1.34.1"
-RELEASE_DATE = "2026-10-15"
-APP_NAME = "Screencap Documentation Tool"
+RELEASE = "1.35.0"
+RELEASE_DATE = "2026-10-16"
+APP_NAME = "ScreenCap Docs"
+# The name before v1.35.0. Kept where it identifies an installed copy (the
+# Windows program file and registry key) and for an existing Documents folder.
+OLD_APP_NAME = "Screencap Documentation Tool"

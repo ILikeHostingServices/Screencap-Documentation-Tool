@@ -4,7 +4,7 @@ README.md v1.0.0 (Last Rev: 2026-10-10)
 
 Homebrew formulas for apps from [ILikeHostingServices](https://github.com/ILikeHostingServices).
 
-## Screencap Documentation Tool
+## ScreenCap Docs
 
 Turns screen recordings into step-by-step screenshot documentation. See the [project page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool).
 
@@ -15,12 +15,12 @@ brew install ilikehostingservices/tap/screencap-documentation-tool
 Then start the GUI with `screencap-gui`, or add the app to Launchpad, Spotlight, and the Dock:
 
 ```bash
-ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/Screencap Documentation Tool.app" ~/Applications/
+ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/ScreenCap Docs.app" ~/Applications/
 ```
 
 Optional extras: `brew install tesseract` (blur sensitive text automatically) and `brew install pandoc` (Word export).
 
-Update with `brew update && brew upgrade screencap-documentation-tool`. Remove with `brew uninstall screencap-documentation-tool` (your recordings and output in `~/Documents/Screencap Documentation Tool` are kept).
+Update with `brew update && brew upgrade screencap-documentation-tool`. Remove with `brew uninstall screencap-documentation-tool` (your recordings and output in `~/Documents/ScreenCap Docs` are kept).
 
 No Apple Developer account or notarization is involved: Homebrew builds the app on your Mac from the published source code, so macOS does not quarantine it.
 

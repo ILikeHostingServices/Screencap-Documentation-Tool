@@ -3,7 +3,7 @@
     install.ps1
 
 .DESCRIPTION
-    One-step Windows installer for the Screencap Documentation Tool. Downloads
+    One-step Windows installer for ScreenCap Docs. Downloads
     the latest version from GitHub into the install folder, installs Python 3
     and FFmpeg with winget if they are missing, and adds Start Menu and Desktop
     shortcuts for the GUI. Safe to re-run to update; your source and output
@@ -19,8 +19,8 @@
     install folder).
 
 .NOTES
-    Version: v1.3.1
-    Last Edit Date: 2026-10-03
+    Version: v1.4.0
+    Last Edit Date: 2026-10-16
 
 .EXAMPLE
     & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1)))
@@ -56,7 +56,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is far faster without the progress bar in PowerShell 5.1
 $Repo = 'ILikeHostingServices/Screencap-Documentation-Tool'
-$AppName = 'Screencap Documentation Tool'
+$AppName = 'ScreenCap Docs'
+$OldAppName = 'Screencap Documentation Tool'  # the name before v1.35.0
 $AppUserModelId = 'ILHS.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
 
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
@@ -98,7 +99,7 @@ try {
     Expand-Archive -Path $zip -DestinationPath (Join-Path $tmp 'x') -Force
     $top = Get-ChildItem -Path (Join-Path $tmp 'x') -Directory | Select-Object -First 1
     if (-not $top -or -not (Test-Path (Join-Path $top.FullName 'screencap.py'))) {
-        throw 'The downloaded archive does not look like the Screencap Documentation Tool (screencap.py missing).'
+        throw 'The downloaded archive does not look like ScreenCap Docs (screencap.py missing).'
     }
 
     # 2. Copy into place. Nothing is deleted, so recordings and screenshots
@@ -254,6 +255,12 @@ namespace ScreencapInstall {
         $appIdSupported = $true
     } catch {
         Write-Host "    Taskbar grouping setup skipped: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
+    # Shortcuts with the name used before v1.35.0
+    foreach ($folder in 'Programs', 'Desktop', 'CommonPrograms', 'CommonDesktopDirectory') {
+        if ($scope -ne 'machine' -and $folder -like 'Common*') { continue }
+        Remove-Item -Path (Join-Path ([Environment]::GetFolderPath($folder)) "$OldAppName.lnk") -Force -ErrorAction SilentlyContinue
     }
 
     $shell = New-Object -ComObject WScript.Shell

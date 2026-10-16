@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_editor.py
-# 2026-10-14
-# Version: v2.5.1
+# 2026-10-16
+# Version: v2.5.2
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -809,7 +809,7 @@ class StepEditor(ttk.Frame):
     def create_template(self, win):
         path = filedialog.asksaveasfilename(parent=win, title="Save the starter Word template",
                                             defaultextension=".docx",
-                                            initialfile="Screencap template.docx",
+                                            initialfile="ScreenCap Docs template.docx",
                                             filetypes=[("Word documents", "*.docx")])
         if not path:
             return None

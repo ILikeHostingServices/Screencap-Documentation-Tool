@@ -1,6 +1,6 @@
-README.md v1.42.0 (Last Rev: 2026-10-15)
+README.md v1.43.0 (Last Rev: 2026-10-16)
 
-# Screencap Documentation Tool
+# ScreenCap Docs
 
 [![Get it from the Snap Store](https://snapcraft.io/en/dark/install.svg)](https://snapcraft.io/screencap-documentation-tool)
 [![Download for Windows and Linux](https://img.shields.io/github/v/release/ILikeHostingServices/Screencap-Documentation-Tool?label=download&logo=github)](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest)
@@ -9,6 +9,8 @@ README.md v1.42.0 (Last Rev: 2026-10-15)
 ![The Steps tab: each step of a recorded setup wizard with its screenshot, a red ring where the mouse was clicked, the product key blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
 
 ## Overview
+
+ScreenCap Docs was called **Screencap Documentation Tool** until v1.35.0. Only the name shown changed: the repository, the winget package `ILHS.ScreencapDocumentationTool`, the Linux and Homebrew package names, the Windows install folder, the program file `Screencap Documentation Tool.exe`, and the `screencap` and `screencap-gui` commands keep their names, so updates, scripts, taskbar pins, and application allow-lists keep working.
 
 **A free Steps Recorder replacement for Windows, Linux, and macOS.** Click **Record**, install or configure a program as usual, click **Stop**, and this tool pulls out a screenshot of every step for you, marks where you clicked, and writes a first draft of each step's caption. Recordings from any other recorder work too. No more scrubbing through video to find the right frames.
 
@@ -53,7 +55,7 @@ The screenshots show a made-up "Example App" setup wizard recorded with the buil
 
 Steps Recorder watched your mouse and keyboard and took a small screenshot at every click. This tool records a video of the screen while it notes your clicks and keys the same way (see [Recording The Screen](#recording-the-screen)), then finds the steps in the video itself. It also works with recordings made by any other recorder (see [Recording Tips For Best Results](#recording-tips-for-best-results)).
 
-| Steps Recorder | Screencap Documentation Tool |
+| Steps Recorder | ScreenCap Docs |
 | --- | --- |
 | Start Record, do the task, Stop Record | **Record**, do the task, **Stop**: the screenshots are made straight away. Recordings from Snipping Tool, OBS Studio, or any other recorder work too |
 | A compressed screenshot at every click | A full resolution screenshot of every step, taken when the screen settles; duplicates are removed |
@@ -225,14 +227,14 @@ For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /
 
 Differences from the Python install:
 
-- The default `source` and `output` folders are in `Documents\Screencap Documentation Tool`, because the app's own folder may not be writable. Any folder can still be chosen in the GUI or with `-s` and `-o`.
+- The default `source` and `output` folders are in `Documents\ScreenCap Docs` (or `Documents\Screencap Documentation Tool` when that folder exists from an earlier version), because the app's own folder may not be writable. Any folder can still be chosen in the GUI or with `-s` and `-o`.
 - The app is **not code signed** (see [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md)), so Windows SmartScreen may say **Windows protected your PC** the first time. Check the checksum as above, then click **More info > Run anyway**. Some antivirus products are wary of unsigned packaged Python apps; the checksum confirms the file is the one GitHub built from this repository.
 - Captions From Narration needs the Python install (`-WithWhisper`); the packaged app does not include speech recognition.
 - To update the portable zip, download the new zip and replace the folder. Your settings, presets, and recordings are kept, because they live in your profile and Documents, not in the app folder.
 
 ### Linux
 
-**Packages (recommended).** From v1.21.0 every release has packages for the common distributions. Your package manager installs FFmpeg, Python, and Tkinter with them, and the app appears in the application menu. Recordings and output go in `~/Documents/Screencap Documentation Tool` by default.
+**Packages (recommended).** From v1.21.0 every release has packages for the common distributions. Your package manager installs FFmpeg, Python, and Tkinter with them, and the app appears in the application menu. Recordings and output go in `~/Documents/ScreenCap Docs` by default (or `~/Documents/Screencap Documentation Tool` when that folder exists from an earlier version).
 
 | Distribution | Install |
 | --- | --- |
@@ -240,7 +242,7 @@ Differences from the Python install:
 | Fedora | Download `screencap-documentation-tool-X.Y.Z-1.noarch.rpm`, then `sudo dnf install ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm`. Fedora's own FFmpeg cannot read H.264 (most .mp4 recordings); for those, switch to the full FFmpeg from [RPM Fusion](https://rpmfusion.org/Howto/Multimedia) |
 | RHEL, Rocky Linux, AlmaLinux 9 | FFmpeg comes from RPM Fusion: `sudo dnf install epel-release && sudo dnf config-manager --set-enabled crb && sudo dnf install https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm`, then `sudo dnf install ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm` |
 | openSUSE Tumbleweed | `sudo zypper install --allow-unsigned-rpm ./screencap-documentation-tool-X.Y.Z-1.noarch.rpm` (for H.264 recordings, FFmpeg from [Packman](https://en.opensuse.org/Additional_package_repositories#Packman)) |
-| Arch Linux, Manjaro, EndeavourOS | From the AUR: `yay -S screencap-documentation-tool` (or any AUR helper), or download `screencap-documentation-tool-X.Y.Z-1-any.pkg.tar.zst` and `sudo pacman -U` it |
+| Arch Linux, Manjaro, EndeavourOS | Download `screencap-documentation-tool-X.Y.Z-1-any.pkg.tar.zst`, then `sudo pacman -U ./screencap-documentation-tool-X.Y.Z-1-any.pkg.tar.zst`. The AUR package is planned: it is published as soon as the AUR reopens new account sign-ups |
 | Raspberry Pi OS (64-bit and 32-bit), and other ARM boards running Debian or Ubuntu | The same `.deb` as for Debian: it is not tied to a processor type, and the Pi's own Python, Tkinter, and FFmpeg are used. `sudo apt install ./screencap-documentation-tool_X.Y.Z-1_all.deb`. A Raspberry Pi 4 or 5 is recommended; processing is slower than on a PC |
 | Any distribution with snapd | `sudo snap install screencap-documentation-tool` from the [Snap Store](https://snapcraft.io/screencap-documentation-tool) (x86_64 and 64-bit ARM, including 64-bit Raspberry Pi OS), or download the `.snap` for your processor (`_amd64` or `_arm64`) and `sudo snap install --dangerous ./screencap-documentation-tool_X.Y.Z_amd64.snap`. The snap brings its own FFmpeg, Tesseract, and Pandoc and can use your home folder and removable drives. Command line: `screencap-documentation-tool.cli`. On 32-bit Raspberry Pi OS use the `.deb` |
 
@@ -265,10 +267,12 @@ brew install ilikehostingservices/tap/screencap-documentation-tool
 This installs the tool with Homebrew's own Python, Tkinter, and FFmpeg and adds the `screencap-gui` and `screencap` commands. To add the app to Launchpad, Spotlight, and the Dock:
 
 ```bash
-ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/Screencap Documentation Tool.app" ~/Applications/
+ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/ScreenCap Docs.app" ~/Applications/
 ```
 
-Optional extras: `brew install tesseract` (automatic blurring) and `brew install pandoc` (Word export). Update with `brew update && brew upgrade screencap-documentation-tool`. Recordings and output go in `~/Documents/Screencap Documentation Tool` by default. The app is built on your Mac by Homebrew from the published source, so macOS does not block it even though it is not notarized. (Available from v1.22.0.)
+Updating from v1.34.1 or earlier, where the app was called Screencap Documentation Tool: run the `ln` command again, then remove the old link with `rm ~/Applications/"Screencap Documentation Tool.app"`.
+
+Optional extras: `brew install tesseract` (automatic blurring) and `brew install pandoc` (Word export). Update with `brew update && brew upgrade screencap-documentation-tool`. Recordings and output go in `~/Documents/ScreenCap Docs` by default (or `~/Documents/Screencap Documentation Tool` when that folder exists from an earlier version). The app is built on your Mac by Homebrew from the published source, so macOS does not block it even though it is not notarized. (Available from v1.22.0.)
 
 **Install command.** Or paste this into Terminal as your normal user (no `sudo`):
 
@@ -555,11 +559,11 @@ and confirm that no media, logs, or files containing secrets are listed. Also re
 ```powershell
 # Windows, just-you install
 Remove-Item -Recurse -Force 'C:\DATA\Tools\Screencap-Documentation-Tool', "$env:APPDATA\ScreencapDocTool"
-Remove-Item -Force "$([Environment]::GetFolderPath('Programs'))\Screencap Documentation Tool.lnk", "$([Environment]::GetFolderPath('Desktop'))\Screencap Documentation Tool.lnk"
+Remove-Item -Force "$([Environment]::GetFolderPath('Programs'))\ScreenCap Docs.lnk", "$([Environment]::GetFolderPath('Desktop'))\ScreenCap Docs.lnk"
 
 # Windows, everyone install (Administrator window). Each user's GUI settings stay in their own %APPDATA%\ScreencapDocTool.
 Remove-Item -Recurse -Force 'C:\DATA\Tools\Screencap-Documentation-Tool'
-Remove-Item -Force "$([Environment]::GetFolderPath('CommonPrograms'))\Screencap Documentation Tool.lnk", "$([Environment]::GetFolderPath('CommonDesktopDirectory'))\Screencap Documentation Tool.lnk"
+Remove-Item -Force "$([Environment]::GetFolderPath('CommonPrograms'))\ScreenCap Docs.lnk", "$([Environment]::GetFolderPath('CommonDesktopDirectory'))\ScreenCap Docs.lnk"
 ```
 
 ```bash
@@ -736,7 +740,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 
 ## License And Support
 
-The Screencap Documentation Tool is free and open source under the [MIT License](LICENSE). You may use, copy, change, and share it, including at work and in commercial settings, as long as the copyright notice and license text stay with it. It comes as is, with no warranty.
+ScreenCap Docs is free and open source under the [MIT License](LICENSE). You may use, copy, change, and share it, including at work and in commercial settings, as long as the copyright notice and license text stay with it. It comes as is, with no warranty.
 
 FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them.
 

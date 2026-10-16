@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 #
 # test_apppaths.py
-# 2026-10-11
-# Version: v1.0.0
+# 2026-10-16
+# Version: v1.1.0
 #
 # PURPOSE:
 # Tests for apppaths.py: the folders chosen in the Windows installer are read
 # from the registry (Windows only: elsewhere the class is not defined at all,
 # because the test run treats skipped tests as failures), and nothing is read
-# outside the packaged Windows app.
+# outside the packaged Windows app. The default Documents folder has the new
+# name unless one with the old name is already there.
 
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -26,6 +28,16 @@ class NotPackagedTests(unittest.TestCase):
     def test_no_installer_folders_outside_the_packaged_app(self):
         with mock.patch.object(apppaths, "FROZEN", False):
             self.assertIsNone(apppaths.installer_folders())
+
+    def test_documents_folder_has_the_new_name(self):
+        with tempfile.TemporaryDirectory() as docs:
+            self.assertEqual(apppaths.data_dir(Path(docs)), Path(docs) / "ScreenCap Docs")
+
+    def test_an_existing_folder_with_the_old_name_is_kept(self):
+        with tempfile.TemporaryDirectory() as docs:
+            old = Path(docs) / "Screencap Documentation Tool"
+            old.mkdir()
+            self.assertEqual(apppaths.data_dir(Path(docs)), old)
 
 
 if os.name == "nt":

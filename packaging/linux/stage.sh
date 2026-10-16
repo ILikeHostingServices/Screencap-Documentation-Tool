@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # stage.sh
-# 2026-10-10
-# Version: v1.0.0
+# 2026-10-16
+# Version: v1.0.1
 #
 # PURPOSE:
-# Installs the Screencap Documentation Tool into a staging folder with the
+# Installs ScreenCap Docs into a staging folder with the
 # layout every Linux package uses, so the .deb, .rpm, Arch (PKGBUILD), and
 # snap packages are built from one recipe:
 #   /usr/share/screencap-documentation-tool/   the program (Python files, icon)
@@ -55,7 +55,7 @@ for pair in "screencap:screencap.py" "screencap-gui:screencap_gui.pyw"; do
         # packages the base already has); Tkinter comes from the snap
         cat > "$DEST/usr/bin/$cmd" <<LAUNCHER
 #!/bin/sh
-# $cmd: start the Screencap Documentation Tool (installed by the snap package)
+# $cmd: start ScreenCap Docs (installed by the snap package)
 for py in "\$SNAP/usr/bin/python3" /usr/bin/python3; do
     [ -x "\$py" ] && exec "\$py" -B "\$SNAP/usr/share/$NAME/$script" "\$@"
 done
@@ -65,7 +65,7 @@ LAUNCHER
     else
         cat > "$DEST/usr/bin/$cmd" <<LAUNCHER
 #!/bin/sh
-# $cmd: start the Screencap Documentation Tool (installed by the $KIND package)
+# $cmd: start ScreenCap Docs (installed by the $KIND package)
 exec /usr/bin/python3 -B "/usr/share/$NAME/$script" "\$@"
 LAUNCHER
     fi

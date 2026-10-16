@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 #
 # make_formula.py
-# 2026-10-10
-# Version: v1.0.1
+# 2026-10-16
+# Version: v1.1.0
 #
 # PURPOSE:
-# Writes the Homebrew formula for one release of the Screencap Documentation
-# Tool (Formula/screencap-documentation-tool.rb in the
+# Writes the Homebrew formula for one release of ScreenCap Docs (formerly
+# Screencap Documentation Tool) (Formula/screencap-documentation-tool.rb in the
 # ILikeHostingServices/homebrew-tap repository). The formula installs the
 # Python program with Homebrew's own Python, Tkinter, and FFmpeg, adds the
 # screencap and screencap-gui commands, and builds a small
-# "Screencap Documentation Tool.app" that can be linked into Applications.
+# "ScreenCap Docs.app" that can be linked into Applications.
 # No Apple Developer account is needed: Homebrew builds the app on the Mac,
 # so it is not downloaded and macOS does not quarantine it.
 #
@@ -56,14 +56,14 @@ class ScreencapDocumentationTool < Formula
     end
 
     # A small app bundle that starts the GUI, for the Dock and Spotlight
-    app = prefix/"Screencap Documentation Tool.app/Contents"
+    app = prefix/"ScreenCap Docs.app/Contents"
     (app/"MacOS").mkpath
     (app/"Resources").mkpath
-    (app/"MacOS/Screencap Documentation Tool").write <<~EOS
+    (app/"MacOS/ScreenCap Docs").write <<~EOS
       #!/bin/bash
       exec "#{{opt_bin}}/screencap-gui" "$@"
     EOS
-    chmod 0755, app/"MacOS/Screencap Documentation Tool"
+    chmod 0755, app/"MacOS/ScreenCap Docs"
     # The app icon: an .icns file is a small header around PNG images, so the
     # 256 x 256 PNG is wrapped as-is ("ic08" entry); no Apple tools needed.
     # (assets/ has already been moved into libexec above.)
@@ -75,12 +75,12 @@ class ScreencapDocumentationTool < Formula
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
       <plist version="1.0">
       <dict>
-        <key>CFBundleName</key><string>Screencap Documentation Tool</string>
-        <key>CFBundleDisplayName</key><string>Screencap Documentation Tool</string>
+        <key>CFBundleName</key><string>ScreenCap Docs</string>
+        <key>CFBundleDisplayName</key><string>ScreenCap Docs</string>
         <key>CFBundleIdentifier</key><string>io.github.ILikeHostingServices.ScreencapDocumentationTool</string>
         <key>CFBundleVersion</key><string>#{{version}}</string>
         <key>CFBundleShortVersionString</key><string>#{{version}}</string>
-        <key>CFBundleExecutable</key><string>Screencap Documentation Tool</string>
+        <key>CFBundleExecutable</key><string>ScreenCap Docs</string>
         <key>CFBundleIconFile</key><string>AppIcon</string>
         <key>CFBundlePackageType</key><string>APPL</string>
         <key>LSMinimumSystemVersion</key><string>12.0</string>
@@ -96,14 +96,16 @@ class ScreencapDocumentationTool < Formula
       Command line:         screencap --help
 
       To add the app to Launchpad, Spotlight, and the Dock:
-        ln -sf "#{{opt_prefix}}/Screencap Documentation Tool.app" ~/Applications/
+        ln -sf "#{{opt_prefix}}/ScreenCap Docs.app" ~/Applications/
+      (Until v1.35.0 the app was called Screencap Documentation Tool; remove
+      an old link with: rm ~/Applications/"Screencap Documentation Tool.app")
 
       Optional extras:
         brew install tesseract   # blur sensitive text automatically
         brew install pandoc      # Word export
         PDF export uses Google Chrome, Microsoft Edge, or Chromium if installed.
 
-      Recordings and output go in ~/Documents/Screencap Documentation Tool
+      Recordings and output go in ~/Documents/ScreenCap Docs
       by default; any folder can be chosen in the GUI.
     EOS
   end

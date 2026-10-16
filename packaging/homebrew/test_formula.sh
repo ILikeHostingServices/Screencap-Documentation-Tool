@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # test_formula.sh
-# 2026-10-10
-# Version: v1.0.0
+# 2026-10-16
+# Version: v1.0.1
 #
 # PURPOSE:
-# Installs a Homebrew formula file for the Screencap Documentation Tool in a
+# Installs a Homebrew formula file for ScreenCap Docs in a
 # throwaway local tap and tests it the way a user would use it: the formula's
 # own test, the command line program on a recording, the default folders in
 # ~/Documents, the app bundle, the GUI window, then uninstalling. Used by
@@ -45,11 +45,11 @@ screencap -s "$work/src" -o "$work/out"
 test -f "$work/out/Demo/steps.md"
 [ "$(find "$work/out/Demo" -maxdepth 1 -name "*.png" | wc -l)" -ge 2 ]
 screencap
-test -d "$HOME/Documents/Screencap Documentation Tool/source"
+test -d "$HOME/Documents/ScreenCap Docs/source"
 
 echo "== App bundle"
-app="$(brew --prefix "ilhs/ci/$NAME")/Screencap Documentation Tool.app"
-test -x "$app/Contents/MacOS/Screencap Documentation Tool"
+app="$(brew --prefix "ilhs/ci/$NAME")/ScreenCap Docs.app"
+test -x "$app/Contents/MacOS/ScreenCap Docs"
 test -s "$app/Contents/Resources/AppIcon.icns"
 [ "$(head -c 4 "$app/Contents/Resources/AppIcon.icns")" = icns ]
 plutil -lint "$app/Contents/Info.plist"
@@ -58,7 +58,7 @@ echo "== GUI"
 # macOS has no timeout command; perl's alarm stops a hung window after 120 s
 title="$(perl -e 'alarm shift; exec @ARGV' 120 screencap-gui --smoke-test)"
 echo "Window title: $title"
-[ "$title" = "Screencap Documentation Tool v$VERSION" ]
+[ "$title" = "ScreenCap Docs v$VERSION" ]
 
 echo "== Uninstall"
 brew uninstall --formula "ilhs/ci/$NAME"
