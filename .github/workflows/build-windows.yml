@@ -1,6 +1,6 @@
 # build-windows.yml
-# 2026-10-15
-# Version: v2.1.1
+# 2026-10-16
+# Version: v2.2.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -118,11 +118,12 @@ jobs:
           $info = (Get-Item $cli).VersionInfo
           Write-Host "File version: $($info.ProductVersion) | $($info.CompanyName) | $($info.FileDescription)"
           if ($info.ProductVersion -ne $v) { throw "Windows version resource says $($info.ProductVersion), expected $v" }
+          if ($info.ProductName -ne 'ScreenCap Docs') { throw "Windows version resource names the product '$($info.ProductName)'" }
 
           # With no folders given, the packaged app uses Documents
           & $cli
           $docs = [Environment]::GetFolderPath('MyDocuments')
-          if (-not (Test-Path (Join-Path $docs 'Screencap Documentation Tool\source'))) { throw 'Default source folder was not created in Documents' }
+          if (-not (Test-Path (Join-Path $docs 'ScreenCap Docs\source'))) { throw 'Default source folder was not created in Documents' }
 
           # Process and export a synthetic recording
           $src = Join-Path $env:RUNNER_TEMP 'src'; $dst = Join-Path $env:RUNNER_TEMP 'out'
@@ -150,7 +151,7 @@ jobs:
           }
           Write-Host "Window title: $title"
           Stop-Process -Id $p.Id -Force
-          if ($title -ne "Screencap Documentation Tool v$v") { throw "Unexpected or missing window title: '$title'" }
+          if ($title -ne "ScreenCap Docs v$v") { throw "Unexpected or missing window title: '$title'" }
 
       - name: Pack the portable zip
         run: |
@@ -193,7 +194,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $v = '${{ steps.version.outputs.version }}'
           $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-${{ matrix.arch }}-setup.exe"
-          $name = 'Screencap Documentation Tool'
+          $name = 'ScreenCap Docs'                  # shortcuts and Apps & Features
+          $exe = 'Screencap Documentation Tool'     # the program file keeps the name used before v1.35.0
           $appId = 'ILHS.ScreencapDocumentationTool.GUI'
 
           function Test-Shortcut($folder) {
@@ -284,7 +286,7 @@ jobs:
 
             Write-Host "=== Uninstall for $scope ==="
             Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
-            Wait-Gone (Join-Path $dir "$name.exe")
+            Wait-Gone (Join-Path $dir "$exe.exe")
             Wait-Gone (Join-Path $menu "$name.lnk")
             Wait-Gone (Join-Path $desk "$name.lnk")
             Wait-Gone (Split-Path $dir)             # the empty ILHS folder goes too
@@ -302,15 +304,16 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $v = '${{ steps.version.outputs.version }}'
           $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
-          $name = 'Screencap Documentation Tool'
+          $name = 'ScreenCap Docs'
+          $oldName = 'Screencap Documentation Tool'   # v1.16.0 installed in a folder with this name
           $old = Join-Path $env:RUNNER_TEMP 'old'
           gh release download v1.16.0 --dir $old --pattern '*-windows-x64-setup.exe'
           if ($LASTEXITCODE -ne 0) { throw 'Could not download the v1.16.0 installer' }
           $oldSetup = Get-ChildItem $old -Filter '*-setup.exe' | Select-Object -First 1
           foreach ($case in @(
-              @{ Scope = 'CURRENTUSER'; Old = (Join-Path $env:LOCALAPPDATA "Programs\$name");
+              @{ Scope = 'CURRENTUSER'; Old = (Join-Path $env:LOCALAPPDATA "Programs\$oldName");
                  New = (Join-Path $env:LOCALAPPDATA 'Programs\ILHS\Screencap-Documentation-Tool') },
-              @{ Scope = 'ALLUSERS'; Old = (Join-Path $env:ProgramFiles $name);
+              @{ Scope = 'ALLUSERS'; Old = (Join-Path $env:ProgramFiles $oldName);
                  New = (Join-Path $env:ProgramFiles 'ILHS\Screencap-Documentation-Tool') })) {
             Write-Host "=== $($case.Scope): v1.16.0 in $($case.Old), then v$v ==="
             $p = Start-Process $oldSetup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/$($case.Scope)" -Wait -PassThru
@@ -342,7 +345,8 @@ jobs:
           $v = '${{ steps.version.outputs.version }}'
           $arch = '${{ matrix.arch }}'
           $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-$arch-setup.exe"
-          $name = 'Screencap Documentation Tool'
+          $name = 'ScreenCap Docs'
+          $oldName = 'Screencap Documentation Tool'   # v1.33.0's name, and the program file's
           $old = Join-Path $env:RUNNER_TEMP 'update-old'
           gh release download v1.33.0 --dir $old --pattern "*-windows-$arch-setup.exe"
           if ($LASTEXITCODE -ne 0) { throw 'Could not download the v1.33.0 installer' }
@@ -406,10 +410,14 @@ jobs:
               $root = if ($scope -eq 'CURRENTUSER') { 'HKCU:' } else { 'HKLM:' }
               $f = Get-ItemProperty "$root\Software\ILHS\Screencap Documentation Tool"
               if ($f.SourceDir -ne "$mine\rec" -or $f.OutputDir -ne "$mine\out") { throw "The chosen folders were not kept: $($f.SourceDir) $($f.OutputDir)" }
+              # The Start Menu shortcut now has the new name, and the old one is gone
+              $menu = if ($scope -eq 'CURRENTUSER') { [Environment]::GetFolderPath('Programs') } else { [Environment]::GetFolderPath('CommonPrograms') }
+              if (-not (Test-Path (Join-Path $menu "$name.lnk"))) { throw "No '$name' shortcut in $menu" }
+              if (Test-Path (Join-Path $menu "$oldName.lnk")) { throw "The '$oldName' shortcut was left in $menu" }
               # ...and the app opened again
               $gui = $null
               for ($i = 0; $i -lt 30 -and -not $gui; $i++) {
-                $gui = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -like "$dir\*" -and $_.ProcessName -eq $name }
+                $gui = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -like "$dir\*" -and $_.ProcessName -eq $oldName }
                 if (-not $gui) { Start-Sleep -Seconds 1 }
               }
               if (-not $gui) { Get-Content $log -Tail 20; throw 'The app was not opened again after the update' }
@@ -437,7 +445,7 @@ jobs:
           $setup = Resolve-Path "release\Screencap-Documentation-Tool-v$v-windows-x64-setup.exe"
           $shots = Join-Path $env:RUNNER_TEMP 'installer-pages'
           New-Item -ItemType Directory -Force $shots | Out-Null
-          $title = "Setup - Screencap Documentation Tool v$v"
+          $title = "Setup - ScreenCap Docs v$v"
           $script:n = 0
           function Shot($name) {
             Start-Sleep -Milliseconds 1500
@@ -604,7 +612,7 @@ jobs:
           for ($i = 0; $i -lt 60 -and -not $title; $i++) { Start-Sleep -Seconds 1; $gui.Refresh(); $title = $gui.MainWindowTitle }
           Stop-Process -Id $gui.Id -Force -ErrorAction SilentlyContinue
           Write-Host "Window title: $title"
-          if ($title -ne "Screencap Documentation Tool v$v") { throw "Unexpected window title: '$title'" }
+          if ($title -ne "ScreenCap Docs v$v") { throw "Unexpected window title: '$title'" }
           Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
           for ($i = 0; $i -lt 60 -and (Test-Path $cli); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path $cli) { throw 'Uninstalling left the program behind' }

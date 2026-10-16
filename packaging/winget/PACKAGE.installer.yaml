@@ -14,7 +14,7 @@ Dependencies:
   - PackageIdentifier: Gyan.FFmpeg
 ProductCode: '{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1'
 AppsAndFeaturesEntries:
-- DisplayName: Screencap Documentation Tool
+- DisplayName: ScreenCap Docs
   Publisher: ILikeHostingServices
   ProductCode: '{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1'
 Installers:

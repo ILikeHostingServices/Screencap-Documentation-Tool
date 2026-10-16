@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # export.py
-# 2026-10-14
-# Version: v1.4.1
+# 2026-10-16
+# Version: v1.4.2
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
@@ -37,7 +37,7 @@ import stepdoc
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 EXPORT_DIR = "export"
 FORMATS = ("html", "docx", "pdf", "pptx")
-TOOL_NAME = "Screencap Documentation Tool"
+TOOL_NAME = "ScreenCap Docs"
 LOGO_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
               ".gif": "image/gif", ".svg": "image/svg+xml"}
 LOGO_HEIGHT = 56          # px in HTML and PDF

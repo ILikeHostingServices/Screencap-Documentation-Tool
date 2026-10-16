@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # make_screenshots.sh
-# 2026-10-13
-# Version: v1.1.0
+# 2026-10-16
+# Version: v1.1.1
 #
 # PURPOSE:
 # Makes the screenshots used in the README, the Linux software center
@@ -30,9 +30,9 @@ OUT="$ROOT/docs/screenshots"
 PY="${PYTHON:-python3}"
 # Shown in the GUI's folder boxes, so it should look like a real profile
 DEMO_HOME="${DEMO_HOME:-/home/alex}"
-DOCS="$DEMO_HOME/Documents/Screencap Documentation Tool"
+DOCS="$DEMO_HOME/Documents/ScreenCap Docs"
 if ! mkdir -p "$DOCS" 2>/dev/null; then
-    DOCS="$(mktemp -d)/Documents/Screencap Documentation Tool"
+    DOCS="$(mktemp -d)/Documents/ScreenCap Docs"
     mkdir -p "$DOCS"
 fi
 CHROME="${CHROME:-$(command -v chromium || command -v chromium-browser || command -v google-chrome || true)}"

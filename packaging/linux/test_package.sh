@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # test_package.sh
-# 2026-10-14
-# Version: v1.0.1
+# 2026-10-16
+# Version: v1.0.2
 #
 # PURPOSE:
 # Installs one built Linux package in a clean system (a container), then
@@ -70,14 +70,14 @@ ls /tmp/out/Demo
 [ "$(ls /tmp/out/Demo/*.png | wc -l)" -ge 2 ]
 # With no folders given, a package install uses ~/Documents
 /usr/bin/screencap
-test -d "$HOME/Documents/Screencap Documentation Tool/source"
+test -d "$HOME/Documents/ScreenCap Docs/source"
 
 # 3. The GUI window opens (generous time limit: 32-bit ARM runs emulated in CI)
 Xvfb :99 -screen 0 1400x900x24 >/dev/null 2>&1 &
 sleep 5
 title="$(DISPLAY=:99 timeout 300 /usr/bin/screencap-gui --smoke-test)"
 echo "Window title: $title"
-[ "$title" = "Screencap Documentation Tool v$V" ]
+[ "$title" = "ScreenCap Docs v$V" ]
 
 # 4. Uninstalling leaves nothing behind
 case "$family" in

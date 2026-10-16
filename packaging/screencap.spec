@@ -1,12 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 #
 # screencap.spec
-# 2026-10-04
-# Version: v1.0.0
+# 2026-10-16
+# Version: v1.0.1
 #
 # PURPOSE:
 # PyInstaller recipe for the packaged app: one folder holding a GUI program
-# ("Screencap Documentation Tool.exe", no console window) and a command line
+# ("Screencap Documentation Tool.exe", no console window; the file keeps the
+# name used before v1.35.0 so taskbar pins and allow-lists keep working) and a command line
 # program (screencap.exe) that share one bundled Python and Tkinter. FFmpeg,
 # Tesseract, Pandoc, and VLC are not bundled (their licenses); the app finds
 # them where they are installed, or in a tools\ folder next to the .exe.

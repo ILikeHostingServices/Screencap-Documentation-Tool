@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # apppaths.py
-# 2026-10-10
-# Version: v1.3.0
+# 2026-10-16
+# Version: v1.4.0
 #
 # PURPOSE:
 # Where the tool's files live. The same code runs two ways:
@@ -82,9 +82,18 @@ def package_kind():
 
 PACKAGE_KIND = package_kind()
 
+
+def data_dir(docs=None):
+    """Documents/ScreenCap Docs, or Documents/Screencap Documentation Tool
+    when that folder exists already (the name before v1.35.0), so earlier
+    recordings and output stay where they are."""
+    docs = docs or documents_dir()
+    old = docs / "Screencap Documentation Tool"
+    return old if old.is_dir() else docs / "ScreenCap Docs"
+
+
 # Default home of the source/ and output/ folders
-DATA_DIR = ((documents_dir() / "Screencap Documentation Tool") if FROZEN or PACKAGE_KIND
-            else APP_DIR)
+DATA_DIR = data_dir() if FROZEN or PACKAGE_KIND else APP_DIR
 
 # The folders chosen in the Windows installer. `stamp` changes each time
 # they are chosen, so the GUI applies a new choice once and otherwise keeps

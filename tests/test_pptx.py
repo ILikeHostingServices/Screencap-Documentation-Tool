@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_pptx.py
-# 2026-10-14
-# Version: v1.0.0
+# 2026-10-16
+# Version: v1.0.1
 #
 # PURPOSE:
 # Tests for the PowerPoint export (pptxwriter.py): the package is complete
@@ -135,7 +135,7 @@ class PowerPointExportTests(unittest.TestCase):
 
     def doc(self):
         doc = stepdoc.load(self.folder)
-        doc["document"].update({"title": 'Set up <VPN> & "Mail" – café \U0001F512',
+        doc["document"].update({"title": 'Set up <VPN> & "Mail" \u2013 caf\u00e9 \U0001F512',
                                 "version": "v2.0.0", "author": "IT Service Desk"})
         return doc
 
@@ -159,7 +159,7 @@ class PowerPointExportTests(unittest.TestCase):
         slides = list(prs.slides)
         self.assertEqual(len(slides), len(steps) + 1)
         title = " ".join(s.text_frame.text for s in slides[0].shapes if s.has_text_frame)
-        self.assertIn('Set up <VPN> & "Mail" – café \U0001F512', title)
+        self.assertIn('Set up <VPN> & "Mail" \u2013 caf\u00e9 \U0001F512', title)
         self.assertIn("Version v2.0.0", title)
         self.assertIn("IT Service Desk", title)
         for i, (slide, step) in enumerate(zip(slides[1:], steps), 1):

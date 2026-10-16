@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # pptxwriter.py
-# 2026-10-14
-# Version: v1.0.0
+# 2026-10-16
+# Version: v1.0.1
 #
 # PURPOSE:
 # Writes a PowerPoint presentation (.pptx) of a recording's steps, with the
@@ -302,7 +302,7 @@ class Deck:
             z.writestr("docProps/app.xml", (
                 '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
                 '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/'
-                'extended-properties"><Application>Screencap Documentation Tool</Application>'
+                'extended-properties"><Application>ScreenCap Docs</Application>'
                 f'<PresentationFormat>Widescreen</PresentationFormat><Slides>{len(self.slides)}'
                 '</Slides></Properties>'))
             z.writestr("ppt/presentation.xml", self._presentation(has_notes))

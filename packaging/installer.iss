@@ -1,10 +1,13 @@
 ; installer.iss
-; 2026-10-15
-; Version: v1.6.1
+; 2026-10-16
+; Version: v1.7.0
 ;
 ; PURPOSE:
-; Inno Setup script for the Windows installer of the packaged app (built
-; first with packaging/screencap.spec). Installs for all users in
+; Inno Setup script for the Windows installer of ScreenCap Docs, the packaged
+; app (built first with packaging/screencap.spec). Until v1.34.1 the app was
+; called Screencap Documentation Tool: the program file, the install folder,
+; the registry key, and the AppId keep that name so updates, taskbar pins,
+; and application allow-lists keep working; only the shown name changed. Installs for all users in
 ; C:\Program Files\ILHS\Screencap-Documentation-Tool (the default; needs admin
 ; rights) or, when chosen, for the current user only in
 ; %LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool (no admin rights).
@@ -32,7 +35,8 @@
 ; The x64 installer also runs on Windows 11 on ARM (x64 emulation); both use
 ; the same AppId, so either one updates a copy installed by the other.
 
-#define AppName "Screencap Documentation Tool"
+#define AppName "ScreenCap Docs"
+#define OldAppName "Screencap Documentation Tool"
 #define AppExe "Screencap Documentation Tool.exe"
 #define AppUserModelId "ILHS.ScreencapDocumentationTool.GUI"
 #ifndef Arch
@@ -131,6 +135,9 @@ Type: dirifempty; Name: "{autopf}\ILHS"
 [InstallDelete]
 ; An upgrade replaces the bundled runtime completely
 Type: filesandordirs; Name: "{app}\_internal"
+; Shortcuts with the name used before v1.35.0 (new ones are made below)
+Type: files; Name: "{autoprograms}\{#OldAppName}.lnk"
+Type: files; Name: "{autodesktop}\{#OldAppName}.lnk"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AppUserModelId}"; Comment: "Capture a screenshot of every step in screen recordings"
@@ -254,6 +261,8 @@ begin
 end;
 
 procedure InitializeWizard;
+var
+  DocsName: String;
 begin
   { All users: a copy for all users, or one for this user only (moved by
     PrepareToInstall). Only me: a copy for this user. }
@@ -311,8 +320,13 @@ begin
   end
   else
   begin
-    FolderDirPage.Values[0] := ExpandConstant('{userdocs}\Screencap Documentation Tool\source');
-    FolderDirPage.Values[1] := ExpandConstant('{userdocs}\Screencap Documentation Tool\output');
+    { A Documents folder with the name used before v1.35.0 is kept }
+    if DirExists(ExpandConstant('{userdocs}\{#OldAppName}')) then
+      DocsName := '{#OldAppName}'
+    else
+      DocsName := '{#AppName}';
+    FolderDirPage.Values[0] := ExpandConstant('{userdocs}\') + DocsName + '\source';
+    FolderDirPage.Values[1] := ExpandConstant('{userdocs}\') + DocsName + '\output';
   end;
 end;
 
@@ -452,6 +466,10 @@ begin
     DefaultFoldersLabel.Caption := 'The default folders are:' + #13#10 +
       'Source:  ' + DefaultFolder('source') + #13#10 +
       'Output:  ' + DefaultFolder('output');
+  { A first install: Inno Setup's own text is one line too long for the label }
+  if (CurPageID = wpFinished) and not UpdateMode then
+    WizardForm.FinishedLabel.Caption := '{#AppName} v{#AppVersion} is installed. ' +
+      'Start it from the Start Menu.' + #13#10#13#10 + 'Click Finish to close Setup.';
   if not UpdateMode then
     Exit;
   Reinstall := CompareText(OldVersion, '{#AppVersion}') = 0;
