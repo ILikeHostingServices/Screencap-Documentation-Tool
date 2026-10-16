@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-14
-# Version: v1.13.0
+# 2026-10-16
+# Version: v1.13.1
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -17,6 +17,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 import time
 import unittest
@@ -408,6 +409,30 @@ def text_filter(lines, start=0):
         parts.append(f"drawtext=fontfile='{font}':text='{text}':x=100:y={160 + 60 * i}:"
                      f"fontsize=24:fontcolor=black:enable='gte(t,{start})'")
     return ",".join(parts)
+
+
+@unittest.skipUnless(FFMPEG, "FFmpeg is not installed")
+class BlurBoxTests(unittest.TestCase):
+    def test_boxes_at_the_edge_and_tiny_boxes_render(self):
+        # Text found in the last pixel row or column of the screen, or a
+        # one-pixel box, once made FFmpeg fail the whole recording
+        doc = {"width": 1024, "height": 768}
+        self.assertEqual(stepdoc.fit_box([1023, 767, 1, 1], 1024, 768), [1016, 760, 8, 8])
+        self.assertEqual(stepdoc.fit_box([-3, 5, 20, 10], 1024, 768), [0, 5, 17, 10])
+        self.assertIsNone(stepdoc.fit_box([2000, 10, 5, 5], 1024, 768))
+        with tempfile.TemporaryDirectory() as tmp:
+            frame, out = Path(tmp) / "frame.png", Path(tmp) / "out.png"
+            subprocess.run([FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i", "color=gray:s=1024x768",
+                            "-frames:v", "1", str(frame)], check=True)
+            for box in ([1023, 767, 1, 1], [0, 767, 3, 1], [1020, 10, 4, 10], [500, 300, 1, 40],
+                        [1000, 700, 40, 20], [-3, 5, 20, 10]):
+                with self.subTest(box=box):
+                    boxes = stepdoc.redaction_boxes({"manual_redactions": [box]}, doc)
+                    res = subprocess.run([FFMPEG, "-v", "error", "-y", "-i", str(frame),
+                                          "-filter_complex", stepdoc.blur_graph(boxes),
+                                          "-frames:v", "1", str(out)],
+                                         capture_output=True, text=True)
+                    self.assertEqual(res.returncode, 0, res.stderr)
 
 
 @unittest.skipUnless(FFMPEG and FFPROBE and TESSERACT and FONT,

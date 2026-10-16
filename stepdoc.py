@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # stepdoc.py
-# 2026-10-14
-# Version: v1.8.0
+# 2026-10-16
+# Version: v1.8.1
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -212,6 +212,13 @@ def clamp_rect(rect, width, height, minimum=16):
 
 
 BLUR_BLOCK = 12   # pixelation block size before blurring (makes text unreadable)
+# The smallest box blurred: FFmpeg's blur cannot work on a box under about
+# 5 pixels, and a smaller box would hide nothing anyway
+MIN_BLUR_BOX = 8
+# Blur radius 2, made smaller for small boxes: FFmpeg needs the radius under
+# half of each plane's size, and the color planes are half size in yuv420p
+BLUR = ("boxblur=luma_radius='min(2,floor((min(w,h)-1)/2))'"
+        ":chroma_radius='min(2,floor((min(cw,ch)-1)/2))'")
 
 ZOOM_MAX = 2.5        # largest magnification of the zoomed inset
 ZOOM_MIN = 1.4        # below this the change is big enough to read without one
@@ -277,7 +284,25 @@ def redaction_boxes(step, doc):
     if not effective(step, doc, "redact"):
         return []
     boxes = [r["box"] for r in step.get("auto_redactions") or [] if not r.get("ignored")]
-    return boxes + list(step.get("manual_redactions") or [])
+    boxes += list(step.get("manual_redactions") or [])
+    width, height = doc.get("width"), doc.get("height")
+    if not (width and height):
+        return boxes
+    return [b for b in (fit_box(box, width, height) for box in boxes) if b]
+
+
+def fit_box(box, width, height):
+    """A blur box trimmed to the frame and grown to at least MIN_BLUR_BOX
+    on each side, staying inside the frame (FFmpeg cannot crop past the
+    edge), or None when nothing of it is on screen. Text found at the very
+    edge of the screen, or a tiny box drawn by hand, gives such boxes."""
+    x, y, w, h = (int(v) for v in box)
+    x0, y0 = max(0, x), max(0, y)
+    x1, y1 = min(width, x + max(w, 0)), min(height, y + max(h, 0))
+    if x1 <= x0 or y1 <= y0:
+        return None
+    w, h = min(width, max(MIN_BLUR_BOX, x1 - x0)), min(height, max(MIN_BLUR_BOX, y1 - y0))
+    return [max(0, min(x0, width - w)), max(0, min(y0, height - h)), w, h]
 
 
 def blur_graph(boxes):
@@ -288,10 +313,10 @@ def blur_graph(boxes):
     graph = [f"split={n + 1}[base]" + "".join(f"[r{i}]" for i in range(n))]
     prev = "base"
     for i, (x, y, w, h) in enumerate(boxes):
-        w, h = max(2, int(w)), max(2, int(h))
+        w, h = max(MIN_BLUR_BOX, int(w)), max(MIN_BLUR_BOX, int(h))
         graph.append(f"[r{i}]crop={w}:{h}:{int(x)}:{int(y)},"
                      f"scale=w='max(1,iw/{BLUR_BLOCK})':h='max(1,ih/{BLUR_BLOCK})',"
-                     f"scale={w}:{h}:flags=neighbor,boxblur=2[b{i}]")
+                     f"scale={w}:{h}:flags=neighbor,{BLUR}[b{i}]")
         out = f"o{i}"
         graph.append(f"[{prev}][b{i}]overlay={int(x)}:{int(y)}" + ("" if i == n - 1 else f"[{out}]"))
         prev = out

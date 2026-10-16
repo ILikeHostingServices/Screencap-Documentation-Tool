@@ -1,4 +1,4 @@
-CHANGELOG.md v1.42.0 (Last Rev: 2026-10-16)
+CHANGELOG.md v1.42.1 (Last Rev: 2026-10-16)
 
 # Changelog
 
@@ -19,6 +19,9 @@ Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35
 
 **Improved**
 - The README leads with the Windows setup as the main way to install. The PowerShell install command is in its own section for power users and developers.
+
+**Fixed**
+- A recording failed to process when automatic blurring found text in the last pixel row or column of the screen, or when a blur box was only a few pixels wide: FFmpeg refused the box and the whole recording was marked Failed. Blur boxes are now kept inside the screen and are at least 8 pixels on each side, so they always render and still cover the text.
 
 ## v1.35.1 - Security and privacy fixes (2026-10-16)
 
