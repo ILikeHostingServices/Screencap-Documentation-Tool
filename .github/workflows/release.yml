@@ -1,6 +1,6 @@
 # release.yml
-# 2026-10-10
-# Version: v1.7.0
+# 2026-10-16
+# Version: v1.8.0
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -16,6 +16,9 @@
 #    includes packaging/linux/) and attaches them, unless they are
 #    attached already; then updates the AUR and the Snap Store when their
 #    secrets are set (see build-linux.yml).
+# 6. Rebuilds the signed apt and dnf repositories on GitHub Pages from the
+#    newest releases' packages (see package-repos.yml). Runs even when the
+#    Snap Store or AUR upload failed, since the packages are attached by then.
 # Versions are Major.Minor.Patch only (vX.Y.Z); anything else is rejected.
 # A tag that cannot be created is reported and the others still go ahead.
 # GitHub refuses a tag on a commit whose .github/workflows/ files differ from
@@ -164,9 +167,22 @@ jobs:
       AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
       SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
 
+  repos:
+    name: Package repositories
+    needs: [publish, linux]
+    if: always() && needs.publish.result == 'success' && needs.linux.result != 'cancelled'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/package-repos.yml
+    secrets:
+      PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
+      PACKAGE_SIGNING_PASSPHRASE: ${{ secrets.PACKAGE_SIGNING_PASSPHRASE }}
+
   missing-tags:
     name: Report tags that could not be created
-    needs: [publish, windows, winget, linux]
+    needs: [publish, windows, winget, linux, repos]
     if: always() && needs.publish.outputs.failed_tags != ''
     runs-on: ubuntu-latest
     steps:
