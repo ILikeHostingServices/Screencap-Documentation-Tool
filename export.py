@@ -2,7 +2,7 @@
 #
 # export.py
 # 2026-10-16
-# Version: v1.4.2
+# Version: v1.5.0
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
@@ -229,7 +229,8 @@ def build_html(out_dir, doc, unredacted=False, embed=True, logo=None):
         if caption:
             parts.append(f'<p class="caption">{e(caption)}</p>')
         parts.append("</section>")
-    parts += [f"<footer>Created with {TOOL_NAME} from {e(doc.get('source_video', ''))}</footer>",
+    # The recording's file name is left out: it can reveal internal names
+    parts += [f"<footer>Created with {TOOL_NAME}</footer>",
               "</body>", "</html>"]
     return "\n".join(parts)
 
@@ -273,8 +274,17 @@ def build_markdown(out_dir, doc, unredacted=False, logo=None):
             lines += [f"![Animated clip of step {i}]({clip.as_posix()}){{width=100%}}", ""]
         caption = (step.get("caption") or "").strip()
         if caption:
-            lines += [caption, ""]
+            lines += [md_caption(caption), ""]
     return "\n".join(lines)
+
+
+def md_caption(caption):
+    """A caption for the Word export, shown exactly as typed (like the HTML,
+    PDF, and PowerPoint exports): Markdown characters are escaped, so text
+    read from the screen cannot add formatting, links, or raw Word markup,
+    and each line break is kept."""
+    lines = [md_escape(line.strip()) for line in caption.splitlines() if line.strip()]
+    return "\\\n".join(lines)
 
 
 def build_pptx(out_dir, doc, dest, unredacted=False, logo=None):

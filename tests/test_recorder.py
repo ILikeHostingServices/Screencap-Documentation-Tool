@@ -83,6 +83,33 @@ class EventLogTests(unittest.TestCase):
         self.assertNotIn("'A'", text)
         self.assertNotIn("char", text)
 
+    def test_altgr_and_mac_option_characters_are_only_counted(self):
+        # AltGr+Q types @ on a German keyboard and arrives as Ctrl+Alt+Q; on a
+        # Mac, Option+L types @. Neither may be kept as a "shortcut".
+        for log, held in ((recorder.EventLog(option_types=False), {"Ctrl", "Alt"}),
+                          (recorder.EventLog(option_types=False), {"Ctrl", "Alt", "Shift"}),
+                          (recorder.EventLog(option_types=True), {"Alt"})):
+            log.feed(1.0, 0, 0, set(), set(held))
+            log.feed(1.1, 0, 0, set(), set(held) | {"Q"})
+            log.feed(1.2, 0, 0, set(), set())
+            events = log.result()
+            self.assertEqual([e["type"] for e in events], ["typing"], held)
+            self.assertNotIn("Q", repr(events))
+        # Real shortcuts are still named: Ctrl+Alt+Delete, Alt+F on Windows
+        log = recorder.EventLog(option_types=False)
+        log.feed(1.0, 0, 0, set(), {"Ctrl", "Alt", "Delete"})
+        log.feed(1.1, 0, 0, set(), set())
+        log.feed(2.0, 0, 0, set(), {"Alt", "F"})
+        log.feed(2.1, 0, 0, set(), set())
+        self.assertEqual([e.get("keys") for e in log.result()], ["Ctrl+Alt+Delete", "Alt+F"])
+
+    def test_administrator_can_turn_off_noting_keys(self):
+        with mock.patch.dict(os.environ, {"SCREENCAP_NO_KEYS": "1"}):
+            self.assertTrue(recorder.keys_disabled_by_policy())
+            self.assertFalse(recorder.Recorder("ffmpeg", "x.mp4", keys=True).keys)
+        with mock.patch.dict(os.environ, {"SCREENCAP_NO_KEYS": ""}):
+            self.assertTrue(recorder.Recorder("ffmpeg", "x.mp4", keys=True).keys)
+
     def test_own_window_clicks_and_times_outside_the_recording_are_dropped(self):
         log = recorder.EventLog()
         log.ignore = [900, 600, 200, 50]

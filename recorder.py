@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # recorder.py
-# 2026-10-14
-# Version: v1.0.1
+# 2026-10-16
+# Version: v1.1.0
 #
 # PURPOSE:
 # The built-in screen recorder. FFmpeg records the screen (and, if chosen,
@@ -23,7 +23,14 @@
 # short clicks and taps are not missed. The
 # text typed is never stored: letters, digits, and punctuation only count as
 # "typing". Enter, Tab, Esc, function and arrow keys, and shortcuts such as
-# Ctrl+S are stored by name.
+# Ctrl+S are stored by name. Keys that type a character with AltGr (Ctrl+Alt
+# on Windows, such as @ or a euro sign on many European keyboards) or with
+# Option on a Mac also only count as typing, so a password is never stored
+# as a list of "shortcuts".
+#
+# Administrators can stop keys from being noted for everyone by setting the
+# environment variable SCREENCAP_NO_KEYS=1 (for example with Group Policy);
+# clicks are still recorded.
 #
 # Next to each recording, <name>.events.json holds the clicks and keys with
 # their time in the recording and the screen area that was recorded.
@@ -55,6 +62,12 @@ NAMED_KEYS = ("Enter", "Tab", "Esc", "Delete", "Up", "Down", "Left", "Right", "H
               "PageUp", "PageDown", "Insert") + tuple(f"F{n}" for n in range(1, 13))
 # Keys that only count as "typing" (their character is never stored)
 TYPING = "char"
+
+
+def keys_disabled_by_policy():
+    """True when the administrator has switched off noting keys
+    (SCREENCAP_NO_KEYS=1)."""
+    return os.environ.get("SCREENCAP_NO_KEYS", "").strip().lower() in ("1", "true", "yes")
 
 
 class RecorderError(Exception):
@@ -619,8 +632,11 @@ class EventLog:
     double-clicks), drags, named keys, shortcuts, and typing. Times are
     whatever clock the caller uses (seconds)."""
 
-    def __init__(self):
+    def __init__(self, option_types=None):
         self.events = []
+        # On a Mac, Option with a key types a character (Option+2 is a
+        # trademark sign), so it is typing, not a shortcut
+        self.option_types = sys.platform == "darwin" if option_types is None else option_types
         self.buttons = set()
         self.keys = set()
         self.press = {}          # button -> (t, x, y)
@@ -659,12 +675,18 @@ class EventLog:
     def _key(self, t, key, held):
         last = self.events[-1] if self.events else None
         mods = [m for m in MODIFIERS if m in held]
+        types_char = key.startswith(TYPING) or (len(key) == 1 and key.isalnum())
+        # AltGr (seen as Ctrl+Alt) or a Mac's Option, with or without Shift,
+        # types a character: count it as typing so the character is never kept
+        altgr = {"Ctrl", "Alt"} <= set(mods) or (self.option_types and "Alt" in mods)
+        if types_char and altgr and set(mods) <= {"Ctrl", "Alt", "Shift"}:
+            mods = []
         if any(m != "Shift" for m in mods):
             name = key if not key.startswith(TYPING) else None
             if name:
                 self.events.append({"t": t, "type": "shortcut", "keys": "+".join(mods + [name])})
             return
-        if key.startswith(TYPING) or (len(key) == 1 and key.isalnum()):
+        if types_char:
             if last and last["type"] == "typing" and t - last["t_last"] <= TYPING_GAP:
                 last["count"] += 1
                 last["t_last"] = t
@@ -708,7 +730,7 @@ class Recorder:
         self.ffmpeg = ffmpeg
         self.dest = Path(dest)
         self.microphone = microphone
-        self.keys = keys
+        self.keys = keys and not keys_disabled_by_policy()
         self.display = display
         self.log = log
         self.proc = None

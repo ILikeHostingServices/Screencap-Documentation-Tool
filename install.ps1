@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     One-step Windows installer for ScreenCap Docs. Downloads
-    the latest version from GitHub into the install folder, installs Python 3
+    the newest release from GitHub into the install folder, installs Python 3
     and FFmpeg with winget if they are missing, and adds Start Menu and Desktop
     shortcuts for the GUI. Safe to re-run to update; your source and output
     folders are kept.
@@ -19,7 +19,7 @@
     install folder).
 
 .NOTES
-    Version: v1.4.0
+    Version: v1.5.0
     Last Edit Date: 2026-10-16
 
 .EXAMPLE
@@ -39,8 +39,9 @@
 param(
     # Where the tool is installed
     [string]$InstallDir = 'C:\DATA\Tools\Screencap-Documentation-Tool',
-    # Branch, tag, or commit to install. HEAD = the repository's default branch.
-    [string]$Ref = 'HEAD',
+    # Branch, tag, or commit to install. Empty = the newest release (tested and
+    # published); HEAD = the newest code on the default branch.
+    [string]$Ref = '',
     # Skip creating Start Menu and Desktop shortcuts
     [switch]$NoShortcuts,
     # Only download the program; do not install Python or FFmpeg
@@ -61,6 +62,28 @@ $OldAppName = 'Screencap Documentation Tool'  # the name before v1.35.0
 $AppUserModelId = 'ILHS.ScreencapDocumentationTool.GUI'  # must match APP_USER_MODEL_ID in screencap_gui.pyw
 
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
+
+# Only administrators and SYSTEM (and, for a just-me install, this account)
+# may change the program files; everyone else on a system-wide install may
+# read and run them. Without this, a new folder such as C:\DATA inherits the
+# C:\ rule that lets every signed-in user change files in it, so one user
+# could change the program that other users and administrators run.
+function Protect-InstallDir([string]$Path, [string]$Scope) {
+    $grants = @('*S-1-5-32-544:(OI)(CI)F', '*S-1-5-18:(OI)(CI)F')
+    if ($Scope -eq 'machine') {
+        $grants += '*S-1-5-32-545:(OI)(CI)RX'   # Users: read and run
+    } else {
+        $grants += "*$([Security.Principal.WindowsIdentity]::GetCurrent().User.Value):(OI)(CI)F"
+    }
+    & icacls.exe $Path /inheritance:r /grant:r @grants /C /Q | Out-Null
+    $ok = ($LASTEXITCODE -eq 0)
+    # Everything inside takes the folder's rules (the source and output
+    # folders get write access for everyone again in step 3b)
+    & icacls.exe (Join-Path $Path '*') /reset /T /C /Q | Out-Null
+    if (-not $ok -or $LASTEXITCODE -ne 0) {
+        Write-Host "    Could not limit who can change the files in $Path" -ForegroundColor Yellow
+    }
+}
 
 # 0. Decide the install scope. Errors use 'throw', never 'exit', because the
 #    Quick Start runs this as a script block and 'exit' would close the window.
@@ -89,6 +112,19 @@ if ($scope -eq 'machine') {
 # GitHub requires TLS 1.2; older PowerShell 5.1 defaults may not include it
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
+# Install the newest published release unless -Ref says otherwise
+if (-not $Ref) {
+    try {
+        $Ref = (Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing -Headers @{ 'User-Agent' = 'ScreenCapDocs-Install' }).tag_name
+    } catch {
+        $Ref = ''
+    }
+    if (-not $Ref -or $Ref -notmatch '^v\d+\.\d+\.\d+$') {
+        Write-Host '    Could not look up the newest release, so the newest code on the default branch is installed instead.' -ForegroundColor Yellow
+        $Ref = 'HEAD'
+    }
+}
+
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("screencap-install-" + [guid]::NewGuid().ToString('N'))
 try {
     # 1. Download and unpack
@@ -108,8 +144,7 @@ try {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Copy-Item -Path (Join-Path $top.FullName '*') -Destination $InstallDir -Recurse -Force
     if ($env:OS -eq 'Windows_NT') {
-        # Clear the "downloaded from the internet" flag so scripts run without prompts
-        Get-ChildItem -Path $InstallDir -Recurse -File | Unblock-File
+        Protect-InstallDir -Path $InstallDir -Scope $scope
     }
     foreach ($required in 'screencap.py', 'screencap_gui.pyw', 'Run-Screencap-GUI.bat') {
         if (-not (Test-Path (Join-Path $InstallDir $required))) { throw "Install incomplete: $required is missing from $InstallDir" }

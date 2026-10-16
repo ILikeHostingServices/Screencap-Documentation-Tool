@@ -1,8 +1,25 @@
-CHANGELOG.md v1.40.0 (Last Rev: 2026-10-16)
+CHANGELOG.md v1.41.0 (Last Rev: 2026-10-16)
 
 # Changelog
 
 Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35.0), newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.35.1 - Security and privacy fixes (2026-10-16)
+
+**Security and privacy fixes**
+- Characters typed with AltGr (such as @ or a euro sign on many European keyboards) or with Option on a Mac were noted as shortcuts such as "Ctrl+Alt+Q", which could reveal characters of a password. They now only count as "type the text", like every other typed character. Real shortcuts such as Ctrl+Alt+Delete are still named.
+- Administrators can switch noting keys off for everyone on a PC with the environment variable `SCREENCAP_NO_KEYS=1` (Group Policy, Intune, or a login script). Clicks are still noted, and the Record window shows that the option is switched off.
+- The Windows install script no longer leaves the program files changeable by every user on the PC. A new folder such as `C:\DATA\Tools` used to inherit the `C:\` rule that lets any signed-in user change files in it. Now only administrators (and, for a just-me install, your own account) can change the program; the `source` and `output` folders stay writable. Running the install command again applies this to an existing install.
+- The install scripts now install the newest release, which is tested and published, instead of the newest code on the default branch. Add `-Ref HEAD` (Windows) or `SCREENCAP_REF=HEAD` (Linux and macOS) to get the newest code.
+- The Windows install script no longer clears the "downloaded from the internet" mark from files, which security tools watch for. It was not needed.
+- Update Now refuses an installer whose file name contains a folder.
+
+**Improved**
+- The build workflows pin the third-party GitHub Actions they use to an exact commit, and Dependabot proposes updates to them.
+
+**Fixed**
+- Captions in Word exports are shown exactly as typed, like in the HTML, PDF, and PowerPoint exports. Characters such as `*`, `_`, `[`, or a backtick no longer turn into formatting or links, text read from the screen can no longer add Word markup, and line breaks in a caption are kept.
+- The HTML export's footer no longer shows the recording's file name, which can reveal internal names. It reads "Created with ScreenCap Docs".
 
 ## v1.35.0 - New name: ScreenCap Docs (2026-10-16)
 

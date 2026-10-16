@@ -1,0 +1,18 @@
+# dependabot.yml
+# 2026-10-16
+# Version: v1.0.0
+#
+# PURPOSE:
+# Keeps the GitHub Actions used by the workflows up to date. Third-party
+# actions are pinned to an exact commit (supply-chain safety); Dependabot
+# opens a pull request when a newer release exists, so pins never go stale.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
