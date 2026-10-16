@@ -1,4 +1,4 @@
-README.md v1.45.0 (Last Rev: 2026-10-16)
+README.md v1.46.0 (Last Rev: 2026-10-16)
 
 # ScreenCap Docs
 
@@ -92,6 +92,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
 | `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a made-up setup wizard (`demo_wizard.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
+| `docs/BRANDING.md` | The brand rules: the name, voice, colors, type, icon, screenshots, release notes format, and the brand check before each release. |
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
 | `theme.py` | The GUI's light, dark, and system themes. |
 | `screencap_gui.pyw` | The GUI (Tkinter, included with Python). |
