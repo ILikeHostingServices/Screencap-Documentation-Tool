@@ -1,4 +1,4 @@
-SECURITY_FOR_IT.md v1.0.0 (Last Rev: 2026-10-16)
+SECURITY_FOR_IT.md v1.1.0 (Last Rev: 2026-10-16)
 
 # ScreenCap Docs for IT and Security Teams
 
@@ -37,6 +37,7 @@ Proxies: the app uses the system's proxy settings (the standard `HTTPS_PROXY` va
 | Unblurred copies | When blurring is on, the original screenshots are kept in an `unredacted` folder beside the blurred ones, and exports made from them carry a warning. Delete that folder, or exclude it from file sharing, where screenshots may show sensitive data. |
 | Click and key events | `<recording>.events.json` next to each recording made with the built-in recorder: click positions, key names, and timings. |
 | Installer settings | `HKLM` or `HKCU\Software\ILHS\Screencap Documentation Tool` (folders chosen in setup). |
+| PATH | Setup adds the program folder to the system PATH (all users) or the user's PATH (just me), so the `screencap` command works in any terminal. Leave it out with `/MERGETASKS="!addtopath"`; uninstalling removes it. |
 | Update downloads | `%TEMP%\ScreencapUpdate` (installer and its log; the installer is removed after use). |
 
 ## Administrator Controls
@@ -48,7 +49,7 @@ Set these as system environment variables (Group Policy Preferences, Intune, or 
 | `SCREENCAP_NO_UPDATE_CHECK=1` | Turns off update checks and Update Now. Use when updates are deployed centrally. |
 | `SCREENCAP_NO_KEYS=1` | Stops the recorder from noting keys; clicks are still noted. The Record window shows the option as switched off by the administrator. |
 
-Silent install for deployment: `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe /VERYSILENT /ALLUSERS /NORESTART` (or `/CURRENTUSER`), or `winget install --id ILHS.ScreencapDocumentationTool -e` once the winget listing is approved. Uninstall from Apps or with `unins000.exe /VERYSILENT` in the program folder.
+Silent install for deployment: `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe /VERYSILENT /ALLUSERS /NORESTART` (or `/CURRENTUSER`; add `/MERGETASKS="!addtopath"` to leave the PATH alone), or `winget install --id ILHS.ScreencapDocumentationTool -e` once the winget listing is approved. Uninstall from Apps or with `unins000.exe /VERYSILENT` in the program folder.
 
 ## Behaviors Security Tools May Notice
 

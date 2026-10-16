@@ -1,4 +1,4 @@
-README.md v1.48.0 (Last Rev: 2026-10-16)
+README.md v1.49.0 (Last Rev: 2026-10-16)
 
 # ScreenCap Docs
 
@@ -85,8 +85,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | --- | --- |
 | `Run-Screencap-GUI.bat` | Double-click to start the GUI on Windows. |
 | `Run-Screencap.bat` | Double-click to run the command line version on Windows. Passes any arguments through to `screencap.py`. |
-| `install.ps1` | One-step Windows installer used by the Quick Start command. |
-| `install.sh` | One-step Linux and macOS installer used by the Quick Start commands. |
+| `install.ps1` | One-step Windows installer used by the install command (power users and developers). |
+| `install.sh` | One-step Linux and macOS installer used by the install commands. |
 | `packaging/linux/` | Linux packages: `stage.sh` (the shared install layout), `build_packages.py` (.deb and .rpm with nfpm), the menu entry, the software center details, and `make_repos.sh` with `repo_index.html` (the signed apt and dnf repositories on GitHub Pages). |
 | `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
@@ -130,6 +130,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `.github/ISSUE_TEMPLATE/` | The forms used to report a problem or suggest an idea on GitHub. |
 | `.github/dependabot.yml` | Has Dependabot propose updates to the GitHub Actions the workflows use (third-party actions are pinned to an exact commit). |
 | `SECURITY.md` | How to report a security problem privately. |
+| `CONTRIBUTING.md` | How to report bugs, propose a change, and what a pull request must include (tests, documentation, writing rules). |
 | `CODE_SIGNING_POLICY.md` | Code signing status of the Windows programs (not signed), how to check a download, how the programs are built, and the privacy statement. |
 | (not here) | Maintainer notes (owner to-do list, accounts, release runbook) are kept in a private repository of the organization. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
@@ -173,70 +174,41 @@ Switches worth knowing for diagnostics (the full list is in the [Command Line Re
 
 ## Quick Start
 
-Each command below is a single copy and paste. It installs the prerequisites, downloads the newest release of the tool from GitHub, and sets up launchers. Running the same command again later updates the tool and keeps your recordings and screenshots.
+On Windows, install with the setup program (or winget). On Linux and macOS, install from the Snap Store, the package repository, or Homebrew. Each one brings the `screencap-gui` app and the `screencap` command line, and updates keep your recordings, screenshots, and settings.
+
+Power users and developers who want to run from the Python source can use the [install command](#install-command-power-users-and-developers) instead.
 
 ### Windows 11
 
-One command works for both kinds of install. The installer checks whether PowerShell is running as Administrator and picks the scope for you:
-
-```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1)))
-```
-
-| Paste it into | You get |
-| --- | --- |
-| A normal PowerShell window | **Just you.** Python and FFmpeg are installed in your user profile, and the shortcuts go on your Start Menu and Desktop. No admin rights needed, except that Windows asks permission for the optional Tesseract OCR (used for automatic blurring), whose installer is always system-wide. Decline to skip it. Best for a single-user workstation. |
-| An **Administrator** PowerShell window (right-click Start > **Terminal (Admin)**) | **Everyone on this PC.** Python and FFmpeg are installed system-wide, the shortcuts go on the All Users Start Menu and Public Desktop, and every user can save into the default `source` and `output` folders. Best for shared or lab PCs. |
-
-The first line of the installer's output confirms which scope it chose. To choose explicitly instead, add a switch to the end of the command:
-
-```powershell
-# Just you, even from an Administrator window
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1))) -UserOnly
-
-# Everyone on this PC (must be an Administrator window)
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1))) -SystemWide
-```
-
-Either way the tool goes in `C:\DATA\Tools\Screencap-Documentation-Tool`. To install somewhere else, add `-InstallDir 'D:\Tools\Screencap'` to the end of the command. Add `-NoShortcuts` to skip the shortcuts.
-
-To pin the app to the taskbar, right-click its Start Menu entry and choose **Pin to taskbar** (or right-click the running app's taskbar button).
-
-To add the optional speech recognition for [Captions From Narration](#captions-from-narration) (about 450 MB), add `-WithWhisper` to the end of any of these commands. It can be added later the same way.
-
-If the installer reports that a prerequisite was not detected yet, close PowerShell, open a new window, and paste the command again. Windows only picks up newly installed programs in new windows.
-
-### Windows App (No Python Needed)
-
-Each release also has a packaged Windows app on the [Releases page](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest), with `Screencap Documentation Tool.exe` (the GUI) and `screencap.exe` (the command line) and Python built in. It is an alternative to the Quick Start command for PCs where you do not want Python installed. There are two forms: an installer (from v1.16.0) and a portable zip (from v1.15.0).
+Download the setup from the [latest release](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest). It has Python built in and installs like any other Windows app, with an entry in **Settings > Apps**. (winget: `winget install --id ILHS.ScreencapDocumentationTool -e`, once the listing is approved.)
 
 The Windows programs are not code signed. See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) for how to check a download and how the programs are built.
 
 **Which download:** files ending in `-windows-x64-...` are for ordinary PCs (Intel and AMD). From v1.25.0 there are also `-windows-arm64-...` files for **Windows on ARM** (for example Snapdragon laptops and Surface Pro with ARM): they run natively and are faster there. The x64 files also work on Windows 11 on ARM, through Windows' built-in x64 emulation. winget and **Help > Check for Updates** pick the right one by themselves. On Windows on ARM, FFmpeg and Tesseract OCR from winget are x64 programs that run emulated (they work, a little slower), and **Captions From Narration** is not available.
 
-**Installer (recommended):**
-
 1. Download `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe` and `SHA256SUMS.txt` from the latest release.
 2. Optional but recommended, check the download is intact: in PowerShell, `(Get-FileHash .\Screencap-Documentation-Tool-vX.Y.Z-windows-x64-setup.exe).Hash` must match the line for that file in `SHA256SUMS.txt` (ignoring upper and lower case).
 3. Run it. It installs for all users in `C:\Program Files\ILHS\Screencap-Documentation-Tool` (Windows asks for admin rights). Without admin rights, choose **Install for me only** on the first page to install in `%LOCALAPPDATA%\Programs\ILHS\Screencap-Documentation-Tool` instead. When a copy is already installed, setup updates it the same way (for everyone, or for you only) without asking again; to switch, run the installer with `/ALLUSERS` or `/CURRENTUSER`. A copy from v1.16.0 or earlier (in `...\Screencap Documentation Tool`) is moved to the new folder automatically; settings are kept. If FFmpeg is not found it offers to install it with winget, and one tick also installs Tesseract OCR and Pandoc.
    - **Recordings and Output Folders** page: keep the defaults, `source` and `output` inside the install folder (for example `C:\Program Files\ILHS\Screencap-Documentation-Tool\source`; for an all-users install setup makes these two folders writable for every user, since the rest of Program Files is read-only for them), or choose your own folders (setup creates them). The app uses them from its next start; both can be changed later in the app.
-4. Start the app from the Start Menu. To update, run the newer installer: it detects the installed copy and goes straight to **Ready to Update** (no license, folder, or options pages, unless FFmpeg is missing), keeping your desktop shortcut choice and the recordings and output folders chosen before. Updating from v1.23.2 or earlier asks for the folders once. To remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
+   - **Options** page: **Add the screencap command to the PATH** is ticked by default, so `screencap` works in any new terminal (PowerShell, Command Prompt, Windows Terminal), for all users or just you to match the install. Untick it to leave the PATH alone. Uninstalling takes it out again.
+4. Start the app from the Start Menu, or run `screencap --help` in a new terminal. To update, run the newer installer: it detects the installed copy and goes straight to **Ready to Update** (no license, folder, or options pages, unless FFmpeg is missing), keeping your desktop shortcut choice and the recordings and output folders chosen before. Updating from v1.23.2 or earlier asks for the folders once. To remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
 
-For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` installs for all users (run it elevated, for example from Intune, SCCM, or PDQ). Add `/CURRENTUSER` for a per-user install without admin rights, `/TASKS=desktopicon` for a desktop shortcut, `/DIR="D:\Apps\Screencap"` for another install folder, or `/SOURCEDIR="D:\Recordings" /OUTPUTDIR="D:\Screenshots"` for the recordings and output folders (without them, a new install uses the defaults and an update keeps the earlier folders). Silent uninstall: `"C:\Program Files\ILHS\Screencap-Documentation-Tool\unins000.exe" /VERYSILENT`.
+For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` installs for all users (run it elevated, for example from Intune, SCCM, or PDQ). Add `/CURRENTUSER` for a per-user install without admin rights, `/MERGETASKS=desktopicon` for a desktop shortcut, `/MERGETASKS="!addtopath"` to leave the PATH alone (both together: `/MERGETASKS="desktopicon,!addtopath"`), `/DIR="D:\Apps\Screencap"` for another install folder, or `/SOURCEDIR="D:\Recordings" /OUTPUTDIR="D:\Screenshots"` for the recordings and output folders (without them, a new install uses the defaults and an update keeps the earlier folders). Silent uninstall: `"C:\Program Files\ILHS\Screencap-Documentation-Tool\unins000.exe" /VERYSILENT`.
 
 **Portable zip:**
 
 1. Download `Screencap-Documentation-Tool-vX.Y.Z-windows-x64-portable.zip` and `SHA256SUMS.txt` from the latest release.
 2. Optional but recommended, check the download is intact: in PowerShell, `(Get-FileHash .\Screencap-Documentation-Tool-vX.Y.Z-windows-x64-portable.zip).Hash` must match the line for that file in `SHA256SUMS.txt` (ignoring upper and lower case).
 3. Right-click the zip, choose **Properties**, tick **Unblock** if it is shown, and click **OK**. Then extract it anywhere, for example `C:\DATA\Tools`.
-4. Install FFmpeg once if this PC does not have it: `winget install --id Gyan.FFmpeg -e`. Optional, as with the Quick Start: `winget install --id UB-Mannheim.TesseractOCR -e` (automatic blurring) and `winget install --id JohnMacFarlane.Pandoc -e` (Word export). Or put `ffmpeg.exe` and `ffprobe.exe` in `tools\ffmpeg\bin\` next to the app (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)).
+4. Install FFmpeg once if this PC does not have it: `winget install --id Gyan.FFmpeg -e`. Optional: `winget install --id UB-Mannheim.TesseractOCR -e` (automatic blurring) and `winget install --id JohnMacFarlane.Pandoc -e` (Word export). Or put `ffmpeg.exe` and `ffprobe.exe` in `tools\ffmpeg\bin\` next to the app (see [Portable FFmpeg](#portable-ffmpeg-no-admin-rights)).
 5. Start `Screencap Documentation Tool.exe`.
 
-Differences from the Python install:
+Differences from the setup and the install command:
 
 - The default `source` and `output` folders are in `Documents\ScreenCap Docs` (or `Documents\Screencap Documentation Tool` when that folder exists from an earlier version), because the app's own folder may not be writable. Any folder can still be chosen in the GUI or with `-s` and `-o`.
-- The app is **not code signed** (see [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md)), so Windows SmartScreen may say **Windows protected your PC** the first time. Check the checksum as above, then click **More info > Run anyway**. Some antivirus products are wary of unsigned packaged Python apps; the checksum confirms the file is the one GitHub built from this repository.
-- Captions From Narration needs the Python install (`-WithWhisper`); the packaged app does not include speech recognition.
+- Like the setup, the app is **not code signed** (see [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md)), so Windows SmartScreen may say **Windows protected your PC** the first time. Check the checksum as above, then click **More info > Run anyway**. Some antivirus products are wary of unsigned packaged Python apps; the checksum confirms the file is the one GitHub built from this repository.
+- The `screencap` command is not added to the PATH; run `screencap.exe` from the extracted folder.
+- Captions From Narration needs the install command (`-WithWhisper`); the packaged app does not include speech recognition.
 - To update the portable zip, download the new zip and replace the folder. Your settings, presets, and recordings are kept, because they live in your profile and Documents, not in the app folder.
 
 ### Linux
@@ -339,13 +311,48 @@ SCREENCAP_WITH_WHISPER=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com
 
 ### First Run
 
-1. Put your recordings in the `source` folder inside the install folder, or point the GUI at the folder your recorder already saves to.
-2. Start the GUI (Start Menu shortcut on Windows, `screencap-gui` on Linux and macOS) and click **Process All**.
+1. Record a task with **Record** in the GUI, or put recordings in the `source` folder (the folder chosen in setup, or `source` inside the install folder), or point the GUI at the folder your recorder already saves to.
+2. Start the GUI (the Start Menu on Windows, `screencap-gui` or the application menu on Linux and macOS) and click **Process All**.
 3. Clean up the steps in the **Steps** tab (delete extras, reorder, add captions) and click **Save Changes**, then click **steps.md** to open the document. VS Code, Obsidian, Typora, or any Markdown viewer shows the screenshots inline.
 
-Prefer the command line? Run `screencap` on Linux and macOS, or `Run-Screencap.bat` in the install folder on Windows.
+Prefer the command line? Run `screencap` in a terminal (`screencap --help` lists the options). With the Windows install command, use `Run-Screencap.bat` in the install folder.
 
-### Reviewing The Installer First
+### Install Command (Power Users And Developers)
+
+The install command runs the app from its Python source: it installs Python and the prerequisites, downloads the newest release from GitHub, and sets up launchers. Use it to read or change the code, to add the optional speech recognition for [Captions From Narration](#captions-from-narration), or to install a specific version. Running the same command again later updates the tool and keeps your recordings and screenshots. The Linux and macOS install commands are in their sections above.
+
+#### Windows
+
+One command works for both kinds of install. The installer checks whether PowerShell is running as Administrator and picks the scope for you:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1)))
+```
+
+| Paste it into | You get |
+| --- | --- |
+| A normal PowerShell window | **Just you.** Python and FFmpeg are installed in your user profile, and the shortcuts go on your Start Menu and Desktop. No admin rights needed, except that Windows asks permission for the optional Tesseract OCR (used for automatic blurring), whose installer is always system-wide. Decline to skip it. Best for a single-user workstation. |
+| An **Administrator** PowerShell window (right-click Start > **Terminal (Admin)**) | **Everyone on this PC.** Python and FFmpeg are installed system-wide, the shortcuts go on the All Users Start Menu and Public Desktop, and every user can save into the default `source` and `output` folders. Best for shared or lab PCs. |
+
+The first line of the installer's output confirms which scope it chose. To choose explicitly instead, add a switch to the end of the command:
+
+```powershell
+# Just you, even from an Administrator window
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1))) -UserOnly
+
+# Everyone on this PC (must be an Administrator window)
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/HEAD/install.ps1))) -SystemWide
+```
+
+Either way the tool goes in `C:\DATA\Tools\Screencap-Documentation-Tool`. To install somewhere else, add `-InstallDir 'D:\Tools\Screencap'` to the end of the command. Add `-NoShortcuts` to skip the shortcuts.
+
+To pin the app to the taskbar, right-click its Start Menu entry and choose **Pin to taskbar** (or right-click the running app's taskbar button).
+
+To add the optional speech recognition for [Captions From Narration](#captions-from-narration) (about 450 MB), add `-WithWhisper` to the end of any of these commands. It can be added later the same way.
+
+If the installer reports that a prerequisite was not detected yet, close PowerShell, open a new window, and paste the command again. Windows only picks up newly installed programs in new windows.
+
+#### Reviewing The Installer First
 
 Piping a script from the internet straight into a shell means trusting it. To read it before running it, download it, review it, then run the local copy:
 
@@ -558,7 +565,7 @@ Automatic detection is a safety net, not a guarantee: OCR can misread text, and 
 
 If you talk while you record ("now I accept the license and click Next"), the tool can turn what you said into the first draft of each step's caption. It is optional and off by default.
 
-**Install it once** by adding `-WithWhisper` (Windows) or `SCREENCAP_WITH_WHISPER=1` (Linux, macOS) to the Quick Start command. This puts [faster-whisper](https://github.com/SYSTRAN/faster-whisper), an offline version of OpenAI's Whisper speech recognition, in a separate `whisper-env` folder inside the install folder, so it never changes your system Python. The speech model is downloaded the first time it is used (about 150 MB for the default `base` model) into your user profile (`.cache\huggingface`). After that it works without an internet connection, and the audio never leaves your PC.
+**Install it once** by adding `-WithWhisper` (Windows) or `SCREENCAP_WITH_WHISPER=1` (Linux, macOS) to the install command. This puts [faster-whisper](https://github.com/SYSTRAN/faster-whisper), an offline version of OpenAI's Whisper speech recognition, in a separate `whisper-env` folder inside the install folder, so it never changes your system Python. The speech model is downloaded the first time it is used (about 150 MB for the default `base` model) into your user profile (`.cache\huggingface`). After that it works without an internet connection, and the audio never leaves your PC.
 
 **Use it** in either of two ways:
 
@@ -595,7 +602,7 @@ and confirm that no media, logs, or files containing secrets are listed. Also re
 
 ### Updating And Uninstalling
 
-**Update:** **Help > Check for Updates...** in the GUI says whether a newer version is out. For the Python install, paste the same Quick Start command again. It downloads the latest version over the top of the old one. Nothing in `source` or `output` is deleted, and GUI settings are kept.
+**Update:** **Help > Check for Updates...** in the GUI says whether a newer version is out. With the setup, click **Update Now** there, or run the newer setup. For the install command, paste the same command again. It downloads the latest version over the top of the old one. Nothing in `source` or `output` is deleted, and GUI settings are kept.
 
 **Uninstall:** move any recordings or screenshots you want to keep out of the install folder first, because removing the folder deletes them. If the Windows installer version is also installed (or you are switching to it), keep `%APPDATA%\ScreencapDocTool`: both versions share those settings and saved presets, so leave it out of the commands below.
 
@@ -622,7 +629,7 @@ Python and FFmpeg are left installed because other programs may use them. Remove
 
 ### Switching A Windows PC From Just You To Everyone
 
-Paste the Quick Start command into an **Administrator** PowerShell window. It installs system-wide copies of Python and FFmpeg (copies that only exist in one user's profile do not count, because other accounts cannot use them), moves the shortcuts to the All Users locations, and opens up the `source` and `output` folders to all users. Your recordings and settings are kept.
+For the install command: paste it into an **Administrator** PowerShell window. (With the setup, run it with `/ALLUSERS`.) It installs system-wide copies of Python and FFmpeg (copies that only exist in one user's profile do not count, because other accounts cannot use them), moves the shortcuts to the All Users locations, and opens up the `source` and `output` folders to all users. Your recordings and settings are kept.
 
 The old per-user copies of Python and FFmpeg keep working but are no longer needed. To remove them, run this in a normal (not Administrator) window:
 
@@ -659,7 +666,7 @@ To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the 
 
 To build the packaged Windows app yourself (on Windows, from the repository folder): `py -3 -m pip install pyinstaller`, then `py -3 packaging\make_version_info.py build\version_info.txt` and `py -3 -m PyInstaller packaging\screencap.spec --noconfirm --clean`. The app is in `dist\Screencap-Documentation-Tool\`. For the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and run `iscc /DAppVersion=X.Y.Z packaging\installer.iss`; it is written to `release\`.
 
-The Quick Start commands always install the latest code on the default branch. To install a specific release instead, for example to keep several PCs on the same version:
+The install commands install the newest release (add `-Ref HEAD` or `SCREENCAP_REF=HEAD` for the latest code on the default branch). To install a specific release instead, for example to keep several PCs on the same version:
 
 ```powershell
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ILikeHostingServices/Screencap-Documentation-Tool/v1.4.0/install.ps1))) -Ref v1.4.0
@@ -735,20 +742,20 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | --- | --- |
 | `A system-wide install needs an Administrator PowerShell window` | You used `-SystemWide` in a normal window. Right-click Start > **Terminal (Admin)** and paste the command again, or drop `-SystemWide` to install just for you. |
 | `Use either -SystemWide or -UserOnly, not both` | Pick one switch, or leave both off and let the installer decide. |
-| `Run this installer with sudo on Linux` | The Linux installer needs root to install packages and write to `/opt`. Use the `sudo bash -c ...` command from the Quick Start. |
+| `Run this installer with sudo on Linux` | The Linux installer needs root to install packages and write to `/opt`. Use the `sudo bash -c ...` install command from the Linux section. |
 | `Do not use sudo on macOS` | Homebrew refuses to run as root. Run the macOS command without `sudo`. |
 | `dnf could not install ...` | On RHEL, Rocky, or Alma Linux, FFmpeg comes from EPEL and RPM Fusion. Enable those repositories, then run the installer again. |
 | `Unsupported package manager` | Your distribution is not one the installer knows. Install `ffmpeg`, Python 3.8+, and Python Tkinter yourself, then run the installer again; it will skip straight to installing the tool. |
-| `FFmpeg was not found` (exit code 2) | FFmpeg is not installed or not on the PATH. Open a **new** terminal and paste the Quick Start command again. Alternatively, use a portable copy in `tools\ffmpeg\bin\` or pass `--ffmpeg` / `--ffprobe`. |
-| `Python was not found; run without arguments to install from the Microsoft Store` | This is the Windows "App execution alias" placeholder, not real Python. Paste the Quick Start command again to install real Python, or turn the alias off in Settings > Apps > Advanced app settings > App execution aliases. |
-| `running scripts is disabled on this system` | PowerShell execution policy is blocking the script. The Quick Start command is not affected. For a local script, use the `powershell -ExecutionPolicy Bypass -File .\install.ps1` form shown in [Reviewing The Installer First](#reviewing-the-installer-first). |
-| `Tesseract OCR was not found` | Sensitive text is not detected automatically (hand-drawn blur boxes still work). Paste the Quick Start command again to install it, or install it yourself (Windows: `winget install --id UB-Mannheim.TesseractOCR -e`). Then click **Re-scan All Steps for Sensitive Text** in the Steps tab. On Windows its installer asks for administrator permission. |
-| `Speech recognition (faster-whisper) is not installed` | Captions From Narration needs the optional download. Paste the Quick Start command again with `-WithWhisper` (Windows) or `SCREENCAP_WITH_WHISPER=1` (Linux, macOS). |
+| `FFmpeg was not found` (exit code 2) | FFmpeg is not installed or not on the PATH. Open a **new** terminal and run the setup or the install command again. Alternatively, use a portable copy in `tools\ffmpeg\bin\` or pass `--ffmpeg` / `--ffprobe`. |
+| `Python was not found; run without arguments to install from the Microsoft Store` | This is the Windows "App execution alias" placeholder, not real Python. Paste the install command again to install real Python, or turn the alias off in Settings > Apps > Advanced app settings > App execution aliases. |
+| `running scripts is disabled on this system` | PowerShell execution policy is blocking the script. The install command is not affected. For a local script, use the `powershell -ExecutionPolicy Bypass -File .\install.ps1` form shown in [Reviewing The Installer First](#reviewing-the-installer-first). |
+| `Tesseract OCR was not found` | Sensitive text is not detected automatically (hand-drawn blur boxes still work). Run the setup or the install command again to install it, or install it yourself (Windows: `winget install --id UB-Mannheim.TesseractOCR -e`). Then click **Re-scan All Steps for Sensitive Text** in the Steps tab. On Windows its installer asks for administrator permission. |
+| `Speech recognition (faster-whisper) is not installed` | Captions From Narration needs the optional download. Paste the install command again with `-WithWhisper` (Windows) or `SCREENCAP_WITH_WHISPER=1` (Linux, macOS). |
 | `Speech recognition failed: ... huggingface.co ...` or a connection error on first use | The speech model is downloaded from huggingface.co the first time. Allow that site through the proxy or firewall, or copy the `.cache\huggingface` folder from a PC where it worked into your user profile. |
 | `pip could not install faster-whisper` | The installer could not reach pypi.org. Check the internet connection or proxy, then run the command again with `-WithWhisper`. |
 | `VLC media player was not found` | Install VLC from [videolan.org](https://www.videolan.org/) (Windows: `winget install --id VideoLAN.VLC -e`). The GUI looks in the standard install folders and on the PATH. |
 | `The original recording was not found` (Play in VLC) | The recording was moved or deleted after processing. Put it back in the source folder, or select it again in the Videos list. |
-| `Pandoc was not found, so Word export is unavailable` | Paste the Quick Start command again to install it, or install it yourself (Windows: `winget install --id JohnMacFarlane.Pandoc -e`). HTML and PDF export do not need it. |
+| `Pandoc was not found, so Word export is unavailable` | Run the setup or the install command again to install it, or install it yourself (Windows: `winget install --id JohnMacFarlane.Pandoc -e`). HTML and PDF export do not need it. |
 | `No Microsoft Edge, Google Chrome, or Chromium was found` | PDF export prints with a Chromium-based browser. Windows 11 includes Edge; on Linux install Chromium, or export HTML and print it to PDF from any browser. |
 | `No module named 'tkinter'` | Python was installed without Tcl/Tk, which the GUI needs. Re-run the python.org installer, choose **Modify**, and tick **tcl/tk and IDLE**. The winget package includes it by default. |
 
@@ -757,7 +764,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | Symptom | Cause / Fix |
 | --- | --- |
 | Double-clicking `Run-Screencap-GUI.bat` does nothing | The GUI hit an error before its window opened, and GUI apps have no console to show it. Run `py -3 C:\DATA\Tools\Screencap-Documentation-Tool\screencap_gui.pyw` from a terminal to see the error. |
-| Taskbar shows the Python icon instead of the app icon | The shortcut was created by an older installer. Paste the Quick Start command again to recreate it, unpin the old taskbar entry, and pin the app again from the Start Menu. |
+| Taskbar shows the Python icon instead of the app icon | The shortcut was created by an older installer. Run the setup or the install command again to recreate it, unpin the old taskbar entry, and pin the app again from the Start Menu. |
 | Preview says `Preview unavailable` | Previews are drawn with FFmpeg. Check that the **Log** tab shows `Using FFmpeg: ...` at startup. |
 
 ### Recording Problems
@@ -787,6 +794,6 @@ ScreenCap Docs is free and open source under the [MIT License](LICENSE). You may
 
 FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them.
 
-Support is best effort, with no guaranteed response time. For bugs and ideas, use **Help > Report a Problem...** or **Suggest an Idea...** in the GUI, or open an [issue on GitHub](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues/new/choose). Include the details from **Help > About > Copy Details** (or `screencap.py --version`), plus the relevant lines from `output/screencap.log`. Never attach real recordings or screenshots; a synthetic example is enough. Report security problems privately as described in [SECURITY.md](SECURITY.md).
+Support is best effort, with no guaranteed response time. For bugs and ideas, use **Help > Report a Problem...** or **Suggest an Idea...** in the GUI, or open an [issue on GitHub](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues/new/choose). Include the details from **Help > About > Copy Details** (or `screencap.py --version`), plus the relevant lines from `output/screencap.log`. Never attach real recordings or screenshots; a synthetic example is enough. Report security problems privately as described in [SECURITY.md](SECURITY.md). To help with the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The Windows programs are not code signed; the [Code Signing Policy](CODE_SIGNING_POLICY.md) explains how to check a download and holds the privacy statement: the program does not send any information anywhere unless the person using it asks for something that needs it.

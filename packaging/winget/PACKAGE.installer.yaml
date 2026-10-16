@@ -17,6 +17,9 @@ AppsAndFeaturesEntries:
 - DisplayName: ScreenCap Docs
   Publisher: ILikeHostingServices
   ProductCode: '{39ABD99E-CAC0-48C0-B602-EF8172627F70}_is1'
+# The installer adds the program folder to the PATH (its addtopath option)
+Commands:
+- screencap
 Installers:
 # All users (Program Files\ILHS) first: the installer's default
 - Architecture: x64

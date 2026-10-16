@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_updates.py
-# 2026-10-15
-# Version: v1.2.0
+# 2026-10-16
+# Version: v1.2.1
 #
 # PURPOSE:
 # Tests for the update check (updates.py): version comparison, reading a
@@ -136,7 +136,7 @@ class UpdateTests(unittest.TestCase):
     def test_python_install_is_detected(self):
         self.assertTrue((ROOT / "updates.py").is_file())
         self.assertEqual(updates.install_kind(), "python")
-        self.assertIn("Quick Start", updates.how_to_update("python"))
+        self.assertIn("install command", updates.how_to_update("python"))
         self.assertIn("winget upgrade", updates.how_to_update("installer"))
 
 

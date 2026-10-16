@@ -2,7 +2,7 @@
 #
 # updates.py
 # 2026-10-16
-# Version: v1.4.1
+# Version: v1.4.2
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -199,7 +199,7 @@ def how_to_update(kind=None):
     if kind == "brew":
         return ("Update with Homebrew: brew update && brew upgrade "
                 "screencap-documentation-tool")
-    return ("Run the Quick Start install command from the README again; it updates this "
+    return ("Run the install command from the README again; it updates this "
             "copy and keeps your settings.")
 
 

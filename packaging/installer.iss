@@ -1,6 +1,6 @@
 ; installer.iss
 ; 2026-10-16
-; Version: v1.7.0
+; Version: v1.8.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of ScreenCap Docs, the packaged
@@ -24,8 +24,12 @@
 ; /OUTPUTDIR="..."; an update keeps the folders chosen before.
 ; Adds a Start Menu shortcut with the app's taskbar identity, an optional
 ; desktop shortcut, and an uninstaller; and can install FFmpeg (required)
-; and, optionally, Tesseract OCR and Pandoc with winget. Recordings, output,
-; and settings are never touched by uninstalling.
+; and, optionally, Tesseract OCR and Pandoc with winget. The program folder
+; is added to the PATH (the system PATH for all users, the user's own PATH
+; for "only for me") so the screencap command works in any terminal; this is
+; on by default, /MERGETASKS="!addtopath" leaves it out, and uninstalling
+; takes it out again. Recordings, output, and settings are never touched by
+; uninstalling.
 ;
 ; Build from the repository root, after the PyInstaller build:
 ;   iscc /DAppVersion=1.16.0 packaging\installer.iss                (x64 PCs)
@@ -98,9 +102,12 @@ VersionInfoProductVersion={#AppVersion}
 VersionInfoCopyright=Copyright (c) 2026 ILikeHostingServices. MIT License.
 ; Close a running copy before replacing its files
 CloseApplications=yes
+; Tell open programs (Explorer, new terminals) that the PATH changed
+ChangesEnvironment=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
+Name: "addtopath"; Description: "Add the screencap command to the PATH (use it in any terminal)"
 Name: "ffmpeg"; Description: "Install FFmpeg with winget (required, and not found on this PC)"; Check: not FfmpegFound
 ; Offered only while one of them is missing, so an update never runs winget again for nothing
 Name: "extras"; Description: "Also install Tesseract OCR (automatic blurring) and Pandoc (Word export) with winget"; Flags: unchecked; Check: not ExtrasFound
@@ -535,6 +542,8 @@ begin
     Space + 'Start Menu shortcut';
   if WizardIsTaskSelected('desktopicon') then
     Result := Result + NewLine + Space + 'Desktop shortcut';
+  if WizardIsTaskSelected('addtopath') then
+    Result := Result + NewLine + Space + 'The screencap command on the PATH';
   Result := Result + NewLine + Space + 'Settings and saved presets';
   Winget := '';
   if WizardIsTaskSelected('ffmpeg') then
@@ -545,11 +554,109 @@ begin
     Result := Result + NewLine + NewLine + 'Also installed with winget:' + Winget;
 end;
 
+{ The screencap command on the PATH: the program folder is added to the
+  system PATH (all users) or the user's PATH (only for me). Done in code
+  rather than in [Registry] so an entry is never added twice, an empty PATH
+  does not get a stray ';', and uninstalling removes only this entry. }
+const
+  MachineEnvKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
+  UserEnvKey = 'Environment';
+
+procedure GetEnvKey(var RootKey: Integer; var SubKey: String);
+begin
+  if IsAdminInstallMode then
+  begin
+    RootKey := HKLM;
+    SubKey := MachineEnvKey;
+  end
+  else
+  begin
+    RootKey := HKCU;
+    SubKey := UserEnvKey;
+  end;
+end;
+
+{ Paths with or without a trailing backslash count as the same folder }
+function SamePath(const A, B: String): Boolean;
+begin
+  Result := CompareText(RemoveBackslashUnlessRoot(Trim(A)),
+                        RemoveBackslashUnlessRoot(Trim(B))) = 0;
+end;
+
+{ Adds Dir to the PATH (Add) or removes every entry for it (not Add) }
+procedure SetOnPath(const Dir: String; Add: Boolean);
+var
+  RootKey, P: Integer;
+  SubKey, OldPath, NewPath, Rest, Item: String;
+  Found: Boolean;
+begin
+  GetEnvKey(RootKey, SubKey);
+  if not RegQueryStringValue(RootKey, SubKey, 'Path', OldPath) then
+    OldPath := '';
+  NewPath := '';
+  Found := False;
+  Rest := OldPath;
+  while Rest <> '' do
+  begin
+    P := Pos(';', Rest);
+    if P = 0 then
+    begin
+      Item := Rest;
+      Rest := '';
+    end
+    else
+    begin
+      Item := Copy(Rest, 1, P - 1);
+      Delete(Rest, 1, P);
+    end;
+    if Trim(Item) = '' then
+      Continue;
+    if SamePath(Item, Dir) then
+    begin
+      Found := True;
+      if not Add then
+        Continue;
+    end;
+    if NewPath <> '' then
+      NewPath := NewPath + ';';
+    NewPath := NewPath + Item;
+  end;
+  if Add and Found then
+    Exit;
+  if not Add and not Found then
+    Exit;
+  if Add then
+  begin
+    if NewPath <> '' then
+      NewPath := NewPath + ';';
+    NewPath := NewPath + Dir;
+  end;
+  if RegWriteExpandStringValue(RootKey, SubKey, 'Path', NewPath) then
+  begin
+    if Add then
+      Log('Added to the PATH: ' + Dir)
+    else
+      Log('Removed from the PATH: ' + Dir);
+  end
+  else
+    Log('Could not update the PATH in ' + SubKey);
+end;
+
+{ Applied on every run, so unticking the option on a later run takes the
+  entry out again }
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    SetOnPath(ExpandConstant('{app}'), WizardIsTaskSelected('addtopath'));
+end;
+
 { The shared ILHS folder, once empty. [UninstallDelete] does this too, but
   after setup ran twice over one copy it can run before the program folder
   is gone; at this point everything else has been removed. }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
+  if CurUninstallStep = usUninstall then
+    SetOnPath(ExpandConstant('{app}'), False);
   if CurUninstallStep = usPostUninstall then
     if RemoveDir(ExpandConstant('{autopf}\ILHS')) then
       Log('Removed the empty ILHS folder');

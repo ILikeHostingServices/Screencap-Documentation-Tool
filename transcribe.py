@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # transcribe.py
-# 2026-10-04
-# Version: v1.2.0
+# 2026-10-16
+# Version: v1.2.1
 #
 # PURPOSE:
 # Turns spoken narration in a recording into first-draft captions. FFmpeg
@@ -40,7 +40,7 @@ EXIT_NOT_INSTALLED = 3
 WHISPER_MISSING_HELP = (
     "Speech recognition (faster-whisper) is not installed, so narration cannot be "
     "turned into captions. It is an optional download of about 450 MB. To add it, "
-    "paste the Quick Start command again with -WithWhisper on Windows, or with "
+    "paste the install command again with -WithWhisper on Windows, or with "
     "SCREENCAP_WITH_WHISPER=1 on Linux and macOS (see \"Captions From Narration\" "
     "in README.md).")
 
