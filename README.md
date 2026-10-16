@@ -1,8 +1,8 @@
-README.md v1.44.0 (Last Rev: 2026-10-16)
+README.md v1.45.0 (Last Rev: 2026-10-16)
 
 # ScreenCap Docs
 
-[![Get it from the Snap Store](https://snapcraft.io/en/dark/install.svg)](https://snapcraft.io/screencap-documentation-tool)
+[![Snap Store](https://img.shields.io/badge/snap-screencap--documentation--tool-82BEA0?logo=snapcraft&logoColor=white)](#linux)
 [![Download for Windows and Linux](https://img.shields.io/github/v/release/ILikeHostingServices/Screencap-Documentation-Tool?label=download&logo=github)](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest)
 [![Homebrew](https://img.shields.io/badge/homebrew-ilikehostingservices%2Ftap-FBB040?logo=homebrew&logoColor=white)](#macos)
 
@@ -235,7 +235,15 @@ Differences from the Python install:
 
 ### Linux
 
-**Package repository (recommended).** Add the project's signed repository once, and the app installs and updates with your system's normal updates (`sudo apt upgrade`, `sudo dnf upgrade`, `sudo zypper update`). Your package manager also installs FFmpeg, Python, and Tkinter.
+**Snap Store.** On any distribution with snapd (x86_64 and 64-bit ARM). FFmpeg, Tesseract OCR, and Pandoc come with it, and it updates by itself:
+
+<a href="https://snapcraft.io/screencap-documentation-tool"><img alt="Get it from the Snap Store" src="https://snapcraft.io/en/dark/install.svg" height="44"></a>
+
+```bash
+sudo snap install screencap-documentation-tool
+```
+
+**Package repository.** Add the project's signed repository once, and the app installs and updates with your system's normal updates (`sudo apt upgrade`, `sudo dnf upgrade`, `sudo zypper update`). Your package manager also installs FFmpeg, Python, and Tkinter.
 
 Ubuntu, Debian, Linux Mint, Pop!_OS, Raspberry Pi OS:
 
