@@ -1,6 +1,6 @@
 # build-windows.yml
 # 2026-10-16
-# Version: v2.2.0
+# Version: v2.3.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -11,7 +11,11 @@
 # for all users and upgrading from v1.16.0 (which used another folder),
 # tests Update Now (the app's own updater) from v1.33.0, and
 # writes a SHA256SUMS.txt checksum file, and checks that the winget manifest
-# for the build is valid (winget.yml publishes it for releases).
+# for the build is valid (winget.yml publishes it for releases). For a
+# release it also attaches a list of the app's components (SBOM, CycloneDX)
+# and records build provenance for every file, so anyone can check with
+# `gh attestation verify <file> --repo ILikeHostingServices/Screencap-Documentation-Tool`
+# that it was built here by this workflow.
 #   - Pull requests, pushes to main, and manual runs: build and test; the
 #     files are kept as a workflow artifact for 30 days.
 #   - Called by the release workflow with a release tag (or run by hand with
@@ -656,19 +660,46 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write       # build provenance
+      attestations: write
     steps:
       - uses: actions/download-artifact@v7
         with:
           pattern: windows-build-*-v${{ needs.build.outputs.version }}
           path: release
           merge-multiple: true
+      - name: Unpack the x64 app to list its components
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir sbom-src
+          unzip -q release/*-windows-x64-portable.zip -d sbom-src
+      - name: List the app's components (SBOM)
+        # Never blocks attaching the app itself
+        continue-on-error: true
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c  # v0.24.3
+        with:
+          path: sbom-src
+          format: cyclonedx-json
+          output-file: release/Screencap-Documentation-Tool-v${{ needs.build.outputs.version }}-windows-sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - name: Upload the files to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          (cd release && rm -f SHA256SUMS.txt && sha256sum -- *.exe *.zip | sort -k2 > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          shopt -s nullglob
+          (cd release && rm -f SHA256SUMS.txt && sha256sum -- *.exe *.zip *.cdx.json | sort -k2 > SHA256SUMS.txt && cat SHA256SUMS.txt)
           ls -l release
           gh release upload "${{ inputs.release_tag }}" release/* --clobber
           gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[].name'
+      # After the upload, so the files are always attached
+      - name: Record where the files were built (build provenance)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: |
+            release/*.exe
+            release/*.zip
+            release/*.cdx.json

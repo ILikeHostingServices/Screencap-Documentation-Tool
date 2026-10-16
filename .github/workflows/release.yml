@@ -1,6 +1,6 @@
 # release.yml
 # 2026-10-16
-# Version: v1.8.0
+# Version: v1.9.0
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -138,6 +138,8 @@ jobs:
     if: needs.publish.outputs.build_tag != ''
     permissions:
       contents: write
+      id-token: write       # build provenance for the release files
+      attestations: write
     uses: ./.github/workflows/build-windows.yml
     with:
       release_tag: ${{ needs.publish.outputs.build_tag }}
@@ -160,6 +162,8 @@ jobs:
     if: needs.publish.outputs.linux_tag != ''
     permissions:
       contents: write
+      id-token: write       # build provenance for the release files
+      attestations: write
     uses: ./.github/workflows/build-linux.yml
     with:
       release_tag: ${{ needs.publish.outputs.linux_tag }}

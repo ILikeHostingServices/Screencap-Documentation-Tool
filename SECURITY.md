@@ -1,10 +1,12 @@
-SECURITY.md v1.0.0 (Last Rev: 2026-10-03)
+SECURITY.md v1.1.0 (Last Rev: 2026-10-16)
 
 # Security Policy
 
 ## Supported Versions
 
-Only the latest release (the one marked **Latest** on the Releases page) gets security fixes. Update by pasting the Quick Start command from `README.md` again.
+Only the latest release (the one marked **Latest** on the Releases page) gets security fixes. Update with **Help > Check for Updates** (Windows installer), your package manager, or the install command from `README.md`.
+
+For what the app does on a computer, what it sends over the network, the administrator settings, and how to verify a download, see [ScreenCap Docs for IT and Security Teams](docs/SECURITY_FOR_IT.md).
 
 ## Reporting A Vulnerability
 
