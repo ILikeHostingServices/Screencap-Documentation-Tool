@@ -1,10 +1,11 @@
-README.md v1.47.0 (Last Rev: 2026-10-16)
+README.md v1.48.0 (Last Rev: 2026-10-16)
 
 # ScreenCap Docs
 
 [![Snap Store](https://img.shields.io/badge/snap-screencap--documentation--tool-82BEA0?logo=snapcraft&logoColor=white)](#linux)
 [![Download for Windows and Linux](https://img.shields.io/github/v/release/ILikeHostingServices/Screencap-Documentation-Tool?label=download&logo=github)](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest)
 [![Homebrew](https://img.shields.io/badge/homebrew-ilikehostingservices%2Ftap-FBB040?logo=homebrew&logoColor=white)](#macos)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ILikeHostingServices/Screencap-Documentation-Tool/badge)](https://scorecard.dev/viewer/?uri=github.com/ILikeHostingServices/Screencap-Documentation-Tool)
 
 ![The Steps tab: each step of a recorded setup wizard with its screenshot, a red ring where the mouse was clicked, the product key blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
 
@@ -92,6 +93,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
 | `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a made-up setup wizard (`demo_wizard.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
+| `docs/SECURITY_FOR_IT.md` | For IT and security teams: network use, files and settings, administrator controls, behaviors security tools may notice, and how to verify a download. |
 | `docs/BRANDING.md` | The brand rules: the name, voice, colors, type, icon, screenshots, release notes format, and the brand check before each release. |
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
 | `theme.py` | The GUI's light, dark, and system themes. |
@@ -131,6 +133,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `CODE_SIGNING_POLICY.md` | Code signing status of the Windows programs (not signed), how to check a download, how the programs are built, and the privacy statement. |
 | (not here) | Maintainer notes (owner to-do list, accounts, release runbook) are kept in a private repository of the organization. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
+| `.github/workflows/codeql.yml` | GitHub CodeQL code scanning of the Python code and the workflows (pull requests, pushes to main, weekly); findings appear under the Security tab. |
+| `.github/workflows/scorecard.yml` | OpenSSF Scorecard: rates the repository's security practices weekly and publishes the result (the badge at the top). |
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |
 | `.github/workflows/build-windows.yml` | Builds and tests the packaged Windows app on a real Windows machine for every pull request, and attaches it to releases. |
@@ -651,7 +655,7 @@ Each release is an annotated git tag (`v1.12.1`, for example) with notes on the 
 
 Every release that adds a feature or changes how the app looks also updates the screenshots in `docs/screenshots/` (run `packaging/screenshots/make_screenshots.sh`, and add a picture of the new feature when it has none), so the README, the software center listings, and the store pages always show the current app. The tests must pass on every supported system first.
 
-To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them. For the newest release it then builds the packaged Windows app from that tag and attaches the installer, the zip, and `SHA256SUMS.txt`, unless they are attached already.
+To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them. For the newest release it then builds the packaged Windows app from that tag and attaches the installer, the zip, a list of the app's components (`*-windows-sbom.cdx.json`, CycloneDX), and `SHA256SUMS.txt`, unless they are attached already. Every release file also gets a build provenance record, so anyone can check where it was built with `gh attestation verify <file> --repo ILikeHostingServices/Screencap-Documentation-Tool`.
 
 To build the packaged Windows app yourself (on Windows, from the repository folder): `py -3 -m pip install pyinstaller`, then `py -3 packaging\make_version_info.py build\version_info.txt` and `py -3 -m PyInstaller packaging\screencap.spec --noconfirm --clean`. The app is in `dist\Screencap-Documentation-Tool\`. For the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and run `iscc /DAppVersion=X.Y.Z packaging\installer.iss`; it is written to `release\`.
 

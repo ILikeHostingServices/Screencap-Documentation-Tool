@@ -1,6 +1,6 @@
 # build-linux.yml
 # 2026-10-16
-# Version: v1.1.2
+# Version: v1.2.0
 #
 # PURPOSE:
 # Builds the Linux packages and tests each one on the distributions it is
@@ -272,6 +272,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write       # build provenance
+      attestations: write
     steps:
       - uses: actions/download-artifact@v7
         with:
@@ -289,6 +291,15 @@ jobs:
           cat SHA256SUMS-linux.txt
           gh release upload "${{ inputs.release_tag }}" ./* --clobber
           gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[].name'
+      # After the upload, so the packages are always attached
+      - name: Record where the packages were built (build provenance)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: |
+            release/*.deb
+            release/*.rpm
+            release/*.pkg.tar.zst
+            release/*.snap
 
   aur:
     name: Publish to the AUR

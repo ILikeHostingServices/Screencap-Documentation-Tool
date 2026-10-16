@@ -1,0 +1,44 @@
+# codeql.yml
+# 2026-10-16
+# Version: v1.0.0
+#
+# PURPOSE:
+# GitHub CodeQL code scanning: looks for security problems in the Python
+# code and in the GitHub Actions workflows on every pull request, every
+# push to main, and once a week. Findings appear under the repository's
+# Security tab (Code scanning). Free for public repositories.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 7 * * 2"     # Tuesdays 07:41 UTC (03:41 US Eastern)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, actions]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0
+        with:
+          category: "/language:${{ matrix.language }}"
