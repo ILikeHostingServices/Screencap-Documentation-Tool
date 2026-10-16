@@ -1,4 +1,4 @@
-README.md v1.43.0 (Last Rev: 2026-10-16)
+README.md v1.44.0 (Last Rev: 2026-10-16)
 
 # ScreenCap Docs
 
@@ -86,7 +86,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `Run-Screencap.bat` | Double-click to run the command line version on Windows. Passes any arguments through to `screencap.py`. |
 | `install.ps1` | One-step Windows installer used by the Quick Start command. |
 | `install.sh` | One-step Linux and macOS installer used by the Quick Start commands. |
-| `packaging/linux/` | Linux packages: `stage.sh` (the shared install layout), `build_packages.py` (.deb and .rpm with nfpm), the menu entry, and the software center details. |
+| `packaging/linux/` | Linux packages: `stage.sh` (the shared install layout), `build_packages.py` (.deb and .rpm with nfpm), the menu entry, the software center details, and `make_repos.sh` with `repo_index.html` (the signed apt and dnf repositories on GitHub Pages). |
 | `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
@@ -133,6 +133,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |
 | `.github/workflows/build-windows.yml` | Builds and tests the packaged Windows app on a real Windows machine for every pull request, and attaches it to releases. |
 | `.github/workflows/build-macos.yml` | Installs and tests the Homebrew formula on a real Mac for every pull request. |
+| `.github/workflows/package-repos.yml` | Builds the signed apt and dnf repositories from the newest releases, installs from them on Debian, Ubuntu, Fedora, Rocky Linux, and openSUSE, and publishes them on GitHub Pages. Run by each release. |
 | `.github/workflows/build-linux.yml` | Builds the Linux packages and tests each one on its distributions, attaches them to releases, and updates the AUR and the Snap Store. |
 | `.github/workflows/winget.yml` | Tests installing each release through winget and submits it to the Windows Package Manager catalog. |
 | `source/` | Default folder for your recordings. |
@@ -234,7 +235,35 @@ Differences from the Python install:
 
 ### Linux
 
-**Packages (recommended).** From v1.21.0 every release has packages for the common distributions. Your package manager installs FFmpeg, Python, and Tkinter with them, and the app appears in the application menu. Recordings and output go in `~/Documents/ScreenCap Docs` by default (or `~/Documents/Screencap Documentation Tool` when that folder exists from an earlier version).
+**Package repository (recommended).** Add the project's signed repository once, and the app installs and updates with your system's normal updates (`sudo apt upgrade`, `sudo dnf upgrade`, `sudo zypper update`). Your package manager also installs FFmpeg, Python, and Tkinter.
+
+Ubuntu, Debian, Linux Mint, Pop!_OS, Raspberry Pi OS:
+
+```bash
+sudo install -d /etc/apt/keyrings
+sudo curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg https://ilikehostingservices.github.io/Screencap-Documentation-Tool/ilhs-archive-keyring.gpg
+sudo curl -fsSLo /etc/apt/sources.list.d/screencap-docs.sources https://ilikehostingservices.github.io/Screencap-Documentation-Tool/apt/screencap-docs.sources
+sudo apt update
+sudo apt install screencap-documentation-tool
+```
+
+Fedora, RHEL, Rocky Linux, AlmaLinux (RHEL and its rebuilds also need EPEL and RPM Fusion for FFmpeg, as in the table below):
+
+```bash
+sudo curl -fsSLo /etc/yum.repos.d/screencap-docs.repo https://ilikehostingservices.github.io/Screencap-Documentation-Tool/rpm/screencap-docs.repo
+sudo dnf install screencap-documentation-tool
+```
+
+openSUSE:
+
+```bash
+sudo zypper addrepo https://ilikehostingservices.github.io/Screencap-Documentation-Tool/rpm/screencap-docs.repo
+sudo zypper install screencap-documentation-tool
+```
+
+The repository metadata and the .rpm files are signed with the ILHS Package Signing key ([ilhs-archive-key.asc](https://ilikehostingservices.github.io/Screencap-Documentation-Tool/ilhs-archive-key.asc)); dnf and zypper ask once to trust it. The repository keeps the newest five releases. (Available from v1.35.0.)
+
+**Packages.** From v1.21.0 every release has packages for the common distributions. Your package manager installs FFmpeg, Python, and Tkinter with them, and the app appears in the application menu. Recordings and output go in `~/Documents/ScreenCap Docs` by default (or `~/Documents/Screencap Documentation Tool` when that folder exists from an earlier version).
 
 | Distribution | Install |
 | --- | --- |

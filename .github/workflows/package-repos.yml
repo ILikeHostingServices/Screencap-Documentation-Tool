@@ -1,0 +1,179 @@
+# package-repos.yml
+# 2026-10-16
+# Version: v1.0.0
+#
+# PURPOSE:
+# Publishes the signed apt and dnf package repositories on GitHub Pages
+# (https://ilikehostingservices.github.io/Screencap-Documentation-Tool/), so
+# Linux users can install with `apt install` or `dnf install` and get updates
+# with their normal system updates.
+# 1. build: downloads the .deb and .rpm files of the newest releases and
+#    builds both repositories with packaging/linux/make_repos.sh, signed with
+#    the PACKAGE_SIGNING_KEY secret (passphrase: PACKAGE_SIGNING_PASSPHRASE).
+#    The key is imported into a temporary keyring that is deleted afterwards.
+# 2. test: on Debian, Ubuntu, Fedora, Rocky Linux, and openSUSE, serves the
+#    built repositories locally, adds them exactly as the README says, and
+#    installs the app from them (signatures checked by apt, dnf, and zypper).
+# 3. deploy: publishes to GitHub Pages, only when every test passed and not
+#    for pull requests (Pages source: GitHub Actions, set by the owner).
+# Runs after each release (called by release.yml), by hand (Actions >
+# Package repositories > Run workflow), and on pull requests that change it
+# (build and test only).
+
+name: Package repositories
+
+on:
+  workflow_call:
+    secrets:
+      PACKAGE_SIGNING_KEY:
+        required: true
+      PACKAGE_SIGNING_PASSPHRASE:
+        required: true
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/package-repos.yml
+      - packaging/linux/make_repos.sh
+      - packaging/linux/repo_index.html
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-repos-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://ilikehostingservices.github.io/Screencap-Documentation-Tool
+  KEEP_RELEASES: 5   # the newest releases kept in the repositories (for rollbacks)
+
+jobs:
+  build:
+    name: Build and sign the repositories
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the repository tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apt-utils createrepo-c rpm
+
+      - name: Download the packages of the newest releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir dl
+          tags=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases \
+                   --limit 100 --json tagName --jq '.[].tagName' | sort -V -r | head -n "$KEEP_RELEASES")
+          for tag in $tags; do
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir dl \
+              --pattern '*_all.deb' --pattern '*.noarch.rpm' \
+              || echo "::warning::$tag has no Linux packages"
+          done
+          ls -l dl
+
+      - name: Build and sign
+        env:
+          PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
+          PACKAGE_SIGNING_PASSPHRASE: ${{ secrets.PACKAGE_SIGNING_PASSPHRASE }}
+        run: |
+          if [ -z "$PACKAGE_SIGNING_KEY" ] || [ -z "$PACKAGE_SIGNING_PASSPHRASE" ]; then
+            echo "::error::The PACKAGE_SIGNING_KEY and PACKAGE_SIGNING_PASSPHRASE secrets are needed"
+            exit 1
+          fi
+          # A short private keyring path: gpg-agent's socket path has a length limit
+          export GNUPGHOME="$(mktemp -d /tmp/gnupg.XXXXXX)"
+          trap 'gpgconf --kill gpg-agent 2>/dev/null; rm -rf "$GNUPGHOME"' EXIT
+          pass="$GNUPGHOME/passphrase"
+          printf '%s' "$PACKAGE_SIGNING_PASSPHRASE" > "$pass"
+          printf '%s\n' "$PACKAGE_SIGNING_KEY" | gpg --batch --quiet --import
+          fpr=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')
+          echo "Signing key fingerprint: $fpr"
+          bash packaging/linux/make_repos.sh --key "$fpr" --passphrase-file "$pass" \
+            --url "$SITE_URL" --out site dl/*
+          cp packaging/linux/repo_index.html site/index.html
+          touch site/.nojekyll
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-repos
+          path: site/
+          retention-days: 7
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+  test:
+    name: Install from the repository on ${{ matrix.name }}
+    needs: build
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Debian 12, image: "debian:12", family: deb }
+          - { name: Ubuntu 24.04, image: "ubuntu:24.04", family: deb }
+          - { name: Fedora, image: "fedora:latest", family: fedora }
+          - { name: Rocky Linux 9, image: "rockylinux/rockylinux:9", family: rhel }
+          - { name: openSUSE Tumbleweed, image: "opensuse/tumbleweed:latest", family: suse }
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: package-repos
+          path: site
+
+      - name: Add the repository and install, as the README says
+        shell: sh
+        run: |
+          set -eux
+          case "${{ matrix.family }}" in
+            deb) apt-get update -qq && apt-get install -y -qq python3 curl ca-certificates ;;
+            fedora) dnf install -y python3 curl ;;
+            rhel) dnf install -y python3 epel-release dnf-plugins-core
+                  dnf config-manager --set-enabled crb
+                  dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm" ||
+                    dnf install -y "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm" ;;
+            suse) zypper --non-interactive install python3 curl ;;
+          esac
+          (cd site && python3 -m http.server 8080 --bind 127.0.0.1 > /tmp/http.log 2>&1 &)
+          sleep 2
+          # The files point at the Pages address; this test serves them locally
+          URL=http://127.0.0.1:8080
+          get() { curl -fsSL "$URL/$1" | sed "s#$SITE_URL#$URL#g"; }
+          case "${{ matrix.family }}" in
+            deb)
+              install -d /etc/apt/keyrings
+              curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg "$URL/ilhs-archive-keyring.gpg"
+              get apt/screencap-docs.sources > /etc/apt/sources.list.d/screencap-docs.sources
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y screencap-documentation-tool ;;
+            fedora|rhel)
+              get rpm/screencap-docs.repo > /etc/yum.repos.d/screencap-docs.repo
+              dnf install -y screencap-documentation-tool ;;
+            suse)
+              get rpm/screencap-docs.repo > /etc/zypp/repos.d/screencap-docs.repo
+              zypper --non-interactive --gpg-auto-import-keys refresh
+              zypper --non-interactive install screencap-documentation-tool ;;
+          esac
+          newest=$(ls site/apt/pool/main | sed -n 's/^screencap-documentation-tool_\(.*\)-1_all\.deb$/\1/p' | sort -V | tail -n 1)
+          out=$(screencap --version)
+          echo "$out"
+          echo "$out" | grep -F "v$newest"
+
+  deploy:
+    name: Publish on GitHub Pages
+    needs: [build, test]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
