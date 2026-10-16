@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_recorder.py
-# 2026-10-12
-# Version: v1.0.0
+# 2026-10-16
+# Version: v1.1.0
 #
 # PURPOSE:
 # The GUI side of the built-in recorder (recorder.py): the Record window
@@ -76,10 +76,15 @@ class RecordDialog(tk.Toplevel):
                   style="Muted.TLabel", wraplength=460, justify="left").grid(
             row=3, column=0, columnspan=2, sticky="w", pady=(2, 10))
 
-        self.v_keys = tk.BooleanVar(value=extra.get(KEYS_KEY, True))
-        ttk.Checkbutton(body, text="Note keys pressed (Enter, Tab, shortcuts such as Ctrl+S). "
-                                   "Typed text is never saved.",
-                        variable=self.v_keys).grid(row=4, column=0, columnspan=2, sticky="w")
+        self.keys_policy = recorder.keys_disabled_by_policy()
+        self.v_keys = tk.BooleanVar(value=False if self.keys_policy else extra.get(KEYS_KEY, True))
+        keys_text = ("Note keys pressed (Enter, Tab, shortcuts such as Ctrl+S). "
+                     "Typed text is never saved.")
+        if self.keys_policy:
+            keys_text = "Noting keys pressed is switched off by your administrator."
+        ttk.Checkbutton(body, text=keys_text, variable=self.v_keys,
+                        state="disabled" if self.keys_policy else "normal").grid(
+            row=4, column=0, columnspan=2, sticky="w")
         self.v_process = tk.BooleanVar(value=extra.get(PROCESS_KEY, True))
         ttk.Checkbutton(body, text="Make the screenshots when I stop",
                         variable=self.v_process).grid(row=5, column=0, columnspan=2,
@@ -106,7 +111,9 @@ class RecordDialog(tk.Toplevel):
         label = self.v_mic.get()
         mic = dict(self.mics).get(label)
         extra = self.app.settings_extra
-        extra[MIC_KEY], extra[KEYS_KEY] = label, bool(self.v_keys.get())
+        extra[MIC_KEY] = label
+        if not self.keys_policy:      # keep the user's own choice for later
+            extra[KEYS_KEY] = bool(self.v_keys.get())
         extra[PROCESS_KEY] = bool(self.v_process.get())
         self.app.save_settings()
         self.destroy()

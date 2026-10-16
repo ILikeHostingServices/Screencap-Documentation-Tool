@@ -2,14 +2,14 @@
 #
 # install.sh
 # 2026-10-16
-# Version: v1.5.0
+# Version: v1.6.0
 #
 # PURPOSE:
 # One-step Linux and macOS installer for ScreenCap Docs.
 # Installs FFmpeg, Python 3, Tkinter, and (optional) Tesseract OCR and Pandoc
 # if missing,
-# downloads the latest
-# version from GitHub, and adds screencap / screencap-gui launch commands.
+# downloads the newest
+# release from GitHub, and adds screencap / screencap-gui launch commands.
 # Safe to re-run to update; your source and output folders are kept.
 #
 # Linux (needs root, installs to /opt/Screencap-Documentation-Tool):
@@ -20,7 +20,8 @@
 #
 # Optional environment variables:
 #   SCREENCAP_DIR  install folder (overrides the defaults above)
-#   SCREENCAP_REF  branch, tag, or commit to install (default: HEAD = default branch)
+#   SCREENCAP_REF  branch, tag, or commit to install (default: the newest
+#                  release; HEAD = the newest code on the default branch)
 #   SCREENCAP_WITH_WHISPER=1  also install the optional speech recognition for
 #                  Captions From Narration (about 450 MB, in whisper-env/), e.g.
 #                  sudo SCREENCAP_WITH_WHISPER=1 bash -c "$(curl -fsSL .../install.sh)"
@@ -28,7 +29,7 @@
 set -euo pipefail
 
 REPO="ILikeHostingServices/Screencap-Documentation-Tool"
-REF="${SCREENCAP_REF:-HEAD}"
+REF="${SCREENCAP_REF:-}"
 WITH_WHISPER="${SCREENCAP_WITH_WHISPER:-0}"
 APP_NAME="ScreenCap Docs"
 
@@ -176,6 +177,15 @@ verify_prerequisites() {
 # ---------------------------------------------------------------------------
 
 download_and_copy() {
+    if [ -z "$REF" ]; then
+        # The newest published release (tested), not untested code
+        REF="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
+            | sed -n 's/^ *"tag_name": *"\(v[0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' | head -n 1 || true)"
+        if [ -z "$REF" ]; then
+            warn "Could not look up the newest release, so the newest code on the default branch is installed instead."
+            REF="HEAD"
+        fi
+    fi
     step "Downloading $APP_NAME ($REF) from GitHub"
     TMP_DIR="$(mktemp -d)"
     trap 'rm -rf "$TMP_DIR"' EXIT

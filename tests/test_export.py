@@ -123,6 +123,20 @@ class BrandingTests(unittest.TestCase):
         self.assertIn('![Step 1: Open "Setup" & <accept>](', md)
         self.assertIn(f"![Screenshot of step 2]({doc['steps'][1]['file']})", md)
 
+    def test_word_captions_are_shown_as_typed(self):
+        # Text read from the screen must not become Markdown formatting or
+        # raw Word markup (pandoc's `...`{=openxml}), and line breaks stay
+        caption = 'Type *.txt in "Name"\nthen `<w:p/>`{=openxml} [link](http://x)'
+        md = export.md_caption(caption)
+        self.assertEqual(md.split("\\\n"), [export.md_escape('Type *.txt in "Name"'),
+                                             export.md_escape("then `<w:p/>`{=openxml} "
+                                                              "[link](http://x)")])
+        doc = self.doc()
+        doc["steps"][0]["caption"] = caption
+        self.assertIn(md, export.build_markdown(self.folder, doc))
+        self.assertNotIn(doc["source_video"], export.build_html(self.folder, doc),
+                         "the HTML footer does not show the recording's file name")
+
     @unittest.skipUnless(export.find_pandoc(), "Pandoc is not installed")
     def test_word_pictures_have_alt_text_and_no_extra_caption(self):
         doc = self.doc()

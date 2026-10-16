@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # updates.py
-# 2026-10-15
-# Version: v1.4.0
+# 2026-10-16
+# Version: v1.4.1
 #
 # PURPOSE:
 # Project links (repository, issues, releases, documentation) and the update
@@ -274,6 +274,8 @@ def download_installer(latest, progress=None, cancel=None, dest_dir=None, arch=N
     if not asset:
         raise UpdateError("This release has no Windows installer.")
     name, link = asset
+    if Path(name).name != name or "\\" in name:
+        raise UpdateError(f"Refusing an installer with an unexpected file name: {name!r}")
     sums_link = latest["assets"].get(CHECKSUMS_NAME)
     if not sums_link:
         raise UpdateError("This release has no checksum list, so the download "

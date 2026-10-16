@@ -208,6 +208,14 @@ class UpdateNowTests(unittest.TestCase):
         self.assertTrue(updates.DOWNLOAD_PREFIX.startswith(
             "https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/"))
 
+    def test_an_installer_name_with_a_folder_is_refused(self):
+        latest = self.latest()
+        latest["assets"] = {"../evil-windows-x64-setup.exe": self.base + "/dl/setup.exe",
+                            updates.CHECKSUMS_NAME: self.base + "/dl/sums"}
+        with self.assertRaisesRegex(updates.UpdateError, "unexpected file name"):
+            self.download(latest)
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
     def test_cancel_leaves_nothing_behind(self):
         cancel = threading.Event()
         with self.assertRaises(updates.UpdateCancelled):

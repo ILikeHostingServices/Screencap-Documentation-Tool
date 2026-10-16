@@ -1,4 +1,4 @@
-README.md v1.46.0 (Last Rev: 2026-10-16)
+README.md v1.47.0 (Last Rev: 2026-10-16)
 
 # ScreenCap Docs
 
@@ -126,6 +126,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `CHANGELOG.md` | What changed in every release. |
 | `LICENSE` | The MIT License: free to use, change, and share, with no warranty. See [License And Support](#license-and-support). |
 | `.github/ISSUE_TEMPLATE/` | The forms used to report a problem or suggest an idea on GitHub. |
+| `.github/dependabot.yml` | Has Dependabot propose updates to the GitHub Actions the workflows use (third-party actions are pinned to an exact commit). |
 | `SECURITY.md` | How to report a security problem privately. |
 | `CODE_SIGNING_POLICY.md` | Code signing status of the Windows programs (not signed), how to check a download, how the programs are built, and the privacy statement. |
 | (not here) | Maintainer notes (owner to-do list, accounts, release runbook) are kept in a private repository of the organization. |
@@ -168,7 +169,7 @@ Switches worth knowing for diagnostics (the full list is in the [Command Line Re
 
 ## Quick Start
 
-Each command below is a single copy and paste. It installs the prerequisites, downloads the latest version of the tool from GitHub, and sets up launchers. Running the same command again later updates the tool and keeps your recordings and screenshots.
+Each command below is a single copy and paste. It installs the prerequisites, downloads the newest release of the tool from GitHub, and sets up launchers. Running the same command again later updates the tool and keeps your recordings and screenshots.
 
 ### Windows 11
 
@@ -390,7 +391,7 @@ What is noted, next to the recording in `<name>.events.json`:
 
 - Where and when you click, including double-clicks, right-clicks, and drags.
 - Keys by name: Enter, Tab, Esc, Delete, the arrow and function keys, and shortcuts such as Ctrl+S.
-- **Never the text you type.** Letters, digits, and punctuation only count as "type the text". Untick **Note keys pressed** to leave keys out entirely.
+- **Never the text you type.** Letters, digits, and punctuation only count as "type the text", including characters typed with AltGr (such as @ on many European keyboards) or with Option on a Mac. Untick **Note keys pressed** to leave keys out entirely. Administrators can switch noting keys off for everyone on a PC by setting the environment variable `SCREENCAP_NO_KEYS=1` (Group Policy, Intune, or a login script); clicks are still noted.
 
 What it is used for:
 
