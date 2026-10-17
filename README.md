@@ -1,4 +1,4 @@
-README.md v1.49.0 (Last Rev: 2026-10-16)
+README.md v1.49.1 (Last Rev: 2026-10-17)
 
 # ScreenCap Docs
 
@@ -6,6 +6,7 @@ README.md v1.49.0 (Last Rev: 2026-10-16)
 [![Download for Windows and Linux](https://img.shields.io/github/v/release/ILikeHostingServices/Screencap-Documentation-Tool?label=download&logo=github)](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest)
 [![Homebrew](https://img.shields.io/badge/homebrew-ilikehostingservices%2Ftap-FBB040?logo=homebrew&logoColor=white)](#macos)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ILikeHostingServices/Screencap-Documentation-Tool/badge)](https://scorecard.dev/viewer/?uri=github.com/ILikeHostingServices/Screencap-Documentation-Tool)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15607/badge)](https://www.bestpractices.dev/projects/15607)
 
 ![The Steps tab: each step of a recorded setup wizard with its screenshot, a red ring where the mouse was clicked, the product key blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
 
