@@ -1,6 +1,6 @@
 # package-repos.yml
 # 2026-10-16
-# Version: v1.0.0
+# Version: v1.1.0
 #
 # PURPOSE:
 # Publishes the signed apt and dnf package repositories on GitHub Pages
@@ -18,7 +18,8 @@
 #    for pull requests (Pages source: GitHub Actions, set by the owner).
 # Runs after each release (called by release.yml), by hand (Actions >
 # Package repositories > Run workflow), and on pull requests that change it
-# (build and test only).
+# (build and test only; a pull request without the secrets, such as one from
+# Dependabot, signs with a throwaway key made for that run).
 
 name: Package repositories
 
@@ -78,16 +79,25 @@ jobs:
           PACKAGE_SIGNING_KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
           PACKAGE_SIGNING_PASSPHRASE: ${{ secrets.PACKAGE_SIGNING_PASSPHRASE }}
         run: |
-          if [ -z "$PACKAGE_SIGNING_KEY" ] || [ -z "$PACKAGE_SIGNING_PASSPHRASE" ]; then
-            echo "::error::The PACKAGE_SIGNING_KEY and PACKAGE_SIGNING_PASSPHRASE secrets are needed"
-            exit 1
-          fi
           # A short private keyring path: gpg-agent's socket path has a length limit
           export GNUPGHOME="$(mktemp -d /tmp/gnupg.XXXXXX)"
           trap 'gpgconf --kill gpg-agent 2>/dev/null; rm -rf "$GNUPGHOME"' EXIT
           pass="$GNUPGHOME/passphrase"
-          printf '%s' "$PACKAGE_SIGNING_PASSPHRASE" > "$pass"
-          printf '%s\n' "$PACKAGE_SIGNING_KEY" | gpg --batch --quiet --import
+          if [ -n "$PACKAGE_SIGNING_KEY" ] && [ -n "$PACKAGE_SIGNING_PASSPHRASE" ]; then
+            printf '%s' "$PACKAGE_SIGNING_PASSPHRASE" > "$pass"
+            printf '%s\n' "$PACKAGE_SIGNING_KEY" | gpg --batch --quiet --import
+          elif [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            # Pull requests from Dependabot and forks get no secrets, and a
+            # pull request never publishes: sign with a throwaway key so the
+            # install tests still check signed repositories
+            echo "::notice::No signing key for this pull request; using a throwaway test key"
+            head -c 32 /dev/urandom | base64 > "$pass"
+            gpg --batch --quiet --pinentry-mode loopback --passphrase-file "$pass" \
+              --quick-gen-key "ScreenCap Docs pull request test key" rsa3072 sign 1d
+          else
+            echo "::error::The PACKAGE_SIGNING_KEY and PACKAGE_SIGNING_PASSPHRASE secrets are needed"
+            exit 1
+          fi
           fpr=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')
           echo "Signing key fingerprint: $fpr"
           bash packaging/linux/make_repos.sh --key "$fpr" --passphrase-file "$pass" \
