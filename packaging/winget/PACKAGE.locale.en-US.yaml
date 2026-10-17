@@ -4,7 +4,7 @@
 PackageIdentifier: {PACKAGE_ID}
 PackageVersion: {VERSION}
 PackageLocale: en-US
-Publisher: ILikeHostingServices
+Publisher: ILHS Software, LLC
 PublisherUrl: https://github.com/ILikeHostingServices
 PublisherSupportUrl: {REPO_URL}/issues
 PrivacyUrl: {REPO_URL}/blob/main/CODE_SIGNING_POLICY.md#privacy
@@ -12,7 +12,7 @@ PackageName: Screencap Documentation Tool
 PackageUrl: {REPO_URL}
 License: MIT
 LicenseUrl: {REPO_URL}/blob/main/LICENSE
-Copyright: Copyright (c) 2026 ILikeHostingServices
+Copyright: Copyright (c) 2026 ILHS Software, LLC
 ShortDescription: A free Steps Recorder replacement that turns screen recordings into step-by-step screenshot documentation.
 Description: |-
   Screencap Documentation Tool finds every step in a screen recording with FFmpeg scene detection and saves a screenshot of each one.

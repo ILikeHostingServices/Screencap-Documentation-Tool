@@ -1,6 +1,6 @@
-README.md v1.0.0 (Last Rev: 2026-10-10)
+README.md v1.0.1 (Last Rev: 2026-10-17)
 
-# ILikeHostingServices Homebrew Tap
+# ILHS Software Homebrew Tap
 
 Homebrew formulas for apps from [ILikeHostingServices](https://github.com/ILikeHostingServices).
 

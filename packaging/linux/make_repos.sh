@@ -2,7 +2,7 @@
 #
 # make_repos.sh
 # 2026-10-17
-# Version: v1.0.1
+# Version: v1.0.2
 #
 # PURPOSE:
 # Builds the signed apt and dnf (rpm-md) package repositories that are
@@ -95,7 +95,7 @@ gpg --batch --yes --armor --export "$KEY" > "$OUT/ilhs-archive-key.asc"
         -o APT::FTPArchive::Release::Codename="stable" \
         -o APT::FTPArchive::Release::Architectures="$ARCHES" \
         -o APT::FTPArchive::Release::Components="main" \
-        -o APT::FTPArchive::Release::Description="ScreenCap Docs packages from ILikeHostingServices" \
+        -o APT::FTPArchive::Release::Description="ScreenCap Docs packages from ILHS Software, LLC" \
         release . > Release.tmp
     mv Release.tmp Release
     "${GPG[@]}" --clearsign --digest-algo SHA512 -o InRelease Release

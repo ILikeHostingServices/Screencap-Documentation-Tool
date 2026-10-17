@@ -1,4 +1,4 @@
-README.md v1.51.0 (Last Rev: 2026-10-17)
+README.md v1.51.1 (Last Rev: 2026-10-17)
 
 # ScreenCap Docs
 
@@ -798,7 +798,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 
 ## License And Support
 
-ScreenCap Docs is free and open source under the [MIT License](LICENSE). You may use, copy, change, and share it, including at work and in commercial settings, as long as the copyright notice and license text stay with it. It comes as is, with no warranty.
+ScreenCap Docs is made by ILHS Software, LLC and is free and open source under the [MIT License](LICENSE). You may use, copy, change, and share it, including at work and in commercial settings, as long as the copyright notice and license text stay with it. It comes as is, with no warranty.
 
 FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them.
 
