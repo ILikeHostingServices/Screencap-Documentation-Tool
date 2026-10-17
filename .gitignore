@@ -49,3 +49,8 @@ dist/
 # Build output of the Office file checker used by the tests
 tests/ooxml/bin/
 tests/ooxml/obj/
+
+# Test coverage data (CI writes these; see .coveragerc)
+.coverage
+.coverage.*
+coverage-*.data

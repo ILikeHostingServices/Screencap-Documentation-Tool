@@ -1,4 +1,4 @@
-README.md v1.50.1 (Last Rev: 2026-10-17)
+README.md v1.51.0 (Last Rev: 2026-10-17)
 
 # ScreenCap Docs
 
@@ -134,10 +134,12 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `.github/dependabot.yml` | Has Dependabot propose updates to the GitHub Actions the workflows use (third-party actions are pinned to an exact commit). |
 | `SECURITY.md` | How to report a security problem privately, the response timeframes, supported versions, and the secrets, dependency, and code scanning policies. |
 | `CONTRIBUTING.md` | How to report bugs, propose a change, sign off commits, run and build from source, and what a pull request must include (tests, documentation, dependencies, writing rules). |
+| `CODE_OF_CONDUCT.md` | The Contributor Covenant 2.1, and where to report problems (conduct@ilhs.app). |
 | `GOVERNANCE.md` | Roles, who has access to what, how access is granted, and the related repositories. |
 | `CODE_SIGNING_POLICY.md` | Code signing status of the Windows programs (not signed), how to check a download, how the programs are built, and the privacy statement. |
 | (not here) | Maintainer notes (owner to-do list, accounts, release runbook) are kept in a private repository of the organization. |
-| `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
+| `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request, checks the code style with Ruff, and requires 80% statement coverage on both combined. |
+| `ruff.toml`, `.coveragerc` | The Python coding standard (PEP 8 via Ruff) and the coverage settings used by CI. |
 | `.github/workflows/codeql.yml` | GitHub CodeQL code scanning of the Python code and the workflows (pull requests, pushes to main, weekly); findings appear under the Security tab. |
 | `.github/workflows/dco.yml` | Checks that every commit in a pull request is signed off (see [CONTRIBUTING.md](CONTRIBUTING.md#signing-off-your-commits)). |
 | `.github/workflows/dependency-review.yml` | Blocks pull requests that add a dependency with a known high or critical vulnerability. |

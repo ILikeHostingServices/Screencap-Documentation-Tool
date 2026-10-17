@@ -1,4 +1,4 @@
-THREAT_MODEL.md v1.0.0 (Last Rev: 2026-10-17)
+THREAT_MODEL.md v1.1.0 (Last Rev: 2026-10-17)
 
 # Security Assessment And Threat Model
 
@@ -23,6 +23,23 @@ The most likely and most damaging security problems for ScreenCap Docs, where th
 | Pull requests and issues | Untrusted | Run in CI. |
 | Release workflow | Privileged | Holds the signing key and store tokens. |
 
+## Security Requirements
+
+What you can expect from ScreenCap Docs, and what you cannot:
+
+- **Can expect:** recordings, screenshots, and documents never leave the computer; text that matches the sensitive patterns is blurred in exported screenshots; typed characters are never stored; the app runs without administrator rights; updates install only files from this project's GitHub release whose SHA256 matches the release's checksum list; every release file can be traced to the commit and workflow that built it.
+- **Cannot expect:** that every secret on screen is found (OCR can miss small, stylized, or partly hidden text, so review each step before sharing); protection of the unblurred copies, which are kept on purpose and are only as safe as the folder they are in; protection from someone who already controls the computer or the signed-in account; security fixes for releases older than the latest.
+
+## Trust Boundaries
+
+| Boundary | What crosses it | How it is checked |
+|---|---|---|
+| Files opened by the user into the app | Videos, `steps.json`, `<recording>.events.json` | Parsed as data only (FFmpeg, Python's `json`), never executed; blur boxes are clamped to the frame |
+| The app to helper programs | Command lines for FFmpeg, Tesseract, Pandoc, browsers, VLC | Started with argument lists, never through a shell, so file names cannot inject commands |
+| The app to the network | Update check and Update Now | HTTPS only, certificate verification on, fixed hosts and file names, SHA256 check before anything runs |
+| Contributors to the repository | Pull requests | No secrets and a read-only token for pull request runs; ruleset on `main`; required tests, CodeQL, DCO, and dependency review |
+| The repository to users | Release files and package repositories | Built only by workflows from `main`; checksums, build provenance, SBOM, signed apt and dnf repositories |
+
 ## Threats And Controls
 
 | Threat | Impact | Controls |
@@ -42,3 +59,30 @@ The most likely and most damaging security problems for ScreenCap Docs, where th
 - The Windows programs are not code signed yet, so SmartScreen warns on first start. Checksums and attestations are the substitute. See [CODE_SIGNING_POLICY.md](../CODE_SIGNING_POLICY.md).
 - Helper programs (FFmpeg, Tesseract, Pandoc, browsers, VLC) are updated by their own installers or package managers, not by this project.
 - One maintainer: changes are not reviewed by a second person. Every change still passes the full test suite, CodeQL, and the dependency review before it is merged.
+
+## Assurance Case
+
+Why the security requirements above are met:
+
+1. **The threat model is written down and kept current:** the assets, attack surface, and threats are listed on this page, which is reviewed before each feature release.
+2. **Trust boundaries are known and each has a check:** see the table above. Untrusted data never reaches a shell, an `eval`, or a deserializer that can run code.
+3. **Secure design principles are applied:**
+   - Least privilege: runs as the user; release jobs are the only jobs with write access or secrets.
+   - Secure defaults: no network use beyond the update check; key notes can be turned off by policy.
+   - Economy of mechanism: the Python standard library only, no plugin system, no listener.
+   - Complete mediation: every update download is checked by host, file name, and hash.
+   - Separation of duties is the one principle a single maintainer cannot fully apply; required automated checks stand in for a second reviewer.
+4. **Common weaknesses are countered**, with tests where they apply:
+
+| Weakness | Where it could happen | Countered by |
+|---|---|---|
+| CWE-78 OS command injection | Starting FFmpeg and other helpers | Argument lists, no shell (checked by CodeQL) |
+| CWE-22 Path traversal | Update downloads | Fixed file name pattern; unexpected names refused (fixed in 1.35.1, tested) |
+| CWE-79 and CWE-74 Injection into exports | Captions and labels in HTML, Word, PowerPoint | HTML, Markdown, and XML escaping (fixed in 1.35.1, tested) |
+| CWE-494 Download of code without integrity check | Update Now | SHA256 against the release's checksum list before running |
+| CWE-295 Improper certificate validation | Update check | Python's default HTTPS verification, never disabled |
+| CWE-200 and CWE-359 Exposure of sensitive information | Screenshots and exports | Automatic blur, key names only, unblurred copies kept apart with a warning |
+| CWE-732 Incorrect permission assignment | Install folder | Program Files permissions; the install script removes inherited write access (fixed in 1.35.1) |
+| CWE-829 and supply chain | GitHub Actions | Third-party actions pinned to a commit, Dependabot, dependency review, Scorecard |
+
+5. **The checks keep running:** CodeQL, Ruff, the test suite (80% statement coverage or more), the dependency review, and Scorecard run on every change, and a finding blocks the merge as [SECURITY.md](../SECURITY.md) describes.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # transcribe.py
-# 2026-10-16
-# Version: v1.2.1
+# 2026-10-17
+# Version: v1.2.2
 #
 # PURPOSE:
 # Turns spoken narration in a recording into first-draft captions. FFmpeg
@@ -92,7 +92,7 @@ def run_worker(python, wav, model, out_json, language=None, progress=None, cance
     # Read output on a thread so Cancel works even while the model loads or
     # downloads and the worker prints nothing for a while
     lines = queue.Queue()
-    reader = threading.Thread(target=lambda: [lines.put(l) for l in proc.stdout], daemon=True)
+    reader = threading.Thread(target=lambda: [lines.put(line) for line in proc.stdout], daemon=True)
     reader.start()
     messages = []
     try:

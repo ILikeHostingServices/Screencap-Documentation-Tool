@@ -1,4 +1,4 @@
-GOVERNANCE.md v1.0.0 (Last Rev: 2026-10-17)
+GOVERNANCE.md v1.1.0 (Last Rev: 2026-10-17)
 
 # Governance
 
@@ -8,7 +8,7 @@ How ScreenCap Docs is run: who has access to what, who decides, and how access i
 
 | Role | Who | Responsibilities |
 |---|---|---|
-| Maintainer | [@ILHS-Owner](https://github.com/ILHS-Owner) | Reviews and merges pull requests, cuts releases, answers issues and vulnerability reports, manages the repository settings, secrets, and store listings. Has the final say on what is accepted. |
+| Maintainer | [@ILHS-Owner](https://github.com/ILHS-Owner) | Reviews and merges pull requests, cuts releases, answers issues and vulnerability reports, manages the repository settings, secrets, and store listings, and enforces the [Code of Conduct](CODE_OF_CONDUCT.md). Has the final say on what is accepted. |
 | Contributor | Anyone | Reports bugs, suggests ideas, and opens pull requests as described in [CONTRIBUTING.md](CONTRIBUTING.md). Contributors have no write access to the repository. |
 | Automation | GitHub Actions, Dependabot | Builds, tests, and publishes releases from the workflows in `.github/workflows/`. Dependabot proposes updates as pull requests and cannot merge them. |
 
@@ -20,7 +20,7 @@ How ScreenCap Docs is run: who has access to what, who decides, and how access i
 | GitHub Actions secrets (package signing key, store tokens) | @ILHS-Owner; used only by release jobs that run from `main` |
 | Publishing accounts (Snap Store, winget, Homebrew tap) | @ILHS-Owner |
 | Domain and DNS for `ilhs.app` | @ILHS-Owner |
-| Private vulnerability reports | @ILHS-Owner |
+| Private vulnerability reports and Code of Conduct reports (conduct@ilhs.app) | @ILHS-Owner |
 
 Every account above uses two-factor authentication, and the organization requires it for all members.
 
@@ -41,4 +41,10 @@ The maintainer decides, after discussion in the issue or pull request when the c
 
 ## Continuity
 
-If the maintainer becomes unavailable, the project can be forked under the MIT License.
+The project has one maintainer, so its bus factor is 1. To keep it able to continue within a week if the maintainer becomes unavailable:
+
+- A trusted person is named as the GitHub account successor of @ILHS-Owner, so the organization and this repository can be taken over.
+- The same person has emergency access in the maintainer's password manager, which holds the organization recovery codes, the package signing key, and the store and DNS credentials. Emergency access opens only after a waiting period the maintainer can deny, and it is logged.
+- With that access they can create and close issues, accept changes, and publish releases with the existing workflows, or hand the project to a new maintainer.
+
+If none of that is possible, anyone can fork the project under the MIT License. The bus factor rises as soon as a second maintainer is added under [Granting Access](#granting-access).
