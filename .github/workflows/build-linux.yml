@@ -58,7 +58,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_tag || github.sha }}
 
@@ -72,7 +72,7 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "Building v$v"
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
           cache: false
@@ -112,7 +112,7 @@ jobs:
           useradd -m builder
           echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_tag || github.sha }}
 
@@ -155,12 +155,12 @@ jobs:
     env:
       V: ${{ needs.packages.outputs.version }}
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.family == 'arch' && 'linux-arch' || 'linux-deb-rpm' }}
           path: pkg
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_tag || github.sha }}
           path: src
@@ -191,16 +191,16 @@ jobs:
     env:
       V: ${{ needs.packages.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_tag || github.sha }}
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: linux-deb-rpm
           path: pkg
 
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1  # v4.4.0
         if: matrix.emulated
         with:
           platforms: arm
@@ -223,7 +223,7 @@ jobs:
     env:
       V: ${{ needs.packages.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_tag || github.sha }}
 
@@ -275,7 +275,7 @@ jobs:
       id-token: write       # build provenance
       attestations: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: linux-*
           path: release
@@ -308,7 +308,7 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_tag }}
       - name: Push the PKGBUILD to aur.archlinux.org
@@ -347,7 +347,7 @@ jobs:
     if: inputs.release_tag != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: linux-snap-*
           path: release
