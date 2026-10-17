@@ -1,0 +1,31 @@
+# .coveragerc
+# 2026-10-17
+# Version: v1.0.0
+#
+# PURPOSE:
+# Statement coverage for the test suite (coverage.py). CI measures it on
+# Windows and Linux, including the GUI and recorder tests that start the
+# app as a separate process, then combines both and requires at least 80%.
+# COVERAGE_SOURCE and COVERAGE_DATA_DIR are absolute paths so the
+# subprocesses, which run in other folders, write to the same place.
+
+[run]
+source = ${COVERAGE_SOURCE-.}
+omit =
+    */tests/*
+    */build/*
+    */packaging/*
+    */assets/*
+    */whisper-env/*
+parallel = true
+patch = subprocess
+data_file = ${COVERAGE_DATA_DIR-.}/.coverage
+
+[paths]
+source =
+    .
+    */Screencap-Documentation-Tool/Screencap-Documentation-Tool
+    *\Screencap-Documentation-Tool\Screencap-Documentation-Tool
+
+[report]
+skip_empty = true

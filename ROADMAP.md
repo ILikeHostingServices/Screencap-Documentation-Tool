@@ -1,8 +1,32 @@
-ROADMAP.md v1.7.1 (Last Rev: 2026-10-11)
+ROADMAP.md v1.8.0 (Last Rev: 2026-10-17)
 
 # Roadmap
 
-Ideas that were approved in principle but are on hold until they have been discussed further. Nothing here is being built yet.
+What ScreenCap Docs plans to do over the next year, what it will not do, and ideas on hold. Plans can change; each release's notes and `CHANGELOG.md` say what actually shipped.
+
+## Planned For The Next Year (Through 2027-10)
+
+| Area | Plan |
+| --- | --- |
+| Recording | Choose what to record, like the Windows Snipping Tool: the whole screen, one window, or a region you draw; and record system sound, switchable on and off (v1.37.0). |
+| Distribution | Publish the Microsoft Store listing, finish the winget listing, publish to the AUR once account sign-ups reopen, and evaluate Flathub. |
+| Website | Replace the package repository page at https://screencap.ilhs.app with the project website. |
+| Trust | Reapply for free code signing for the Windows programs; attach an SBOM to every compiled download, snaps included; keep the OpenSSF Best Practices and Baseline results current. |
+| Quality | Keep statement coverage at 80% or more on Windows and Linux combined, and every bug fix with a test. |
+
+## Not Planned
+
+These are out of scope; requests for them will be closed with a pointer here.
+
+| Idea | Why not |
+| --- | --- |
+| Uploading, cloud sync, or accounts | Recordings can contain passwords and internal details. Everything stays on the computer, and there is no server to trust. |
+| Usage tracking or telemetry | Same reason; the only network use is the update check and the speech model download. |
+| Paid editions or features behind a license key | The app is free and MIT licensed. |
+| Editing video | The app turns recordings into step-by-step guides; video editors already do the rest. |
+| Recording on Wayland directly | Wayland does not let apps capture the screen without the desktop's own portal. Record with the desktop's recorder and process the file. Revisited when the portals are widely available. |
+
+Ideas below were approved in principle but are on hold until they have been discussed further.
 
 ## On Hold: Needs Discussion First
 

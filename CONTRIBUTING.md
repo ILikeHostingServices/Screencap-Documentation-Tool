@@ -1,4 +1,4 @@
-CONTRIBUTING.md v1.1.0 (Last Rev: 2026-10-17)
+CONTRIBUTING.md v1.2.0 (Last Rev: 2026-10-17)
 
 # Contributing
 
@@ -28,6 +28,7 @@ Every commit must carry a `Signed-off-by:` line with your name and email, which 
 - **Documentation.** Update `README.md` for anything a person using the app or an administrator would notice.
 - **Headers.** Each file starts with its name, date, and version. Bump the file's own version when you change it (patch for fixes, minor for features).
 - **Writing rules.** Follow [docs/BRANDING.md](docs/BRANDING.md): the name is "ScreenCap Docs", plain US English, sentence case, dates as YYYY-MM-DD, versions with three parts, and no em or en dashes.
+- **Coding standards.** Python follows [PEP 8](https://peps.python.org/pep-0008/) as checked by [Ruff](https://docs.astral.sh/ruff/) with the settings in `ruff.toml`; the one exception is that short guard clauses may stay on one line (`if not x: return`). Shell scripts must pass [ShellCheck](https://www.shellcheck.net/), and PowerShell scripts must parse without errors. CI enforces all three on every push and pull request.
 - **Dependencies.** The app uses only the Python standard library, so it installs on locked-down PCs without extra packages. A new dependency (a Python package, a helper program, or a GitHub Action) needs a reason in the pull request, must be free and open source, actively maintained, and installable from the standard source (PyPI, winget, the distribution's packages, or the GitHub Marketplace). Third-party GitHub Actions are pinned to a full commit SHA and kept up to date by Dependabot. Helper programs are installed by the installers and listed in the README; the Windows build's components are listed in the SBOM attached to each release.
 - **No secrets or personal data.** No keys, tokens, real email addresses, recordings, or screenshots of real systems in commits.
 
@@ -58,12 +59,14 @@ The release files are built by the workflows in `.github/workflows/`, which are 
 The same checks run in GitHub Actions on every push and pull request (`ci.yml`), the packages are built and installed on every pull request and release (`build-windows.yml`, `build-linux.yml`, `build-macos.yml`), and the install scripts are tested when they change and every Monday (`installers.yml`). Run them locally before opening a pull request:
 
 ```bash
-python -m pip install pyflakes
-python -m pyflakes *.py *.pyw tests/*.py assets/*.py
+python -m pip install ruff coverage
+python -m ruff check .
 python -m unittest discover -s tests -v
 ```
 
 FFmpeg must be on the PATH for the processing tests. On Linux, run the tests under `xvfb-run -a` so the GUI tests have a display. `shellcheck install.sh` checks the shell installer.
+
+**Coverage.** CI measures statement coverage with coverage.py (`.coveragerc`) on Windows and Linux, including the GUI and recorder tests, and fails if the combined result drops below 80%. To measure locally, set `COVERAGE_SOURCE` and `COVERAGE_DATA_DIR` to absolute paths, run `python -m coverage run -m unittest discover -s tests`, then `python -m coverage combine` and `python -m coverage report`. The combined number is shown in each CI run's summary.
 
 ## License
 
