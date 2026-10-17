@@ -1,8 +1,8 @@
 <!doctype html>
 <!--
   repo_index.html
-  2026-10-16
-  Version: v1.0.0
+  2026-10-17
+  Version: v1.1.0
 
   PURPOSE:
   The front page of the GitHub Pages site that hosts the apt and dnf
@@ -36,18 +36,18 @@ code { font-family: ui-monospace, Consolas, monospace; }
 
 <h2>Ubuntu, Debian, Linux Mint, Raspberry Pi OS</h2>
 <pre>sudo install -d /etc/apt/keyrings
-sudo curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg https://ilikehostingservices.github.io/Screencap-Documentation-Tool/ilhs-archive-keyring.gpg
-sudo curl -fsSLo /etc/apt/sources.list.d/screencap-docs.sources https://ilikehostingservices.github.io/Screencap-Documentation-Tool/apt/screencap-docs.sources
+sudo curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg https://screencap.ilhs.app/ilhs-archive-keyring.gpg
+sudo curl -fsSLo /etc/apt/sources.list.d/screencap-docs.sources https://screencap.ilhs.app/apt/screencap-docs.sources
 sudo apt update
 sudo apt install screencap-documentation-tool</pre>
 
 <h2>Fedora, RHEL, Rocky Linux, AlmaLinux</h2>
-<pre>sudo curl -fsSLo /etc/yum.repos.d/screencap-docs.repo https://ilikehostingservices.github.io/Screencap-Documentation-Tool/rpm/screencap-docs.repo
+<pre>sudo curl -fsSLo /etc/yum.repos.d/screencap-docs.repo https://screencap.ilhs.app/rpm/screencap-docs.repo
 sudo dnf install screencap-documentation-tool</pre>
 <p>RHEL, Rocky Linux, and AlmaLinux also need EPEL and RPM Fusion for FFmpeg; see the <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool#linux">README</a>.</p>
 
 <h2>openSUSE</h2>
-<pre>sudo zypper addrepo https://ilikehostingservices.github.io/Screencap-Documentation-Tool/rpm/screencap-docs.repo
+<pre>sudo zypper addrepo https://screencap.ilhs.app/rpm/screencap-docs.repo
 sudo zypper install screencap-documentation-tool</pre>
 
 <h2>Signing key</h2>
