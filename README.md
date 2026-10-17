@@ -1,4 +1,4 @@
-README.md v1.49.1 (Last Rev: 2026-10-17)
+README.md v1.50.0 (Last Rev: 2026-10-17)
 
 # ScreenCap Docs
 
@@ -95,6 +95,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a made-up setup wizard (`demo_wizard.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
 | `docs/SECURITY_FOR_IT.md` | For IT and security teams: network use, files and settings, administrator controls, behaviors security tools may notice, and how to verify a download. |
+| `docs/ARCHITECTURE.md` | How the app works: the actors, the main flow, and every interface it exposes. |
+| `docs/THREAT_MODEL.md` | The security assessment: what needs protecting, the attack surface, the threats, and the controls against each. |
 | `docs/BRANDING.md` | The brand rules: the name, voice, colors, type, icon, screenshots, release notes format, and the brand check before each release. |
 | `Install-Prerequisites.ps1` | Installs Python 3 and FFmpeg with `winget` if they are missing, for the current user or (with `-Scope machine`) all users. Called by `install.ps1`. |
 | `theme.py` | The GUI's light, dark, and system themes. |
@@ -130,12 +132,15 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `LICENSE` | The MIT License: free to use, change, and share, with no warranty. See [License And Support](#license-and-support). |
 | `.github/ISSUE_TEMPLATE/` | The forms used to report a problem or suggest an idea on GitHub. |
 | `.github/dependabot.yml` | Has Dependabot propose updates to the GitHub Actions the workflows use (third-party actions are pinned to an exact commit). |
-| `SECURITY.md` | How to report a security problem privately. |
-| `CONTRIBUTING.md` | How to report bugs, propose a change, and what a pull request must include (tests, documentation, writing rules). |
+| `SECURITY.md` | How to report a security problem privately, the response timeframes, supported versions, and the secrets, dependency, and code scanning policies. |
+| `CONTRIBUTING.md` | How to report bugs, propose a change, sign off commits, run and build from source, and what a pull request must include (tests, documentation, dependencies, writing rules). |
+| `GOVERNANCE.md` | Roles, who has access to what, how access is granted, and the related repositories. |
 | `CODE_SIGNING_POLICY.md` | Code signing status of the Windows programs (not signed), how to check a download, how the programs are built, and the privacy statement. |
 | (not here) | Maintainer notes (owner to-do list, accounts, release runbook) are kept in a private repository of the organization. |
 | `.github/workflows/ci.yml` | Runs the tests on Windows and Linux for every push and pull request. |
 | `.github/workflows/codeql.yml` | GitHub CodeQL code scanning of the Python code and the workflows (pull requests, pushes to main, weekly); findings appear under the Security tab. |
+| `.github/workflows/dco.yml` | Checks that every commit in a pull request is signed off (see [CONTRIBUTING.md](CONTRIBUTING.md#signing-off-your-commits)). |
+| `.github/workflows/dependency-review.yml` | Blocks pull requests that add a dependency with a known high or critical vulnerability. |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard: rates the repository's security practices weekly and publishes the result (the badge at the top). |
 | `.github/workflows/installers.yml` | Runs the real installers on Windows, Linux, and macOS and checks the installed tool. |
 | `.github/workflows/release.yml` | Creates version tags from `.github/releases/` and publishes a GitHub release for each one, then has the newest release's Windows app built and attached. |
