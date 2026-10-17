@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # make_repos.sh
-# 2026-10-16
-# Version: v1.0.0
+# 2026-10-17
+# Version: v1.0.1
 #
 # PURPOSE:
 # Builds the signed apt and dnf (rpm-md) package repositories that are
@@ -27,7 +27,7 @@
 #
 # Usage:
 #   make_repos.sh --key FINGERPRINT --passphrase-file FILE \
-#       --url https://ilikehostingservices.github.io/Screencap-Documentation-Tool \
+#       --url https://screencap.ilhs.app \
 #       --out site/ PACKAGE.deb ... PACKAGE.rpm ...
 
 set -euo pipefail

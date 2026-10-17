@@ -1,4 +1,4 @@
-README.md v1.50.0 (Last Rev: 2026-10-17)
+README.md v1.50.1 (Last Rev: 2026-10-17)
 
 # ScreenCap Docs
 
@@ -233,8 +233,8 @@ Ubuntu, Debian, Linux Mint, Pop!_OS, Raspberry Pi OS:
 
 ```bash
 sudo install -d /etc/apt/keyrings
-sudo curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg https://ilikehostingservices.github.io/Screencap-Documentation-Tool/ilhs-archive-keyring.gpg
-sudo curl -fsSLo /etc/apt/sources.list.d/screencap-docs.sources https://ilikehostingservices.github.io/Screencap-Documentation-Tool/apt/screencap-docs.sources
+sudo curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg https://screencap.ilhs.app/ilhs-archive-keyring.gpg
+sudo curl -fsSLo /etc/apt/sources.list.d/screencap-docs.sources https://screencap.ilhs.app/apt/screencap-docs.sources
 sudo apt update
 sudo apt install screencap-documentation-tool
 ```
@@ -242,18 +242,18 @@ sudo apt install screencap-documentation-tool
 Fedora, RHEL, Rocky Linux, AlmaLinux (RHEL and its rebuilds also need EPEL and RPM Fusion for FFmpeg, as in the table below):
 
 ```bash
-sudo curl -fsSLo /etc/yum.repos.d/screencap-docs.repo https://ilikehostingservices.github.io/Screencap-Documentation-Tool/rpm/screencap-docs.repo
+sudo curl -fsSLo /etc/yum.repos.d/screencap-docs.repo https://screencap.ilhs.app/rpm/screencap-docs.repo
 sudo dnf install screencap-documentation-tool
 ```
 
 openSUSE:
 
 ```bash
-sudo zypper addrepo https://ilikehostingservices.github.io/Screencap-Documentation-Tool/rpm/screencap-docs.repo
+sudo zypper addrepo https://screencap.ilhs.app/rpm/screencap-docs.repo
 sudo zypper install screencap-documentation-tool
 ```
 
-The repository metadata and the .rpm files are signed with the ILHS Package Signing key ([ilhs-archive-key.asc](https://ilikehostingservices.github.io/Screencap-Documentation-Tool/ilhs-archive-key.asc)); dnf and zypper ask once to trust it. The repository keeps the newest five releases. (Available from v1.35.0.)
+The repository metadata and the .rpm files are signed with the ILHS Package Signing key ([ilhs-archive-key.asc](https://screencap.ilhs.app/ilhs-archive-key.asc)); dnf and zypper ask once to trust it. The repository keeps the newest five releases. (Available from v1.35.0.) The repositories moved to `screencap.ilhs.app` on 2026-10-17; computers set up with the earlier `ilikehostingservices.github.io` address keep working, because GitHub redirects it.
 
 **Packages.** From v1.21.0 every release has packages for the common distributions. Your package manager installs FFmpeg, Python, and Tkinter with them, and the app appears in the application menu. Recordings and output go in `~/Documents/ScreenCap Docs` by default (or `~/Documents/Screencap Documentation Tool` when that folder exists from an earlier version).
 

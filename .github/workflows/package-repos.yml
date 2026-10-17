@@ -1,10 +1,11 @@
 # package-repos.yml
-# 2026-10-16
-# Version: v1.1.0
+# 2026-10-17
+# Version: v1.2.0
 #
 # PURPOSE:
 # Publishes the signed apt and dnf package repositories on GitHub Pages
-# (https://ilikehostingservices.github.io/Screencap-Documentation-Tool/), so
+# (https://screencap.ilhs.app/, the custom domain of this repository's Pages
+# site; the old github.io address redirects there), so
 # Linux users can install with `apt install` or `dnf install` and get updates
 # with their normal system updates.
 # 1. build: downloads the .deb and .rpm files of the newest releases and
@@ -45,7 +46,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SITE_URL: https://ilikehostingservices.github.io/Screencap-Documentation-Tool
+  SITE_URL: https://screencap.ilhs.app
   KEEP_RELEASES: 5   # the newest releases kept in the repositories (for rollbacks)
 
 jobs:
