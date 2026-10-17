@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # build_packages.py
-# 2026-10-12
-# Version: v1.0.3
+# 2026-10-17
+# Version: v1.0.4
 #
 # PURPOSE:
 # Builds the .deb (Debian, Ubuntu, Mint, Pop!_OS) and .rpm (Fedora, RHEL
@@ -74,8 +74,8 @@ def nfpm_config(kind, stage):
         "release": "1",
         "section": "graphics",
         "priority": "optional",
-        "maintainer": "ILikeHostingServices <337515992+ILHS-Owner@users.noreply.github.com>",
-        "vendor": "ILikeHostingServices",
+        "maintainer": "ILHS Software, LLC <337515992+ILHS-Owner@users.noreply.github.com>",
+        "vendor": "ILHS Software, LLC",
         "homepage": "https://github.com/ILikeHostingServices/Screencap-Documentation-Tool",
         "license": "MIT",
         "description": DESCRIPTION,

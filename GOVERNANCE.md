@@ -1,8 +1,8 @@
-GOVERNANCE.md v1.1.0 (Last Rev: 2026-10-17)
+GOVERNANCE.md v1.2.0 (Last Rev: 2026-10-17)
 
 # Governance
 
-How ScreenCap Docs is run: who has access to what, who decides, and how access is granted.
+How ScreenCap Docs is run: who has access to what, who decides, and how access is granted. ScreenCap Docs is published by ILHS Software, LLC, which holds its copyright; the project's code stays MIT licensed for everyone.
 
 ## Roles
 

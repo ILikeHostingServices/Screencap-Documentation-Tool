@@ -1,6 +1,6 @@
 ; installer.iss
-; 2026-10-16
-; Version: v1.8.0
+; 2026-10-17
+; Version: v1.8.1
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of ScreenCap Docs, the packaged
@@ -59,7 +59,7 @@ AppId={{39ABD99E-CAC0-48C0-B602-EF8172627F70}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
-AppPublisher=ILikeHostingServices
+AppPublisher=ILHS Software, LLC
 AppPublisherURL=https://github.com/ILikeHostingServices/Screencap-Documentation-Tool
 AppSupportURL=https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues
 AppUpdatesURL=https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases
@@ -95,11 +95,11 @@ SolidCompression=yes
 OutputDir=..\release
 OutputBaseFilename=Screencap-Documentation-Tool-v{#AppVersion}-windows-{#Arch}-setup
 VersionInfoVersion={#AppVersion}.0
-VersionInfoCompany=ILikeHostingServices
+VersionInfoCompany=ILHS Software, LLC
 VersionInfoDescription={#AppName} Setup
 VersionInfoProductName={#AppName}
 VersionInfoProductVersion={#AppVersion}
-VersionInfoCopyright=Copyright (c) 2026 ILikeHostingServices. MIT License.
+VersionInfoCopyright=Copyright (c) 2026 ILHS Software, LLC. MIT License.
 ; Close a running copy before replacing its files
 CloseApplications=yes
 ; Tell open programs (Explorer, new terminals) that the PATH changed
