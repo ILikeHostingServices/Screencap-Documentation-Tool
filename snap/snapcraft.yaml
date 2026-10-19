@@ -1,6 +1,6 @@
 # snapcraft.yaml
-# 2026-10-16
-# Version: v1.3.0
+# 2026-10-19
+# Version: v1.4.0
 #
 # PURPOSE:
 # Snap package for the Snap Store (Ubuntu and any distribution with snapd).
@@ -10,24 +10,24 @@
 # installed. Built by .github/workflows/build-linux.yml with snapcraft, for
 # x86_64 PCs (amd64) and 64-bit ARM such as the Raspberry Pi 3, 4, and 5
 # with 64-bit Raspberry Pi OS (arm64). 32-bit Raspberry Pi OS uses the .deb.
+# The Snap Store listing (title, summary, description, links, license) is
+# replaced from this file each time a release reaches the stable channel, so
+# change it here rather than in the store dashboard. The description is plain
+# paragraphs without hard line breaks, because the store keeps every newline.
 
 name: screencap-documentation-tool
 title: ScreenCap Docs
 summary: Turn screen recordings into step-by-step screenshot documentation
 description: |
-  A free Steps Recorder replacement (formerly Screencap Documentation Tool). Finds every step in a screen recording
-  with FFmpeg scene detection and saves a screenshot of each one. The
-  built-in recorder (X11 sessions) notes your clicks, so each step gets a red
-  ring where you clicked and a first-draft caption. Review the
-  steps, add captions, arrows, and labels, crop, blur sensitive information,
-  and export to HTML, Word, or PowerPoint. Everything runs locally, with
-  no telemetry.
+  A free Steps Recorder replacement from ILHS Software, LLC (formerly Screencap Documentation Tool). Click Record, do the task, and click Stop: ScreenCap Docs finds every step in the recording and saves a screenshot of each one, with a red ring where you clicked and a first-draft caption.
 
-  Recordings and output go in Documents/ScreenCap Docs in your home folder
-  by default (an existing Documents/Screencap Documentation Tool is kept); any folder in your home or on a removable drive
-  can be chosen.
+  Review the steps, add captions, arrows, and labels, crop, blur passwords and other sensitive information, and export to HTML, Word, or PowerPoint. Everything runs on your computer, with no telemetry.
+
+  Recordings and output go in Documents/ScreenCap Docs in your home folder by default (an existing Documents/Screencap Documentation Tool folder is kept). Any folder in your home or on a removable drive can be chosen. The built-in recorder needs an X11 session; recordings from any other screen recorder work too.
+
+  Website and downloads for Windows and macOS: https://screencap.ilhs.app
 license: MIT
-website: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool
+website: https://screencap.ilhs.app
 source-code: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool
 issues: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues
 contact: https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues
