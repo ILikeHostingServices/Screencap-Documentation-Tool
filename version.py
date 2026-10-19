@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # version.py
-# 2026-10-16
-# Version: v1.36.0
+# 2026-10-19
+# Version: v1.36.1
 #
 # PURPOSE:
 # The release version of ScreenCap Docs as a whole. It
@@ -14,8 +14,8 @@
 # Bump RELEASE, RELEASE_DATE, and the header above in the same commit that a
 # release tag will point at (see "Releases And Versions" in README.md).
 
-RELEASE = "1.36.0"
-RELEASE_DATE = "2026-10-16"
+RELEASE = "1.36.1"
+RELEASE_DATE = "2026-10-19"
 APP_NAME = "ScreenCap Docs"
 # The name before v1.35.0. Kept where it identifies an installed copy (the
 # Windows program file and registry key) and for an existing Documents folder.

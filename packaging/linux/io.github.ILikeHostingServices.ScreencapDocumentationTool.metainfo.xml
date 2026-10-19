@@ -65,6 +65,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.36.1" date="2026-10-19">
+      <description>
+        <p>ScreenCap Docs is now published by ILHS Software, LLC. The app, its MIT license, and your settings stay the same.</p>
+      </description>
+    </release>
     <release version="1.36.0" date="2026-10-16">
       <description>
         <p>The Windows setup can add the screencap command to the PATH, and every release file now has a build provenance record.</p>

@@ -1,4 +1,4 @@
-README.md v1.51.1 (Last Rev: 2026-10-17)
+README.md v1.52.0 (Last Rev: 2026-10-19)
 
 # ScreenCap Docs
 
@@ -7,6 +7,7 @@ README.md v1.51.1 (Last Rev: 2026-10-17)
 [![Homebrew](https://img.shields.io/badge/homebrew-ilikehostingservices%2Ftap-FBB040?logo=homebrew&logoColor=white)](#macos)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ILikeHostingServices/Screencap-Documentation-Tool/badge)](https://scorecard.dev/viewer/?uri=github.com/ILikeHostingServices/Screencap-Documentation-Tool)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15607/badge)](https://www.bestpractices.dev/projects/15607)
+[![Website](https://img.shields.io/badge/website-screencap.ilhs.app-2563EB)](https://screencap.ilhs.app)
 
 ![The Steps tab: each step of a recorded setup wizard with its screenshot, a red ring where the mouse was clicked, the product key blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
 
@@ -88,12 +89,13 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `Run-Screencap.bat` | Double-click to run the command line version on Windows. Passes any arguments through to `screencap.py`. |
 | `install.ps1` | One-step Windows installer used by the install command (power users and developers). |
 | `install.sh` | One-step Linux and macOS installer used by the install commands. |
-| `packaging/linux/` | Linux packages: `stage.sh` (the shared install layout), `build_packages.py` (.deb and .rpm with nfpm), the menu entry, the software center details, and `make_repos.sh` with `repo_index.html` (the signed apt and dnf repositories on GitHub Pages). |
+| `packaging/linux/` | Linux packages: `stage.sh` (the shared install layout), `build_packages.py` (.deb and .rpm with nfpm), the menu entry, the software center details, and `make_repos.sh` (the signed apt and dnf repositories on GitHub Pages). |
 | `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
 | `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a made-up setup wizard (`demo_wizard.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
+| `website/` | The project website at https://screencap.ilhs.app, published to GitHub Pages with the apt and dnf repositories by `package-repos.yml`. |
 | `docs/SECURITY_FOR_IT.md` | For IT and security teams: network use, files and settings, administrator controls, behaviors security tools may notice, and how to verify a download. |
 | `docs/ARCHITECTURE.md` | How the app works: the actors, the main flow, and every interface it exposes. |
 | `docs/THREAT_MODEL.md` | The security assessment: what needs protecting, the attack surface, the threats, and the controls against each. |
