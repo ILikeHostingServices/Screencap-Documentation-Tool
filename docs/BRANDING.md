@@ -1,4 +1,4 @@
-BRANDING.md v1.0.0 (Last Rev: 2026-10-16)
+BRANDING.md v1.1.0 (Last Rev: 2026-10-17)
 
 # Branding
 
@@ -8,7 +8,8 @@ The core brand rules for ScreenCap Docs, so the app, installer, README, release 
 
 - Write **ScreenCap Docs**: capital S, C, and D, one space. Never "Screencap Docs", "ScreenCapDocs", "SCD", or "the tool" in headings.
 - "Formerly Screencap Documentation Tool" only where someone may search for the old name: store descriptions, the About window, migration notes.
-- The publisher is **ILHS** in running text and **ILikeHostingServices** for the GitHub organization.
+- The publisher is **ILHS Software, LLC**, an Ohio limited liability company. Use the full legal name in copyright lines, the installer and file properties, store and package listings, and legal text; **ILHS** is fine in running text. **ILikeHostingServices** is only the GitHub organization's name and stays in URLs.
+- Copyright line: `Copyright (c) 2026 ILHS Software, LLC`. The years change only when the file's content changes in a new year.
 - Identifiers that must never change (they keep upgrades working): the Windows AppId `{39ABD99E-CAC0-48C0-B602-EF8172627F70}` and the taskbar app ID `ILHS.ScreencapDocumentationTool.GUI`. The `screencap` and `screencap-gui` commands stay as they are.
 
 ## Positioning

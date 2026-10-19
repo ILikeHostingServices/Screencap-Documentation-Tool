@@ -1,4 +1,4 @@
-SECURITY_FOR_IT.md v1.1.0 (Last Rev: 2026-10-16)
+SECURITY_FOR_IT.md v1.2.0 (Last Rev: 2026-10-17)
 
 # ScreenCap Docs for IT and Security Teams
 
@@ -12,6 +12,7 @@ What ScreenCap Docs does on a computer, what it sends over the network, what it 
 | Does it run as administrator? | No. The app runs as the signed-in user. Only installing for all users needs administrator rights. |
 | Does it record keystrokes? | It notes key **names** (Enter, Tab, Ctrl+S) while a recording runs, never typed characters. Administrators can switch this off (below). |
 | Does it run in the background? | No. Nothing runs at sign-in, and there is no service or scheduled task. |
+| Who publishes it? | ILHS Software, LLC, an Ohio limited liability company. The installer, the program files, and the store listings name it as publisher. |
 | Is the source available? | Yes, MIT license. Every release is built by GitHub Actions from this repository. |
 | Is it code signed? | Not yet. See [Verifying A Download](#verifying-a-download). |
 

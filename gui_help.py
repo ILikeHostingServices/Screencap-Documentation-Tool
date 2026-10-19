@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_help.py
-# 2026-10-15
-# Version: v1.5.0
+# 2026-10-17
+# Version: v1.5.1
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -239,7 +239,7 @@ class AboutWindow(tk.Toplevel):
             "is sent anywhere unless you ask for it (exports you share, the update check).")
                   ).grid(row=1, column=0, sticky="w", pady=(14, 0))
         ttk.Label(body, wraplength=self.WIDTH, justify="left", style="Muted.TLabel", text=(
-            "Copyright (c) 2026 ILikeHostingServices. FFmpeg, Tesseract OCR, Pandoc, VLC, "
+            "Copyright (c) 2026 ILHS Software, LLC. FFmpeg, Tesseract OCR, Pandoc, VLC, "
             "and faster-whisper are separate programs with their own licenses.")
                   ).grid(row=2, column=0, sticky="w", pady=(6, 0))
 

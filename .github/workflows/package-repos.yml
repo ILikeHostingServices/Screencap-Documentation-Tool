@@ -1,24 +1,27 @@
 # package-repos.yml
-# 2026-10-17
-# Version: v1.2.0
+# 2026-10-19
+# Version: v1.3.0
 #
 # PURPOSE:
-# Publishes the signed apt and dnf package repositories on GitHub Pages
-# (https://screencap.ilhs.app/, the custom domain of this repository's Pages
-# site; the old github.io address redirects there), so
-# Linux users can install with `apt install` or `dnf install` and get updates
-# with their normal system updates.
+# Publishes the project website and the signed apt and dnf package
+# repositories on GitHub Pages (https://screencap.ilhs.app/, the custom
+# domain of this repository's Pages site; the old github.io address
+# redirects there), so Linux users can install with `apt install` or
+# `dnf install` and get updates with their normal system updates.
 # 1. build: downloads the .deb and .rpm files of the newest releases and
 #    builds both repositories with packaging/linux/make_repos.sh, signed with
 #    the PACKAGE_SIGNING_KEY secret (passphrase: PACKAGE_SIGNING_PASSPHRASE).
 #    The key is imported into a temporary keyring that is deleted afterwards.
+#    Then adds the website (website/index.html, assets/icon.png, and
+#    docs/screenshots/) and checks that every local file it links to exists.
 # 2. test: on Debian, Ubuntu, Fedora, Rocky Linux, and openSUSE, serves the
 #    built repositories locally, adds them exactly as the README says, and
 #    installs the app from them (signatures checked by apt, dnf, and zypper).
 # 3. deploy: publishes to GitHub Pages, only when every test passed and not
 #    for pull requests (Pages source: GitHub Actions, set by the owner).
-# Runs after each release (called by release.yml), by hand (Actions >
-# Package repositories > Run workflow), and on pull requests that change it
+# Runs after each release (called by release.yml), when the website changes
+# on main, by hand (Actions > Package repositories > Run workflow), and on
+# pull requests that change it or the website
 # (build and test only; a pull request without the secrets, such as one from
 # Dependabot, signs with a throwaway key made for that run).
 
@@ -32,11 +35,15 @@ on:
       PACKAGE_SIGNING_PASSPHRASE:
         required: true
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - website/**
   pull_request:
     paths:
       - .github/workflows/package-repos.yml
       - packaging/linux/make_repos.sh
-      - packaging/linux/repo_index.html
+      - website/**
 
 permissions:
   contents: read
@@ -103,8 +110,20 @@ jobs:
           echo "Signing key fingerprint: $fpr"
           bash packaging/linux/make_repos.sh --key "$fpr" --passphrase-file "$pass" \
             --url "$SITE_URL" --out site dl/*
-          cp packaging/linux/repo_index.html site/index.html
           touch site/.nojekyll
+
+      - name: Add the website
+        run: |
+          cp website/index.html site/index.html
+          cp assets/icon.png site/icon.png
+          mkdir site/screenshots
+          cp docs/screenshots/*.png site/screenshots/
+          # Every local link and image must exist in the published site
+          missing=0
+          for f in $(grep -oE '(src|href)="[^"#:]+"' site/index.html | sed -E 's/^[a-z]+="//; s/"$//' | sort -u); do
+            [ -f "site/$f" ] || { echo "::error::website/index.html links to $f, which is not in the site"; missing=1; }
+          done
+          exit $missing
 
       - uses: actions/upload-artifact@v7
         with:

@@ -1,0 +1,524 @@
+<!doctype html>
+<!--
+  index.html
+  2026-10-19
+  Version: v1.0.0
+
+  PURPOSE:
+  The project website at https://screencap.ilhs.app. Published to GitHub
+  Pages by .github/workflows/package-repos.yml, together with the apt and dnf
+  repositories, the icon (assets/icon.png), and the screenshots
+  (docs/screenshots/). The download links point at the newest release when
+  the page loads; the links written here are the fallback.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScreenCap Docs</title>
+<meta name="description" content="A free Steps Recorder replacement for Windows, Linux, and macOS. Record a task once and get a finished how-to guide.">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a "how-to guide" page. The hero is step 1 of a real guide; features are numbered steps, the way the tool's own output reads.
+   Colors and type follow docs/BRANDING.md: brand-blue for buttons, links, and accents; click-red only for what the product draws. */
+:root {
+  --paper: #f6f7f9;
+  --sheet: #ffffff;
+  --ink: #17202b;
+  --muted: #566273;
+  --rule: #d9dee6;
+  --blue: #2563eb;          /* brand-blue */
+  --on-blue: #ffffff;
+  --blue-soft: #e6eefd;
+  --red: #e53935;           /* click-red: rings and boxes the product draws */
+  --amber: #f59e0b;         /* capture-amber: marks only, never text */
+  --navy: #0f1e3d;          /* screen-navy */
+  --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, "SFMono-Regular", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #10151c; --sheet: #18202a; --ink: #e8edf3; --muted: #9aa7b8;
+    --rule: #2a3542; --blue: #6ea8fe; --on-blue: #10151c; --blue-soft: #1b2a44; --red: #ff6b66; --amber: #f5a524; --navy: #22355f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #10151c; --sheet: #18202a; --ink: #e8edf3; --muted: #9aa7b8;
+  --rule: #2a3542; --blue: #6ea8fe; --on-blue: #10151c; --blue-soft: #1b2a44; --red: #ff6b66; --amber: #f5a524; --navy: #22355f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 17px/1.6 var(--body); }
+a { color: var(--blue); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+p { margin: 0; }
+
+header.top { border-bottom: 1px solid var(--rule); background: var(--sheet); }
+header.top .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; justify-content: space-between; padding-block: 14px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; }
+.brand img { width: 28px; height: 28px; margin: 7px; }
+nav { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 15px; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a:hover { color: var(--ink); }
+
+.hero { padding-block: 56px 40px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; }
+.eyebrow { font: 600 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--blue); margin-bottom: 16px; }
+.hero h1 { font-size: clamp(34px, 5vw, 54px); font-weight: 700; letter-spacing: -.01em; }
+.hero .lede { margin-top: 18px; font-size: 19px; color: var(--muted); max-width: 34em; }
+.ctas { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-block; padding: 12px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; border: 1px solid var(--rule); color: var(--ink); background: var(--sheet); }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.meta { margin-top: 16px; font: 13px var(--mono); color: var(--muted); }
+.trust { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 15px; color: var(--muted); }
+.trust a { color: var(--muted); }
+.trust strong { color: var(--ink); font-weight: 600; }
+
+/* The hero picture is captioned like a step in the tool's own output */
+figure.step { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+figure.step img { display: block; width: 100%; height: auto; }
+figure.step figcaption { display: flex; gap: 12px; align-items: baseline; padding: 12px 16px; border-top: 1px solid var(--rule); font-size: 15px; }
+.num { font: 600 13px var(--mono); color: var(--blue); white-space: nowrap; }
+.ts { font: 12px var(--mono); color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+section { padding-block: 56px; border-top: 1px solid var(--rule); }
+section > .wrap > h2 { font-size: clamp(26px, 3.4vw, 36px); }
+section > .wrap > .sub { margin-top: 10px; color: var(--muted); max-width: 40em; }
+
+.flow { margin-top: 32px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; counter-reset: s; padding: 0; list-style: none; }
+.flow li { counter-increment: s; }
+.flow li::before { content: "Step " counter(s); display: block; font: 600 13px var(--mono); color: var(--blue); margin-bottom: 6px; }
+.flow h3 { font-size: 20px; }
+.flow p { margin-top: 6px; color: var(--muted); }
+
+.features { margin-top: 36px; display: grid; gap: 56px; }
+.feature { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 40px; align-items: center; }
+.feature:nth-child(even) { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.feature:nth-child(even) .copy { order: 2; }
+.feature h3 { font-size: 24px; }
+.feature p { margin-top: 10px; color: var(--muted); }
+.feature ul { margin: 12px 0 0; padding-left: 20px; color: var(--muted); }
+.feature li + li { margin-top: 4px; }
+.shot { margin: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--sheet); }
+.shot img { display: block; width: 100%; height: auto; }
+
+.compare { margin-top: 28px; overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 16px; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 13px var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+td:first-child { color: var(--muted); width: 40%; }
+
+.install { margin-top: 28px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--rule); }
+.tabs button { font: 600 15px var(--body); color: var(--muted); background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--blue); }
+.panel { padding-top: 20px; display: grid; gap: 28px; }
+.panel p { color: var(--muted); max-width: 46em; }
+.panel .req { font: 600 13px/1.5 var(--mono); color: var(--ink); padding: 10px 14px; background: var(--sheet); border: 1px solid var(--rule); border-left: 3px solid var(--blue); border-radius: 8px; max-width: none; }
+.panel[hidden] { display: none; }
+.way { display: grid; gap: 12px; }
+.panel > *, .way > *, .steps li, .install { min-width: 0; }
+.way h3 { font-size: 20px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.way .compare { margin-top: 0; }
+.way td code { font: 13px var(--mono); white-space: nowrap; }
+.way td:first-child { width: 34%; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; }
+.panel > .btn, .panel > .row { justify-self: start; }
+.btn.ghost { background: none; color: var(--blue); }
+.note { font-size: 15px; padding: 10px 14px; border-radius: 8px; background: var(--sheet); border: 1px solid var(--rule); border-left: 3px solid var(--amber); color: var(--ink) !important; }
+.steps { margin: 0; padding-left: 22px; display: grid; gap: 14px; }
+.steps li { padding-left: 4px; }
+.steps li::marker { font: 600 15px var(--mono); color: var(--blue); }
+.steps li p { margin-bottom: 8px; }
+.plain { margin: 0; padding-left: 20px; color: var(--muted); }
+.plain li + li { margin-top: 4px; }
+.pill.ok { background: var(--blue); color: var(--on-blue); }
+.reqs th[scope="row"] { font: 600 15px var(--body); text-transform: none; letter-spacing: 0; color: var(--ink); width: 16%; }
+.reqs td:first-child { color: inherit; width: auto; }
+.reqs td { width: 28%; }
+.fine { margin-top: 14px; font-size: 15px; color: var(--muted); max-width: 52em; }
+.cmd { display: flex; gap: 8px; align-items: stretch; background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: pre; padding: 12px 14px; font: 14px/1.5 var(--mono); }
+.cmd button { font: 600 13px var(--body); border: 0; border-left: 1px solid var(--rule); background: none; color: var(--blue); padding: 0 14px; cursor: pointer; }
+.pill { display: inline-block; font: 600 12px var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); vertical-align: middle; }
+
+footer { border-top: 1px solid var(--rule); padding-block: 32px; color: var(--muted); font-size: 15px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+
+@media (max-width: 820px) {
+  .pkgs table, .pkgs tbody, .pkgs tr, .pkgs td { display: block; min-width: 0; width: auto !important; }
+  .pkgs thead { display: none; }
+  .pkgs tr { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  .pkgs tr:last-child { border-bottom: 0; }
+  .pkgs td { border: 0; padding: 3px 16px; }
+  .pkgs td:first-child { color: var(--ink); font-weight: 600; }
+  .pkgs td code { white-space: normal; word-break: break-all; }
+  .hero, .feature { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .feature:nth-child(even) { grid-template-columns: minmax(0, 1fr); }
+  .feature:nth-child(even) .copy { order: 0; }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .hero { padding-block: 36px 28px; }
+  section { padding-block: 40px; }
+}
+@media (max-width: 640px) {
+  .compare:not(.pkgs) { overflow: visible; }
+  .compare:not(.pkgs) table, .compare:not(.pkgs) tbody, .compare:not(.pkgs) tr, .compare:not(.pkgs) td, .compare:not(.pkgs) th[scope="row"] { display: block; min-width: 0; width: auto !important; }
+  .compare:not(.pkgs) thead { display: none; }
+  .compare:not(.pkgs) tr { padding: 14px 16px; border-bottom: 1px solid var(--rule); }
+  .compare:not(.pkgs) tr:last-child { border-bottom: 0; }
+  .compare:not(.pkgs) td, .compare:not(.pkgs) th[scope="row"] { border: 0; padding: 0; }
+  .compare:not(.pkgs) td + td, .compare:not(.pkgs) th + td { margin-top: 10px; }
+  .compare:not(.pkgs) td::before { content: attr(data-label); display: block; font: 600 12px var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+  .compare:not(.pkgs) td:last-child { color: var(--ink); }
+  .reqs th[scope="row"] { font-size: 17px; margin-bottom: 4px; }
+  nav { gap: 0 18px; }
+  nav a { display: inline-block; padding: 10px 0; }
+  .hero h1 { overflow-wrap: anywhere; }
+}
+a.zoom { display: block; }
+@media (prefers-reduced-motion: no-preference) { .btn { transition: filter .15s; } .btn:hover { filter: brightness(1.06); } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="icon.png" alt="" width="28" height="28">ScreenCap Docs</a>
+    <nav aria-label="Page">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#psr">Steps Recorder</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#install">Download</a>
+      <a href="#it">For IT</a>
+      <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <p class="eyebrow">Free Steps Recorder replacement</p>
+      <h1>Record a task once. Get the how-to guide.</h1>
+      <p class="lede">Click Record, do the task, click Stop. You get a screenshot of every step with a ring where you clicked, a draft caption for each one, passwords blurred, and a finished HTML, Word, PDF, or PowerPoint document.</p>
+      <div class="ctas">
+        <a class="btn primary" href="#install">Download</a>
+        <a class="btn" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool">View source</a>
+      </div>
+      <p class="meta">v<span data-ver>1.36.0</span> · Windows 11 · Linux · macOS · MIT license</p>
+    </div>
+    <figure class="step">
+      <a class="zoom" href="screenshots/01-steps-editor.png" aria-label="Open the full-size screenshot"><img src="screenshots/01-steps-editor.png" width="1600" height="972" alt="The step editor: a list of steps, and step 3's screenshot with red rings where the product key field and the Next button were clicked, the key blurred"></a>
+      <figcaption><span class="num">Step 3</span><span>Click next to "Product key", type the text, then click "Next".</span><span class="ts">00:00:14.150</span></figcaption>
+    </figure>
+  </div>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <p class="sub">The same three steps as Steps Recorder, with a full guide at the end instead of a zip of small pictures.</p>
+      <ol class="flow">
+        <li><h3>Record</h3><p>Do the task as usual. Every click and key is noted. Typed text is never saved.</p></li>
+        <li><h3>Review</h3><p>Fix captions, reorder or remove steps, crop, and draw arrows or labels in the step editor.</p></li>
+        <li><h3>Export</h3><p>One click makes an HTML, Word, PDF, or PowerPoint document with your title, version, and logo.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>What you get</h2>
+      <div class="features">
+        <div class="feature">
+          <div class="copy">
+            <h3>A built-in recorder that notes every click</h3>
+            <p>Each step gets a red ring where you clicked and a first-draft caption such as <code>Click "Next".</code> Recordings from Snipping Tool, OBS Studio, or any other recorder work too.</p>
+            <ul><li>Optional narration becomes captions, transcribed offline</li><li>On Windows, the recorder window hides itself from the recording</li></ul>
+          </div>
+          <figure class="shot"><img src="screenshots/05-recording.png" alt="A setup wizard being recorded, with the small Recording window and its Stop and Discard buttons in the corner" loading="lazy"></figure>
+        </div>
+        <div class="feature">
+          <div class="copy">
+            <h3>Point readers at the right button</h3>
+            <p>Draw arrows, numbered markers, and text labels. A red box shows what changed since the previous step, and a zoomed inset can show a small checkbox up close.</p>
+          </div>
+          <figure class="shot"><img src="screenshots/02-annotate-menu.png" alt="The Annotate menu with a numbered marker, an arrow, and a text label drawn on a step" loading="lazy"></figure>
+        </div>
+        <div class="feature">
+          <div class="copy">
+            <h3>Sensitive text blurred for you</h3>
+            <p>Passwords, license keys, tokens, and IP and email addresses are found with OCR and blurred. An unblurred copy is kept alongside in case you need the details. Shown here in the dark theme.</p>
+          </div>
+          <figure class="shot"><img src="screenshots/04-dark-theme.png" alt="The step editor in the dark theme" loading="lazy"></figure>
+        </div>
+        <div class="feature">
+          <div class="copy">
+            <h3>Finished documents, not just pictures</h3>
+            <p>Export a single-file HTML guide, a Word document from your own template, a PDF, or a PowerPoint deck with one slide per step and narration in the speaker notes.</p>
+            <ul><li>Alt text on every screenshot for screen readers</li><li>Your company logo on the title</li></ul>
+          </div>
+          <figure class="shot"><img src="screenshots/07-powerpoint.png" alt="Four slides of the exported PowerPoint presentation: the title slide and three step slides" loading="lazy"></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="psr">
+    <div class="wrap">
+      <h2>Coming from Steps Recorder</h2>
+      <p class="sub">Microsoft deprecated Steps Recorder (psr.exe) in 2023. It gets no more updates and is to be removed from Windows.</p>
+      <div class="compare">
+        <table>
+          <thead><tr><th>Steps Recorder</th><th>ScreenCap Docs</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Steps Recorder">A small compressed screenshot at every click</td><td data-label="ScreenCap Docs">A full resolution screenshot of every step, with duplicates removed</td></tr>
+            <tr><td data-label="Steps Recorder">Generated text such as "User left click on button"</td><td data-label="ScreenCap Docs">Readable captions such as Click "Next" that you can edit</td></tr>
+            <tr><td data-label="Steps Recorder">An .mht file in a zip</td><td data-label="ScreenCap Docs">HTML, Word, PDF, or PowerPoint, with your title and logo</td></tr>
+            <tr><td data-label="Steps Recorder">Nothing is hidden</td><td data-label="ScreenCap Docs">Passwords, keys, and addresses blurred automatically</td></tr>
+            <tr><td data-label="Steps Recorder">Windows only</td><td data-label="ScreenCap Docs">Windows 11, Linux, and macOS, on x64 and ARM</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="requirements">
+    <div class="wrap">
+      <h2>System requirements</h2>
+      <p class="sub">Before each release, every download is installed and tested automatically on Windows (x64 and ARM64), on each Linux distribution listed, and on an Apple silicon Mac.</p>
+      <div class="compare reqs">
+        <table>
+          <thead><tr><th scope="col"></th><th scope="col">Windows</th><th scope="col">Linux</th><th scope="col">macOS</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Operating system</th><td data-label="Windows">Windows 11</td><td data-label="Linux">Ubuntu 22.04 or later, Debian 12 or later, Fedora, RHEL 9 and compatibles, openSUSE Tumbleweed, Arch Linux, Raspberry Pi OS</td><td data-label="macOS">macOS 11 Big Sur or later (macOS 15 Sequoia or later recommended)</td></tr>
+            <tr><th scope="row">Processor</th><td data-label="Windows">64-bit Intel or AMD (x64), or ARM64 (Snapdragon and other Windows on ARM)</td><td data-label="Linux">64-bit Intel or AMD (x86_64), 64-bit ARM, or 32-bit ARM (Raspberry Pi 4 or 5 recommended)</td><td data-label="macOS">Apple silicon (M1 or later) or Intel</td></tr>
+            <tr><th scope="row">Installed for you</th><td data-label="Windows">FFmpeg (setup offers to install it)</td><td data-label="Linux">Python 3.8 or later, Tkinter, and FFmpeg</td><td data-label="macOS">Python, Tkinter, and FFmpeg (through Homebrew)</td></tr>
+            <tr><th scope="row">Optional extras</th><td data-label="Windows">Tesseract OCR for automatic blurring, Pandoc for Word export. PDF export uses Microsoft Edge, which comes with Windows.</td><td data-label="Linux">Tesseract OCR and Pandoc. PDF export needs Chromium or Google Chrome.</td><td data-label="macOS">Tesseract OCR and Pandoc. PDF export needs Google Chrome or Chromium.</td></tr>
+            <tr><th scope="row">Recording</th><td data-label="Windows">Records every monitor. The Recording window hides itself from the video.</td><td data-label="Linux">Needs an X11 session. On Wayland, record with your desktop's own recorder and process the file.</td><td data-label="macOS">Records the main display. Asks once for Screen Recording and Input Monitoring permission.</td></tr>
+            <tr><th scope="row">Download size</th><td data-label="Windows">11 MB installer, 15 MB portable zip</td><td data-label="Linux">Under 1 MB package (your package manager adds the rest), or 110 MB snap with everything included</td><td data-label="macOS">Under 1 MB, plus Homebrew's Python and FFmpeg if you do not have them</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fine">Processing uses up to 8 CPU cores at once, so more cores means faster results. Captions From Narration (offline speech recognition) is not available on Windows on ARM.</p>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Download</h2>
+      <p class="sub">Free and open source under the MIT license. The current version is <strong data-ver>1.36.0</strong>.</p>
+      <div class="install">
+        <div class="tabs" role="tablist" aria-label="Operating system">
+          <button role="tab" id="t-win" aria-selected="true" aria-controls="p-win">Windows</button>
+          <button role="tab" id="t-linux" aria-selected="false" aria-controls="p-linux">Linux</button>
+          <button role="tab" id="t-mac" aria-selected="false" aria-controls="p-mac">macOS</button>
+        </div>
+
+        <div class="panel" role="tabpanel" id="p-win" aria-labelledby="t-win">
+          <p class="req">Windows 11 · x64 (Intel and AMD) or ARM64 · 11 MB</p>
+
+          <div class="way">
+            <h3>Installer <span class="pill ok">Recommended</span></h3>
+            <div class="row">
+              <a class="btn primary" id="dl-win" data-asset="windows-x64-setup.exe" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/Screencap-Documentation-Tool-v1.36.0-windows-x64-setup.exe">Download for Windows (x64)</a>
+              <a class="btn" id="dl-win-alt" data-asset="windows-arm64-setup.exe" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/Screencap-Documentation-Tool-v1.36.0-windows-arm64-setup.exe">Download for Windows on ARM</a>
+            </div>
+            <p>Run the downloaded file. Setup asks whether to install for everyone on the PC or just you, offers to install FFmpeg if it is missing, and adds the <code>screencap</code> command to the PATH so it works in any terminal. After that, the app updates itself with <strong>Help &gt; Check for Updates</strong>.</p>
+            <p class="note">The installer is not code signed yet, so Windows may show <strong>Windows protected your PC</strong>. Choose <strong>More info</strong>, then <strong>Run anyway</strong>. To check the file first, compare it with <code>SHA256SUMS.txt</code> on the release page, as the <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/blob/main/CODE_SIGNING_POLICY.md">code signing policy</a> explains.</p>
+          </div>
+
+          <div class="way">
+            <h3>Windows Package Manager (winget) <span class="pill">In review</span></h3>
+            <div class="cmd"><code>winget install --id ILHS.ScreencapDocumentationTool -e</code><button type="button" data-copy>Copy</button></div>
+            <p>This command works once Microsoft approves the package. winget installs FFmpeg along with it.</p>
+          </div>
+
+          <div class="way">
+            <h3>Portable zip</h3>
+            <p>Nothing to install: unzip the folder and run <code>Screencap Documentation Tool.exe</code>. Download the <a data-asset="windows-x64-portable.zip" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/Screencap-Documentation-Tool-v1.36.0-windows-x64-portable.zip">x64 zip</a> or the <a data-asset="windows-arm64-portable.zip" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/Screencap-Documentation-Tool-v1.36.0-windows-arm64-portable.zip">ARM64 zip</a> (15 MB). FFmpeg must be installed separately.</p>
+          </div>
+
+          <div class="way">
+            <h3>Microsoft Store <span class="pill">Planned</span></h3>
+            <p>A Microsoft Store version is planned. It will install with no security prompt and update through the Store.</p>
+          </div>
+
+          <a class="btn ghost" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest">All downloads for the latest release on GitHub</a>
+        </div>
+
+        <div class="panel" role="tabpanel" id="p-linux" aria-labelledby="t-linux" hidden>
+          <p class="req">Ubuntu, Debian, Fedora, RHEL 9, openSUSE, Arch, Raspberry Pi OS · x86_64, ARM64, and 32-bit ARM · X11 session for recording</p>
+
+          <div class="way">
+            <h3>Snap Store <span class="pill ok">Recommended</span></h3>
+            <div class="row"><a class="btn primary" href="https://snapcraft.io/screencap-documentation-tool">Get it from the Snap Store</a></div>
+            <p>Or install it from a terminal:</p>
+            <div class="cmd"><code>sudo snap install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p>Works on any distribution with snapd, on x86_64 and 64-bit ARM. FFmpeg, Tesseract OCR, and Pandoc are included, and updates install automatically.</p>
+          </div>
+
+          <div class="way">
+            <h3>apt and dnf repositories</h3>
+            <p>Add the signed repository once, and the app updates with your normal system updates.</p>
+            <p><strong>Ubuntu, Debian, Linux Mint, Pop!_OS, Raspberry Pi OS</strong></p>
+            <div class="cmd"><code>sudo install -d /etc/apt/keyrings
+sudo curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg https://screencap.ilhs.app/ilhs-archive-keyring.gpg
+sudo curl -fsSLo /etc/apt/sources.list.d/screencap-docs.sources https://screencap.ilhs.app/apt/screencap-docs.sources
+sudo apt update
+sudo apt install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p><strong>Fedora, RHEL, Rocky Linux, AlmaLinux</strong></p>
+            <div class="cmd"><code>sudo curl -fsSLo /etc/yum.repos.d/screencap-docs.repo https://screencap.ilhs.app/rpm/screencap-docs.repo
+sudo dnf install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p><strong>openSUSE</strong></p>
+            <div class="cmd"><code>sudo zypper addrepo https://screencap.ilhs.app/rpm/screencap-docs.repo
+sudo zypper install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p>Packages and repository data are signed with the ILHS Package Signing key: <a href="ilhs-archive-key.asc">ilhs-archive-key.asc</a>. RHEL, Rocky Linux, and AlmaLinux also need EPEL and RPM Fusion for FFmpeg; see the note below.</p>
+          </div>
+
+          <div class="way">
+            <h3>Package for your distribution</h3>
+            <p>Download the package, then install it with your package manager, which also installs Python, Tkinter, and FFmpeg.</p>
+            <div class="compare pkgs">
+              <table>
+                <thead><tr><th scope="col">Distribution</th><th scope="col">Package</th><th scope="col">Install command</th></tr></thead>
+                <tbody>
+                  <tr><td>Ubuntu, Debian, Linux Mint, Pop!_OS, Raspberry Pi OS</td><td><a data-asset="deb" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/screencap-documentation-tool_1.36.0-1_all.deb">.deb</a></td><td><code data-tpl="sudo apt install ./screencap-documentation-tool_{v}-1_all.deb">sudo apt install ./screencap-documentation-tool_1.36.0-1_all.deb</code></td></tr>
+                  <tr><td>Fedora, RHEL, Rocky Linux, AlmaLinux</td><td><a data-asset="rpm" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/screencap-documentation-tool-1.36.0-1.noarch.rpm">.rpm</a></td><td><code data-tpl="sudo dnf install ./screencap-documentation-tool-{v}-1.noarch.rpm">sudo dnf install ./screencap-documentation-tool-1.36.0-1.noarch.rpm</code></td></tr>
+                  <tr><td>openSUSE Tumbleweed</td><td><a data-asset="rpm" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/screencap-documentation-tool-1.36.0-1.noarch.rpm">.rpm</a></td><td><code data-tpl="sudo zypper install --allow-unsigned-rpm ./screencap-documentation-tool-{v}-1.noarch.rpm">sudo zypper install --allow-unsigned-rpm ./screencap-documentation-tool-1.36.0-1.noarch.rpm</code></td></tr>
+                  <tr><td>Arch Linux, Manjaro, EndeavourOS</td><td><a data-asset="pkg" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/download/v1.36.0/screencap-documentation-tool-1.36.0-1-any.pkg.tar.zst">.pkg.tar.zst</a></td><td><code data-tpl="sudo pacman -U ./screencap-documentation-tool-{v}-1-any.pkg.tar.zst">sudo pacman -U ./screencap-documentation-tool-1.36.0-1-any.pkg.tar.zst</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="note">Fedora, RHEL, and openSUSE ship an FFmpeg that cannot read most .mp4 recordings. Switch to the full FFmpeg from <a href="https://rpmfusion.org/Howto/Multimedia">RPM Fusion</a> (Fedora and RHEL) or <a href="https://en.opensuse.org/Additional_package_repositories#Packman">Packman</a> (openSUSE). The <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool#linux">README</a> has the details for each distribution.</p>
+          </div>
+
+          <div class="way">
+            <h3>More stores <span class="pill">Planned</span></h3>
+            <ul class="plain">
+              <li><strong>AUR (Arch User Repository):</strong> ready to publish as soon as Arch reopens new account sign-ups.</li>
+              <li><strong>Flathub:</strong> being evaluated.</li>
+            </ul>
+          </div>
+
+          <a class="btn ghost" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest">All downloads for the latest release on GitHub</a>
+        </div>
+
+        <div class="panel" role="tabpanel" id="p-mac" aria-labelledby="t-mac" hidden>
+          <p class="req">macOS 11 or later · Apple silicon and Intel · Installed with Homebrew</p>
+
+          <div class="way">
+            <h3>Homebrew <span class="pill ok">Recommended</span></h3>
+            <ol class="steps">
+              <li>
+                <p>Install <a href="https://brew.sh">Homebrew</a> if you do not have it yet. Paste this into Terminal and follow the prompts:</p>
+                <div class="cmd"><code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code><button type="button" data-copy>Copy</button></div>
+              </li>
+              <li>
+                <p>Install the app:</p>
+                <div class="cmd"><code>brew install ilikehostingservices/tap/screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+              </li>
+              <li>
+                <p>Add it to Launchpad, Spotlight, and the Dock:</p>
+                <div class="cmd"><code>ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/ScreenCap Docs.app" ~/Applications/</code><button type="button" data-copy>Copy</button></div>
+              </li>
+              <li>
+                <p>Optional: add automatic blurring and Word export:</p>
+                <div class="cmd"><code>brew install tesseract pandoc</code><button type="button" data-copy>Copy</button></div>
+              </li>
+            </ol>
+            <p>To update later, run <code>brew upgrade screencap-documentation-tool</code>. The first time you record, macOS asks you to allow Screen Recording and Input Monitoring; restart the app after allowing them.</p>
+            <p class="note">Intel Macs work today. Homebrew plans to end support for Intel Macs in September 2027.</p>
+          </div>
+
+          <div class="row">
+            <a class="btn ghost" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest">Latest release on GitHub</a>
+            <a class="btn ghost" href="https://github.com/ILikeHostingServices/homebrew-tap">Homebrew tap</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="it">
+    <div class="wrap">
+      <h2>For IT and security teams</h2>
+      <p class="sub">Nothing you record leaves the PC. The app runs as the signed-in user, has no service or background task, and goes online only to check for updates (administrators can turn this off) and to download the speech model once, if you use captions from narration.</p>
+      <div class="trust">
+        <span><strong>OpenSSF Best Practices:</strong> <a href="https://www.bestpractices.dev/projects/15607">Silver, Baseline Level 2</a></span>
+        <span><strong>Every download:</strong> SHA256 checksums and build provenance you can verify</span>
+        <span><strong>Code scanning:</strong> CodeQL and OpenSSF Scorecard on every change</span>
+      </div>
+      <div class="row" style="margin-top: 24px">
+        <a class="btn" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/blob/main/docs/SECURITY_FOR_IT.md">Read the IT and security guide</a>
+        <a class="btn ghost" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/blob/main/SECURITY.md">Report a security problem</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Copyright (c) 2026 ILHS Software, LLC · ScreenCap Docs (formerly Screencap Documentation Tool) · MIT license</span>
+    <span><a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool#readme">Documentation</a> · <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues">Report a problem</a> · <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases">Releases</a></span>
+  </div>
+</footer>
+
+<script>
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function show(tab) {
+  tabs.forEach(t => {
+    const on = t === tab;
+    t.setAttribute('aria-selected', on);
+    document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+  });
+}
+tabs.forEach(t => t.addEventListener('click', () => show(t)));
+// Open on the visitor's own system
+const ua = navigator.userAgent;
+if (/Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua)) show(tabs[2]);
+else if (/Linux|X11/.test(ua) && !/Android/.test(ua)) show(tabs[1]);
+// Point the download links at the newest release (falls back to the links in the page)
+fetch('https://api.github.com/repos/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(rel => {
+    const v = rel.tag_name.replace(/^v/, '');
+    const find = end => (rel.assets.find(a => a.name.endsWith(end)) || {}).browser_download_url;
+    const ends = { deb: '_all.deb', rpm: '.noarch.rpm', pkg: '-any.pkg.tar.zst' };
+    document.querySelectorAll('[data-asset]').forEach(a => {
+      const k = a.dataset.asset, url = find(ends[k] || '-' + k);
+      if (url) a.href = url;
+    });
+    document.querySelectorAll('[data-tpl]').forEach(c => c.textContent = c.dataset.tpl.replace('{v}', v));
+    document.querySelectorAll('[data-ver]').forEach(e => e.textContent = v);
+  })
+  .catch(() => {});
+// Windows on ARM: offer the ARM64 installer first
+if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+  navigator.userAgentData.getHighEntropyValues(['architecture']).then(h => {
+    if (h.architecture !== 'arm' || !/Windows/.test(navigator.userAgent)) return;
+    const main = document.getElementById('dl-win'), alt = document.getElementById('dl-win-alt');
+    [main.href, alt.href] = [alt.href, main.href];
+    [main.dataset.asset, alt.dataset.asset] = [alt.dataset.asset, main.dataset.asset];
+    main.textContent = 'Download for Windows on ARM';
+    alt.textContent = 'Download for Windows (x64)';
+  }).catch(() => {});
+}
+document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+  const code = b.previousElementSibling;
+  const done = () => { b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy', 1500); };
+  try {
+    navigator.clipboard.writeText(code.textContent).then(done, () => select(code));
+  } catch (e) { select(code); }
+}));
+function select(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+</script>
+</body>
+</html>

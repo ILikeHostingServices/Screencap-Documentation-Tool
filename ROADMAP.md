@@ -1,4 +1,4 @@
-ROADMAP.md v1.8.0 (Last Rev: 2026-10-17)
+ROADMAP.md v1.8.1 (Last Rev: 2026-10-19)
 
 # Roadmap
 
@@ -10,7 +10,7 @@ What ScreenCap Docs plans to do over the next year, what it will not do, and ide
 | --- | --- |
 | Recording | Choose what to record, like the Windows Snipping Tool: the whole screen, one window, or a region you draw; and record system sound, switchable on and off (v1.37.0). |
 | Distribution | Publish the Microsoft Store listing, finish the winget listing, publish to the AUR once account sign-ups reopen, and evaluate Flathub. |
-| Website | Replace the package repository page at https://screencap.ilhs.app with the project website. |
+| Website | Keep https://screencap.ilhs.app current with each release, and replace its screenshots with ones taken on a clean Windows 11 PC. |
 | Trust | Reapply for free code signing for the Windows programs; attach an SBOM to every compiled download, snaps included; keep the OpenSSF Best Practices and Baseline results current. |
 | Quality | Keep statement coverage at 80% or more on Windows and Linux combined, and every bug fix with a test. |
 

@@ -1,8 +1,18 @@
-CHANGELOG.md v1.42.1 (Last Rev: 2026-10-16)
+CHANGELOG.md v1.43.0 (Last Rev: 2026-10-19)
 
 # Changelog
 
 Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35.0), newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.36.1 - Published by ILHS Software, LLC (2026-10-19)
+
+**Published by ILHS Software, LLC**
+- ScreenCap Docs is now published by ILHS Software, LLC, which also holds its copyright. The app, its MIT license, and everything you can do with it stay the same.
+- The installer, the About window, the Windows file details, the Linux packages, the software center listing, and winget name ILHS Software, LLC as the publisher.
+- Nothing changes for an installed copy: the install folder, settings, and updates stay the same, and this update installs over the top as before.
+
+**New**
+- The project website is live at [screencap.ilhs.app](https://screencap.ilhs.app), with the downloads for every system and the apt and dnf repository setup in one place.
 
 ## v1.36.0 - The screencap command in any terminal (2026-10-16)
 
