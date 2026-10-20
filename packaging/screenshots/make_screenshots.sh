@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 #
 # make_screenshots.sh
-# 2026-10-16
-# Version: v1.1.1
+# 2026-10-20
+# Version: v1.2.0
 #
 # PURPOSE:
 # Makes the screenshots used in the README, the Linux software center
 # listing (metainfo), and the Snap Store listing, on a virtual X display:
-#   1. records the made-up "Example App" setup wizard with the built-in
-#      recorder (real clicks and keys, so the click rings and captions are
-#      the tool's own),
-#   2. processes it, cropped to the wizard window,
+#   1. records a real task in KeePassXC (creating a password database for
+#      "Northwind Traders" and adding a login, see keepassxc_demo.py) with
+#      the built-in recorder (real clicks and keys, so the click rings and
+#      captions are the tool's own),
+#   2. processes it, cropped to the KeePassXC window,
 #   3. opens the GUI on it and takes the screenshots (gui_shots.py),
 #   4. exports the steps as HTML and PowerPoint and takes pictures of them
 #      (the slides are drawn by LibreOffice Impress).
 # The screenshots go to docs/screenshots/.
 #
-# Needs (Linux): Xvfb (xvfb-run), openbox, xdotool, ImageMagick (import),
+# Needs (Linux): Xvfb (xvfb-run), openbox, xdotool, KeePassXC 2.7, ImageMagick (import),
 # Tesseract, FFmpeg, Python 3 with Tkinter, Chromium or Google Chrome
 # (set CHROME to its path if it is not on the PATH), LibreOffice Impress,
 # and pdftoppm (poppler-utils).
@@ -29,7 +30,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 OUT="$ROOT/docs/screenshots"
 PY="${PYTHON:-python3}"
 # Shown in the GUI's folder boxes, so it should look like a real profile
-DEMO_HOME="${DEMO_HOME:-/home/alex}"
+DEMO_HOME="${DEMO_HOME:-/home/demo}"
 DOCS="$DEMO_HOME/Documents/ScreenCap Docs"
 if ! mkdir -p "$DOCS" 2>/dev/null; then
     DOCS="$(mktemp -d)/Documents/ScreenCap Docs"
@@ -47,27 +48,29 @@ openbox >/dev/null 2>&1 &
 sleep 1
 xsetroot -solid "#2b5d7a"
 
-echo "Recording the demo wizard..."
+echo "Recording the KeePassXC task..."
 rm -rf "$DOCS/Recordings" "$DOCS/Output"
 mkdir -p "$WORK/rec"
-# The wizard opens first (at the place the crop below expects) and starts
-# clicking itself 3 seconds later; the recording starts in between
-"$PY" "$HERE/demo_wizard.py" &
-WIZ=$!
+# KeePassXC opens first (at the place the crop below expects) and the clicks
+# start 3 seconds after the demo starts; the recording starts in between
+HOME="$DEMO_HOME" "$PY" "$HERE/keepassxc_demo.py" &
+DEMO=$!
 sleep 1
-"$PY" "$ROOT/screencap.py" --record --record-seconds 34 -s "$WORK/rec" -o "$WORK/out" \
+"$PY" "$ROOT/screencap.py" --record --record-seconds 62 -s "$WORK/rec" -o "$WORK/out" \
     >"$WORK/record.log" 2>&1 || { cat "$WORK/record.log"; exit 1; }
-wait "$WIZ" || true
+wait "$DEMO" || true
 
 echo "Processing it..."
 mkdir -p "$DOCS/Recordings"
 video="$(ls "$WORK"/rec/*.mkv)"
-cp "$video" "$DOCS/Recordings/Install Example App.mkv"
-cp "${video%.mkv}.events.json" "$DOCS/Recordings/Install Example App.events.json"
-"$PY" "$ROOT/screencap.py" -s "$DOCS/Recordings" -o "$DOCS/Output" --crop 216:56:852:608
+cp "$video" "$DOCS/Recordings/Create a password database.mkv"
+cp "${video%.mkv}.events.json" "$DOCS/Recordings/Create a password database.events.json"
+# A finer sensitivity than the default, so filling in each field of the
+# form is a step of its own
+"$PY" "$ROOT/screencap.py" -s "$DOCS/Recordings" -o "$DOCS/Output" --crop 300:120:1000:704 -t 0.002
 
 echo "Taking the GUI screenshots..."
-"$PY" "$HERE/gui_shots.py" "$DOCS" "$OUT"
+HOME="$DEMO_HOME" "$PY" "$HERE/gui_shots.py" "$DOCS" "$OUT"
 
 echo "Taking the document screenshot..."
 html="$(cat "$OUT/export.path")"

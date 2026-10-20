@@ -1,4 +1,4 @@
-README.md v1.52.0 (Last Rev: 2026-10-19)
+README.md v1.52.1 (Last Rev: 2026-10-20)
 
 # ScreenCap Docs
 
@@ -9,7 +9,7 @@ README.md v1.52.0 (Last Rev: 2026-10-19)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15607/badge)](https://www.bestpractices.dev/projects/15607)
 [![Website](https://img.shields.io/badge/website-screencap.ilhs.app-2563EB)](https://screencap.ilhs.app)
 
-![The Steps tab: each step of a recorded setup wizard with its screenshot, a red ring where the mouse was clicked, the product key blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
+![The Steps tab: each step of creating a KeePassXC password database, with its screenshot, a red ring where the mouse was clicked, the password blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
 
 ## Overview
 
@@ -45,14 +45,14 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 
 | | |
 | --- | --- |
-| ![Recording the screen: the setup wizard being recorded, with the small Recording window and its Stop and Discard buttons in the corner](docs/screenshots/05-recording.png) | ![The Record window: microphone, noting keys, and making the screenshots when the recording stops](docs/screenshots/03-record-window.png) |
+| ![Recording the screen: KeePassXC being recorded, with the small Recording window and its Stop and Discard buttons in the corner](docs/screenshots/05-recording.png) | ![The Record window: microphone, noting keys, and making the screenshots when the recording stops](docs/screenshots/03-record-window.png) |
 | **Record** the task: every click is noted. | Choose a microphone for narration, or none. |
 | ![The Annotate menu with a numbered marker, an arrow, and a text label drawn on a step](docs/screenshots/02-annotate-menu.png) | ![The dark theme](docs/screenshots/04-dark-theme.png) |
 | Add arrows, numbers, and labels. | Light, dark, or the system's theme. |
 | ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
 | Export the steps as one HTML, Word, or PDF document. | Or as a PowerPoint presentation, one slide per step. |
 
-The screenshots show a made-up "Example App" setup wizard recorded with the built-in recorder; `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
+The screenshots show a real task recorded with the built-in recorder: creating a KeePassXC password database for the made-up "Northwind Traders"; `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
 
 ### Coming From Steps Recorder
 
@@ -93,7 +93,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
-| `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a made-up setup wizard (`demo_wizard.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, ImageMagick, and Chromium. |
+| `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a task in KeePassXC (`keepassxc_demo.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, KeePassXC, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
 | `website/` | The project website at https://screencap.ilhs.app, published to GitHub Pages with the apt and dnf repositories by `package-repos.yml`. |
 | `docs/SECURITY_FOR_IT.md` | For IT and security teams: network use, files and settings, administrator controls, behaviors security tools may notice, and how to verify a download. |

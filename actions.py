@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # actions.py
-# 2026-10-16
-# Version: v1.2.1
+# 2026-10-20
+# Version: v1.2.2
 #
 # PURPOSE:
 # Uses the clicks and keys noted by the built-in recorder (recorder.py) to
@@ -16,6 +16,7 @@
 # from the screenshot, which can already show text typed afterwards). Words that look sensitive (the
 # same patterns that are blurred) are never put in a caption.
 
+import difflib
 import logging
 import os
 import subprocess
@@ -140,8 +141,11 @@ def nearby_label(lines, x, y, width):
 
 def right_label(lines, x, y, width):
     """Text just right of (x, y), such as the label of a checkbox or option
-    button that was clicked on its box. None when there is none."""
-    reach = max(60, width // 16)
+    button that was clicked on its box. None when there is none. Only words
+    that start just beside the click count: a label sits next to its box,
+    while words farther right belong to another control (the next button
+    over when the clicked button could not be read)."""
+    reach = max(36, width // 40)
     best = None
     for li, words in enumerate(lines):
         for wi, (text, (bx, by, bw, bh)) in enumerate(words):
@@ -301,8 +305,9 @@ LOOK_BACK = 1.0     # seconds; the pointer is usually not on the words yet
 
 def fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp):
     """The pointer often covers part of the clicked words ("Ne" for "Next").
-    Read the same place a moment earlier and take that reading when it holds
-    this one, so a screen that changed in between cannot give a wrong label."""
+    Read the same place a moment earlier and take that reading when it is
+    the same words read better, so a screen that changed in between cannot
+    give a wrong label."""
     if a["t"] < LOOK_BACK:
         return label
     try:
@@ -311,9 +316,16 @@ def fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp):
         return label
     earlier = click_label(before, a["x"], a["y"], width) or \
         right_label(before, a["x"], a["y"], width)
-    if earlier and len(earlier) > len(label) and label.lower() in earlier.lower():
+    if earlier and len(earlier) >= len(label) and same_words(earlier, label):
         return earlier
     return label
+
+
+def same_words(clean, read):
+    """True when read is clean with letters lost or misread under the
+    pointer ("Ne" or "Confjpue" for "Continue", "ck Done" for "Done")."""
+    a, b = clean.lower(), read.lower()
+    return a in b or b in a or difflib.SequenceMatcher(None, a, b).ratio() >= 0.6
 
 
 def label_actions(acts, video, ffmpeg, tesseract, width, height, extra, tmp):
@@ -324,6 +336,39 @@ def label_actions(acts, video, ffmpeg, tesseract, width, height, extra, tmp):
                                            extra, tmp), clicks)
 
 
+def narrow_area(x, y, width, height):
+    """[x, y, w, h] of just the button under a click: the button-sized area
+    can take in the buttons on both sides, whose colors spoil the reading."""
+    half_w, half_h = max(80, width // 20), max(14, height // 70)
+    x0, y0 = max(0, x - half_w), max(0, y - half_h)
+    x1, y1 = min(width, x + half_w), min(height, y + half_h)
+    return [x0, y0, x1 - x0, y1 - y0]
+
+
+def button_label(a, video, ffmpeg, tesseract, width, height, tmp):
+    """The words on the button under a click, read as one line from a
+    button-sized area, then from just the button. The pointer on the words
+    can spoil them ("mm continue") or hide them, so a reading from a moment
+    earlier is taken when it holds the same words or nothing else was read.
+    None when nothing is readable."""
+    def read(area, t):
+        try:
+            return click_label(words_at(ffmpeg, tesseract, video, t, area, tmp, psm=7),
+                               a["x"], a["y"], width)
+        except (RuntimeError, OSError) as exc:
+            log.debug("  Reading the words at a click failed: %s", exc)
+            return None
+    for area in (tight_area(a["x"], a["y"], width, height),
+                 narrow_area(a["x"], a["y"], width, height)):
+        label = read(area, a["t"])
+        earlier = read(area, a["t"] - LOOK_BACK) if a["t"] >= LOOK_BACK else None
+        if earlier and (not label or same_words(earlier, label)):
+            return earlier
+        if label:
+            return label
+    return None
+
+
 def label_action(a, video, ffmpeg, tesseract, width, height, extra, tmp):
     """label_actions() for one click or drag."""
     area = crop_around(a["x"], a["y"], width, height)
@@ -332,17 +377,16 @@ def label_action(a, video, ffmpeg, tesseract, width, height, extra, tmp):
     except (RuntimeError, OSError) as exc:
         log.debug("  Reading the words at a click failed: %s", exc)
         return
-    label = click_label(lines, a["x"], a["y"], width) or \
-        right_label(lines, a["x"], a["y"], width)
+    label = click_label(lines, a["x"], a["y"], width)
     if label:
         label = fuller_label(label, a, video, ffmpeg, tesseract, area, width, tmp)
     else:
-        try:
-            tight = words_at(ffmpeg, tesseract, video, a["t"],
-                             tight_area(a["x"], a["y"], width, height), tmp, psm=7)
-            label = click_label(tight, a["x"], a["y"], width)
-        except (RuntimeError, OSError) as exc:
-            log.debug("  Reading the words at a click failed: %s", exc)
+        # The clicked button itself comes before any words beside it: light
+        # text on a colored button ("Continue" in white on green) is often
+        # not read in the wide area, and the next button over must not be
+        # taken for it
+        label = button_label(a, video, ffmpeg, tesseract, width, height, tmp) or \
+            right_label(lines, a["x"], a["y"], width)
     label = safe_label(label, extra)
     if label:
         a["label"] = label
