@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_shots.py
-# 2026-10-15
-# Version: v1.2.1
+# 2026-10-20
+# Version: v1.3.0
 #
 # PURPOSE:
 # Opens the GUI on the demo recording made by make_screenshots.sh and takes
@@ -54,19 +54,25 @@ app.v_source.set(str(D / "Recordings")); app.v_output.set(str(D / "Output"))
 app.refresh_videos(); pump(1)
 app.tree.selection_set(app.tree.get_children()[0]); pump(); app.show_steps(); pump(1)
 ed = app.editor
-ed.v_doc_title.set("Install Example App 4.2"); ed.v_doc_version.set("v1.0.0"); ed.v_doc_author.set("IT Service Desk")
+ed.v_doc_title.set("Create the Northwind Traders password database"); ed.v_doc_version.set("v1.0.0"); ed.v_doc_author.set("IT Service Desk")
 ed.save(wait=True); pump(1)
-for _ in range(2): ed.step_by(1); pump(0.3)          # step 3: product key, blurred
+def goto(caption_start, fallback):
+    """Show the step whose caption starts with caption_start (else step
+    number fallback): the steps can differ a little between recordings."""
+    steps = ed.doc["steps"]
+    want = next((i for i, st in enumerate(steps) if st.get("caption", "").startswith(caption_start)),
+                min(fallback, len(steps)) - 1)
+    ed.step_by(want - (ed.current_index() or 0)); pump(0.5)
+goto('Click next to "Enter password"', 4)             # the password, blurred
 ed.v_view.set("final"); ed.on_select(); pump(2.5)
 shot("01-steps-editor")
-# Annotations on the license step
-ed.step_by(-1); pump(0.5)
+# Annotations on the welcome screen (points in recording pixels)
+goto('Click "Create new database"', 1)
 st = ed.current_step()
 st.setdefault("annotations", []).extend([
-    {"kind": "number", "at": [438, 456], "n": 1},
-    {"kind": "arrow", "from": [640, 520], "to": [522, 468]},
-    {"kind": "text", "at": [600, 505], "text": "Accept the license first"},
-    {"kind": "number", "at": [770, 586], "n": 2}])
+    {"kind": "number", "at": [540, 536], "n": 1},
+    {"kind": "arrow", "from": [720, 676], "to": [700, 556]},
+    {"kind": "text", "at": [610, 696], "text": "Start with a new database"}])
 ed.set_dirty(); ed.save(wait=True); pump(1)
 ed.v_view.set("final"); ed.on_select(); pump(2.5)
 click(menubutton("Annotate")); pump(1)
@@ -78,7 +84,9 @@ shot("03-record-window")
 dlg = next(w for w in root.winfo_children() if isinstance(w, gui.gui_recorder.RecordDialog)); dlg.destroy(); pump()
 # Dark theme, the finished step
 app.set_theme("dark"); pump(1)
-for _ in range(5): ed.step_by(1); pump(0.3)
+# The last step with something blurred: the new login with its email blurred
+blurred = [i for i, st in enumerate(ed.doc["steps"]) if st.get("auto_redactions")]
+ed.step_by((blurred[-1] if blurred else len(ed.doc["steps"]) - 3) - (ed.current_index() or 0))
 ed.v_view.set("final"); ed.on_select(); pump(2.5)
 shot("04-dark-theme")
 app.set_theme("light"); pump(1)
@@ -105,9 +113,8 @@ with mock.patch.object(updates, "can_install", return_value=True), \
                     "+repage", str(OUT / "08-update.png")])
     print("shot 08-update", flush=True)
     upd.destroy(); pump()
-# Recording in progress: the wizard on screen, the Recording window in the corner
-env = dict(os.environ, WIZARD_MANUAL="1")
-wiz = subprocess.Popen([sys.executable, str(HERE / "demo_wizard.py")], env=env)
+# Recording in progress: KeePassXC on screen, the Recording window in the corner
+wiz = subprocess.Popen([sys.executable, str(HERE / "keepassxc_demo.py"), "--static"])
 pump(2)
 app.start_recording(); pump(1)
 dlg = next(w for w in root.winfo_children() if isinstance(w, gui.gui_recorder.RecordDialog))
@@ -128,9 +135,9 @@ import annotate  # noqa: E402
 font = annotate.find_font()
 font_opt = f"fontfile={annotate.filter_path(font)}:" if font else ""
 subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=0x1f4e8c:s=560x120",
-                "-vf", f"drawtext={font_opt}text='EXAMPLE CORP':fontcolor=white:fontsize=50:"
+                "-vf", f"drawtext={font_opt}text='NORTHWIND TRADERS':fontcolor=white:fontsize=42:"
                 "x=(w-text_w)/2:y=(h-text_h)/2", "-frames:v", "1", str(logo)], check=True)
-ed.doc["steps"][0]["narration"] = "Start the setup program from the software share."
+ed.doc["steps"][0]["narration"] = "Open KeePassXC from the applications menu."
 deck = export.export(ed.out_dir, ed.doc, "pptx", logo=logo)
 logo.unlink()
 (OUT / "pptx.path").write_text(str(deck))

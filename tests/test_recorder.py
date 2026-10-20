@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_recorder.py
-# 2026-10-12
-# Version: v1.1.0
+# 2026-10-20
+# Version: v1.1.1
 #
 # PURPOSE:
 # Tests for the built-in recorder and the use of its clicks: turning mouse
@@ -197,6 +197,8 @@ class ActionTests(unittest.TestCase):
         # a checkbox clicked on its box: the label is to the right
         self.assertEqual(actions.right_label([ocr_line("Create", "a", "shortcut", y=300)],
                                              80, 308, 1280), "Create a shortcut")
+        # words a button-width away belong to the next control, not this one
+        self.assertIsNone(actions.right_label([ocr_line("Cancel", y=300)], 10, 308, 1600))
         # button edges read as | do not join two buttons into one label
         buttons = [ocr_line("Back", "|", "Next", y=400)]
         self.assertEqual(actions.click_label(buttons, 170, 405, 1280), "Next")
@@ -204,6 +206,30 @@ class ActionTests(unittest.TestCase):
         field = [ocr_line("Product", "key:", y=500) + [("I", [380, 498, 6, 18])]]
         self.assertIsNone(actions.click_label(field, 382, 505, 1280))
         self.assertEqual(actions.nearby_label(field, 382, 505, 1280), "Product key")
+
+    def test_light_text_on_a_colored_button_beats_the_next_button(self):
+        # "Continue" (white on green) is only read from just the button, and
+        # only a moment before the click, when the pointer is not on it yet;
+        # "Cancel" to its right must not become the label
+        click = {"type": "click", "t": 5.0, "x": 1019, "y": 705}
+
+        def words(ffmpeg, tesseract, video, t, area, tmp, psm=11):
+            if psm == 11:
+                return [ocr_line("Go", "Back", y=697) + [("Cancel", [1109, 697, 50, 16])]]
+            if area[2] > 200:                      # the button-sized area
+                return []
+            return [] if t == 5.0 else [[("Continue", [985, 697, 70, 16])]]
+        with mock.patch.object(actions, "words_at", side_effect=words):
+            actions.label_action(click, Path("v.mkv"), "ffmpeg", "tesseract", 1600, 972, (),
+                                 Path("."))
+        self.assertEqual(click.get("label"), "Continue")
+
+    def test_words_spoiled_by_the_pointer_match_the_clean_reading(self):
+        self.assertTrue(actions.same_words("Continue", "Confjpue"))
+        self.assertTrue(actions.same_words("Next", "Ne"))
+        self.assertTrue(actions.same_words("Done", "ck Done"))
+        self.assertFalse(actions.same_words("Cancel", "Continue"))
+        self.assertFalse(actions.same_words("Finish", "Back"))
 
     def test_sensitive_words_never_go_in_a_caption(self):
         self.assertIsNone(actions.safe_label("admin@example.com"))
