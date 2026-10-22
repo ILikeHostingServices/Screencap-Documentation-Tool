@@ -1,0 +1,12 @@
+{
+  "base_url": "https://screencap.ilhs.app/",
+  "home_title": "ScreenCap Docs: a free Steps Recorder replacement",
+  "site_name": "ScreenCap Docs",
+  "nav": [
+    { "slug": "features", "label": "Features" },
+    { "slug": "steps-recorder", "label": "Steps Recorder" },
+    { "slug": "requirements", "label": "Requirements" },
+    { "slug": "download", "label": "Download" },
+    { "slug": "for-it", "label": "For IT" }
+  ]
+}

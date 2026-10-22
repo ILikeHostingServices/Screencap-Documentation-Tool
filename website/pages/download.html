@@ -1,0 +1,148 @@
+<!--
+title: Download
+description: Download ScreenCap Docs for Windows, Linux, or macOS. Free and open source under the MIT license.
+-->
+  <div class="wrap page-head">
+    <p class="eyebrow">Download</p>
+    <h1>Download ScreenCap Docs</h1>
+    <p class="lede">Free and open source under the MIT license. The current version is <strong>{{version}}</strong>.</p>
+  </div>
+
+  <section class="first" id="install">
+    <div class="wrap">
+      <div class="install">
+        <div class="tabs" role="tablist" aria-label="Operating system">
+          <button role="tab" id="t-windows" aria-selected="true" aria-controls="windows">Windows</button>
+          <button role="tab" id="t-linux" aria-selected="false" aria-controls="linux">Linux</button>
+          <button role="tab" id="t-mac" aria-selected="false" aria-controls="mac">macOS</button>
+        </div>
+
+        <div class="panel" role="tabpanel" id="windows" aria-labelledby="t-windows">
+          <h2 class="os-name">Windows</h2>
+          <p class="req">Windows 11 · x64 (Intel and AMD) or ARM64 · 11 MB</p>
+
+          <div class="way">
+            <h3>Installer <span class="pill ok">Recommended</span></h3>
+            <div class="row">
+              <a class="btn primary" id="dl-win" href="{{download}}Screencap-Documentation-Tool-v{{version}}-windows-x64-setup.exe">Download for Windows (x64)</a>
+              <a class="btn" id="dl-win-alt" href="{{download}}Screencap-Documentation-Tool-v{{version}}-windows-arm64-setup.exe">Download for Windows on ARM</a>
+            </div>
+            <p>Run the downloaded file. Setup asks whether to install for everyone on the PC or just you, offers to install FFmpeg if it is missing, and adds the <code>screencap</code> command to the PATH so it works in any terminal. After that, the app updates itself with <strong>Help &gt; Check for Updates</strong>.</p>
+            <p class="note">The installer is not code signed yet, so Windows may show <strong>Windows protected your PC</strong>. Choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p>
+            <p>Each download has a published fingerprint (a SHA256 checksum). Checking it is optional, and confirms the file is exactly the one we released. The <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/blob/main/CODE_SIGNING_POLICY.md">code signing policy</a> explains how, using <code>SHA256SUMS.txt</code> on the release page.</p>
+          </div>
+
+          <div class="way">
+            <h3>Windows Package Manager (winget) <span class="pill">In review</span></h3>
+            <div class="cmd"><code>winget install --id ILHS.ScreencapDocumentationTool -e</code><button type="button" data-copy>Copy</button></div>
+            <p>This command works once Microsoft approves the package. winget installs FFmpeg along with it.</p>
+          </div>
+
+          <div class="way">
+            <h3>Portable zip</h3>
+            <p>Nothing to install: unzip the folder and run <code>Screencap Documentation Tool.exe</code>. Download the <a href="{{download}}Screencap-Documentation-Tool-v{{version}}-windows-x64-portable.zip">x64 zip</a> or the <a href="{{download}}Screencap-Documentation-Tool-v{{version}}-windows-arm64-portable.zip">ARM64 zip</a> (15 MB). FFmpeg must be installed separately.</p>
+          </div>
+
+          <div class="way">
+            <h3>Microsoft Store <span class="pill">Planned</span></h3>
+            <p>A Microsoft Store version is planned. It will install with no security prompt and update through the Store.</p>
+          </div>
+
+          <a class="btn ghost" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest">All downloads for the latest release on GitHub</a>
+        </div>
+
+        <div class="panel" role="tabpanel" id="linux" aria-labelledby="t-linux">
+          <h2 class="os-name">Linux</h2>
+          <p class="req">Ubuntu, Debian, Fedora, RHEL 9, openSUSE, Arch, Raspberry Pi OS · x86_64, ARM64, and 32-bit ARM · X11 session for recording</p>
+
+          <div class="way">
+            <h3>Snap Store <span class="pill ok">Recommended</span></h3>
+            <div class="row"><a class="btn primary" href="https://snapcraft.io/screencap-documentation-tool">Get it from the Snap Store</a></div>
+            <p>Or install it from a terminal:</p>
+            <div class="cmd"><code>sudo snap install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p>Works on any distribution with snapd, on x86_64 and 64-bit ARM. FFmpeg, Tesseract OCR, and Pandoc are included, and updates install automatically.</p>
+          </div>
+
+          <div class="way">
+            <h3>apt and dnf repositories</h3>
+            <p>Add the signed repository once, and the app updates with your normal system updates.</p>
+            <p><strong>Ubuntu, Debian, Linux Mint, Pop!_OS, Raspberry Pi OS</strong></p>
+            <div class="cmd"><code>sudo install -d /etc/apt/keyrings
+sudo curl -fsSLo /etc/apt/keyrings/ilhs-archive-keyring.gpg https://screencap.ilhs.app/ilhs-archive-keyring.gpg
+sudo curl -fsSLo /etc/apt/sources.list.d/screencap-docs.sources https://screencap.ilhs.app/apt/screencap-docs.sources
+sudo apt update
+sudo apt install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p><strong>Fedora, RHEL, Rocky Linux, AlmaLinux</strong></p>
+            <div class="cmd"><code>sudo curl -fsSLo /etc/yum.repos.d/screencap-docs.repo https://screencap.ilhs.app/rpm/screencap-docs.repo
+sudo dnf install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p><strong>openSUSE</strong></p>
+            <div class="cmd"><code>sudo zypper addrepo https://screencap.ilhs.app/rpm/screencap-docs.repo
+sudo zypper install screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+            <p>Packages and repository data are signed with the ILHS Package Signing key: <a href="{{root}}ilhs-archive-key.asc">ilhs-archive-key.asc</a>. RHEL, Rocky Linux, and AlmaLinux also need EPEL and RPM Fusion for FFmpeg; see the note below.</p>
+          </div>
+
+          <div class="way">
+            <h3>Package for your distribution</h3>
+            <p>Download the package, then install it with your package manager, which also installs Python, Tkinter, and FFmpeg.</p>
+            <div class="compare pkgs">
+              <table>
+                <thead><tr><th scope="col">Distribution</th><th scope="col">Package</th><th scope="col">Install command</th></tr></thead>
+                <tbody>
+                  <tr><td>Ubuntu, Debian, Linux Mint, Pop!_OS, Raspberry Pi OS</td><td><a href="{{download}}screencap-documentation-tool_{{version}}-1_all.deb">.deb</a></td><td><code>sudo apt install ./screencap-documentation-tool_{{version}}-1_all.deb</code></td></tr>
+                  <tr><td>Fedora, RHEL, Rocky Linux, AlmaLinux</td><td><a href="{{download}}screencap-documentation-tool-{{version}}-1.noarch.rpm">.rpm</a></td><td><code>sudo dnf install ./screencap-documentation-tool-{{version}}-1.noarch.rpm</code></td></tr>
+                  <tr><td>openSUSE Tumbleweed</td><td><a href="{{download}}screencap-documentation-tool-{{version}}-1.noarch.rpm">.rpm</a></td><td><code>sudo zypper install --allow-unsigned-rpm ./screencap-documentation-tool-{{version}}-1.noarch.rpm</code></td></tr>
+                  <tr><td>Arch Linux, Manjaro, EndeavourOS</td><td><a href="{{download}}screencap-documentation-tool-{{version}}-1-any.pkg.tar.zst">.pkg.tar.zst</a></td><td><code>sudo pacman -U ./screencap-documentation-tool-{{version}}-1-any.pkg.tar.zst</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="note">Fedora, RHEL, and openSUSE ship an FFmpeg that cannot read most .mp4 recordings. Switch to the full FFmpeg from <a href="https://rpmfusion.org/Howto/Multimedia">RPM Fusion</a> (Fedora and RHEL) or <a href="https://en.opensuse.org/Additional_package_repositories#Packman">Packman</a> (openSUSE). The <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool#linux">README</a> has the details for each distribution.</p>
+          </div>
+
+          <div class="way">
+            <h3>More stores <span class="pill">Planned</span></h3>
+            <ul class="plain">
+              <li><strong>AUR (Arch User Repository):</strong> ready to publish as soon as Arch reopens new account sign-ups.</li>
+              <li><strong>Flathub:</strong> being evaluated.</li>
+            </ul>
+          </div>
+
+          <a class="btn ghost" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest">All downloads for the latest release on GitHub</a>
+        </div>
+
+        <div class="panel" role="tabpanel" id="mac" aria-labelledby="t-mac">
+          <h2 class="os-name">macOS</h2>
+          <p class="req">macOS 11 or later · Apple silicon and Intel · Installed with Homebrew</p>
+
+          <div class="way">
+            <h3>Homebrew <span class="pill ok">Recommended</span></h3>
+            <p class="note"><strong>New to Homebrew?</strong> Homebrew is a free, widely used tool for installing apps on a Mac. You use it from the Terminal app (in Applications &gt; Utilities): copy each command below, paste it into Terminal, and press Return. Step 1 asks for your Mac password and takes a few minutes; skip it if you already have Homebrew.</p>
+            <ol class="steps">
+              <li>
+                <p>Install <a href="https://brew.sh">Homebrew</a> if you do not have it yet. Paste this into Terminal and follow the prompts:</p>
+                <div class="cmd"><code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code><button type="button" data-copy>Copy</button></div>
+              </li>
+              <li>
+                <p>Install the app:</p>
+                <div class="cmd"><code>brew install ilikehostingservices/tap/screencap-documentation-tool</code><button type="button" data-copy>Copy</button></div>
+              </li>
+              <li>
+                <p>Add it to Launchpad, Spotlight, and the Dock:</p>
+                <div class="cmd"><code>ln -sf "$(brew --prefix)/opt/screencap-documentation-tool/ScreenCap Docs.app" ~/Applications/</code><button type="button" data-copy>Copy</button></div>
+              </li>
+              <li>
+                <p>Optional: add automatic blurring and Word export:</p>
+                <div class="cmd"><code>brew install tesseract pandoc</code><button type="button" data-copy>Copy</button></div>
+              </li>
+            </ol>
+            <p>To update later, run <code>brew upgrade screencap-documentation-tool</code>. The first time you record, macOS asks you to allow Screen Recording and Input Monitoring; restart the app after allowing them.</p>
+            <p class="note">Intel Macs work today. Homebrew plans to end support for Intel Macs in September 2027.</p>
+          </div>
+
+          <div class="row">
+            <a class="btn ghost" href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases/latest">Latest release on GitHub</a>
+            <a class="btn ghost" href="https://github.com/ILikeHostingServices/homebrew-tap">Homebrew tap</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>

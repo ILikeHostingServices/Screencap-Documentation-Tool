@@ -1,6 +1,6 @@
 # package-repos.yml
-# 2026-10-19
-# Version: v1.3.0
+# 2026-10-22
+# Version: v1.4.0
 #
 # PURPOSE:
 # Publishes the project website and the signed apt and dnf package
@@ -12,8 +12,9 @@
 #    builds both repositories with packaging/linux/make_repos.sh, signed with
 #    the PACKAGE_SIGNING_KEY secret (passphrase: PACKAGE_SIGNING_PASSPHRASE).
 #    The key is imported into a temporary keyring that is deleted afterwards.
-#    Then adds the website (website/index.html, assets/icon.png, and
-#    docs/screenshots/) and checks that every local file it links to exists.
+#    Then builds the website with website/build.py (its pages, the icon,
+#    and docs/screenshots/), which checks that every link between the
+#    pages exists; the download links must name files of the newest release.
 # 2. test: on Debian, Ubuntu, Fedora, Rocky Linux, and openSUSE, serves the
 #    built repositories locally, adds them exactly as the README says, and
 #    installs the app from them (signatures checked by apt, dnf, and zypper).
@@ -113,15 +114,17 @@ jobs:
           touch site/.nojekyll
 
       - name: Add the website
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cp website/index.html site/index.html
-          cp assets/icon.png site/icon.png
-          mkdir site/screenshots
-          cp docs/screenshots/*.png site/screenshots/
-          # Every local link and image must exist in the published site
+          # The download links point at the newest published release
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          python3 website/build.py --out site --version "${tag#v}"
+          # ...and every file they name must be in that release
+          assets=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
           missing=0
-          for f in $(grep -oE '(src|href)="[^"#:]+"' site/index.html | sed -E 's/^[a-z]+="//; s/"$//' | sort -u); do
-            [ -f "site/$f" ] || { echo "::error::website/index.html links to $f, which is not in the site"; missing=1; }
+          for u in $(grep -rhoE "releases/download/$tag/[^\"]+" site --include='*.html' | sort -u); do
+            echo "$assets" | grep -qxF "${u##*/}" || { echo "::error::The website links to ${u##*/}, which is not in $tag"; missing=1; }
           done
           exit $missing
 

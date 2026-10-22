@@ -1,4 +1,4 @@
-README.md v1.52.1 (Last Rev: 2026-10-20)
+README.md v1.52.2 (Last Rev: 2026-10-22)
 
 # ScreenCap Docs
 
@@ -95,7 +95,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
 | `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records a task in KeePassXC (`keepassxc_demo.py`) with the built-in recorder on a virtual display and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, KeePassXC, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
-| `website/` | The project website at https://screencap.ilhs.app, published to GitHub Pages with the apt and dnf repositories by `package-repos.yml`. |
+| `website/` | The project website at https://screencap.ilhs.app: one page per menu link (`pages/`) sharing one header and footer (`layout.html`), built by `build.py` and published to GitHub Pages with the apt and dnf repositories by `package-repos.yml`. Preview it with `python3 website/build.py --out _site` and `python3 -m http.server --directory _site`. |
 | `docs/SECURITY_FOR_IT.md` | For IT and security teams: network use, files and settings, administrator controls, behaviors security tools may notice, and how to verify a download. |
 | `docs/ARCHITECTURE.md` | How the app works: the actors, the main flow, and every interface it exposes. |
 | `docs/THREAT_MODEL.md` | The security assessment: what needs protecting, the attack surface, the threats, and the controls against each. |
