@@ -54,3 +54,4 @@ tests/ooxml/obj/
 .coverage
 .coverage.*
 coverage-*.data
+_site/

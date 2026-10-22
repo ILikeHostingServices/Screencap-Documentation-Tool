@@ -1,0 +1,31 @@
+<!--
+title: System requirements
+description: The Windows, Linux, and macOS versions, processors, and extras ScreenCap Docs needs, and the download sizes.
+-->
+  <div class="wrap page-head">
+    <p class="eyebrow">Requirements</p>
+    <h1>System requirements</h1>
+    <p class="lede">Before each release, every download is installed and tested automatically on Windows (x64 and ARM64), on each Linux distribution listed, and on an Apple silicon Mac.</p>
+  </div>
+
+  <section class="first">
+    <div class="wrap">
+      <div class="compare reqs">
+        <table>
+          <thead><tr><th scope="col"></th><th scope="col">Windows</th><th scope="col">Linux</th><th scope="col">macOS</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Operating system</th><td data-label="Windows">Windows 11</td><td data-label="Linux">Ubuntu 22.04 or later, Debian 12 or later, Fedora, RHEL 9 and compatibles, openSUSE Tumbleweed, Arch Linux, Raspberry Pi OS</td><td data-label="macOS">macOS 11 Big Sur or later (macOS 15 Sequoia or later recommended)</td></tr>
+            <tr><th scope="row">Processor</th><td data-label="Windows">64-bit Intel or AMD (x64), or ARM64 (Snapdragon and other Windows on ARM)</td><td data-label="Linux">64-bit Intel or AMD (x86_64), 64-bit ARM, or 32-bit ARM (Raspberry Pi 4 or 5 recommended)</td><td data-label="macOS">Apple silicon (M1 or later) or Intel</td></tr>
+            <tr><th scope="row">Installed for you</th><td data-label="Windows">FFmpeg (setup offers to install it)</td><td data-label="Linux">Python 3.8 or later, Tkinter, and FFmpeg</td><td data-label="macOS">Python, Tkinter, and FFmpeg (through Homebrew)</td></tr>
+            <tr><th scope="row">Optional extras</th><td data-label="Windows">Tesseract OCR for automatic blurring, Pandoc for Word export. PDF export uses Microsoft Edge, which comes with Windows.</td><td data-label="Linux">Tesseract OCR and Pandoc. PDF export needs Chromium or Google Chrome.</td><td data-label="macOS">Tesseract OCR and Pandoc. PDF export needs Google Chrome or Chromium.</td></tr>
+            <tr><th scope="row">Recording</th><td data-label="Windows">Records every monitor. The Recording window hides itself from the video.</td><td data-label="Linux">Needs an X11 session. On Wayland, record with your desktop's own recorder and process the file.</td><td data-label="macOS">Records the main display. Asks once for Screen Recording and Input Monitoring permission.</td></tr>
+            <tr><th scope="row">Download size</th><td data-label="Windows">11 MB installer, 15 MB portable zip</td><td data-label="Linux">Under 1 MB package (your package manager adds the rest), or 110 MB snap with everything included</td><td data-label="macOS">Under 1 MB, plus Homebrew's Python and FFmpeg if you do not have them</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fine">Processing uses up to 8 CPU cores at once, so more cores means faster results. Captions From Narration (offline speech recognition) is not available on Windows on ARM.</p>
+      <div class="cta-band">
+        <a class="btn primary" href="{{root}}download/">Download</a>
+      </div>
+    </div>
+  </section>

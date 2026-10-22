@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  Built by website/build.py from website/layout.html and website/pages/{{page}}.html.
+  Edit those files, not this one.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">{{head_extra}}
+<link rel="icon" type="image/png" href="{{root}}icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="{{root}}assets/site.css?v={{css_version}}">
+<script>document.documentElement.classList.add('js');</script>
+<script src="{{root}}assets/site.js?v={{js_version}}" defer></script>
+</head>
+<body data-page="{{page}}">
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="{{home}}"><img src="{{root}}icon.png" alt="" width="28" height="28">ScreenCap Docs</a>
+    <nav aria-label="Main">
+{{nav}}
+      <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+{{content}}
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Copyright (c) 2026 ILHS Software, LLC · ScreenCap Docs (formerly Screencap Documentation Tool) · MIT license · Part of <a href="https://ilhs.app">ilhs.app</a></span>
+    <span><a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool#readme">Documentation</a> · <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues">Report a problem</a> · <a href="https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/releases">Releases</a></span>
+  </div>
+</footer>
+</body>
+</html>
