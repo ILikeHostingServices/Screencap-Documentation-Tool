@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_recorder.py
-# 2026-10-16
-# Version: v1.1.0
+# 2026-10-25
+# Version: v1.2.0
 #
 # PURPOSE:
 # The GUI side of the built-in recorder (recorder.py): the Record window
@@ -134,7 +134,7 @@ class RecordingBar(tk.Toplevel):
         self.dot = ttk.Label(frame, text="\u25cf", foreground=DOT_ON, font=("TkDefaultFont", 14))
         self.dot.pack(side="left")
         self.v_text = tk.StringVar(value="Starting...")
-        ttk.Label(frame, textvariable=self.v_text, width=16).pack(side="left", padx=(6, 10))
+        ttk.Label(frame, textvariable=self.v_text, width=20).pack(side="left", padx=(6, 10))
         self.btn_stop = ttk.Button(frame, text="Stop", style="Accent.TButton", command=on_stop)
         self.btn_stop.pack(side="left")
         self.btn_discard = ttk.Button(frame, text="Discard", command=on_discard)
@@ -154,6 +154,12 @@ class RecordingBar(tk.Toplevel):
         m, s = divmod(int(seconds), 60)
         self.v_text.set(f"Recording {m:02d}:{s:02d}")
         self.dot.configure(foreground=DOT_ON if int(seconds * 2) % 2 == 0 else DOT_OFF)
+
+    def set_paused(self):
+        """Windows is showing an administrator prompt or the lock screen,
+        which cannot be recorded; recording carries on when it closes."""
+        self.v_text.set("Paused (admin prompt)")
+        self.dot.configure(foreground=DOT_OFF)
 
     def busy(self, text):
         self.v_text.set(text)
@@ -213,10 +219,14 @@ class RecordingSession:
 
     def _tick(self):
         rec = self.rec
-        if not rec.running():
-            self._fail("The recording stopped by itself. FFmpeg said:\n" + rec.error_text())
+        try:
+            state = rec.keep_going()
+        except recorder.RecorderError as exc:
+            self._fail(str(exc))
             return
-        if rec.recording():
+        if state == "paused":
+            self.bar.set_paused()
+        elif rec.recording():
             self.bar.set_time(rec.elapsed())
         elif time.monotonic() - self.started > 20:
             rec.cancel()
@@ -260,6 +270,11 @@ class RecordingSession:
                                  result["error"], parent=self.app.root)
             return
         self.app.on_recorded(result["path"], self.process)
+        pauses = getattr(self.rec, "pauses", 0)
+        if pauses:
+            self.app.log.warning("The recording paused %d time(s) while Windows showed an "
+                                 "administrator prompt or the lock screen, which cannot be "
+                                 "recorded. The rest was joined into one video.", pauses)
 
     def discard(self):
         if self.done or self.rec is None:

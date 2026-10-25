@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 #
 # test_recorder.py
-# 2026-10-20
-# Version: v1.1.1
+# 2026-10-25
+# Version: v1.2.0
 #
 # PURPOSE:
 # Tests for the built-in recorder and the use of its clicks: turning mouse
 # and key samples into clicks, double-clicks, drags, keys, shortcuts, and
 # typing (never the text typed); the FFmpeg command on each system; giving
 # each action to the right step; the words of a clicked button; captions
-# and click rings; and a real recording of a window that is clicked (X11
-# on Linux, the desktop on Windows), processed into captioned steps.
+# and click rings; a recording that Windows interrupts with an
+# administrator prompt (the secure desktop), which pauses and carries on;
+# and a real recording of a window that is clicked (X11 on Linux, the
+# desktop on Windows), processed into captioned steps.
 #
 # Run from the repository root:
 #   python -m unittest discover -s tests -v
@@ -18,6 +20,7 @@
 import ctypes.util
 import os
 import shutil
+import sys
 import tempfile
 import time
 import unittest
@@ -281,6 +284,105 @@ class ActionTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # A real recording
 # ---------------------------------------------------------------------------
+
+# Stands in for FFmpeg's gdigrab: each run is told what to do by a list of
+# steps in a file; "record" makes a short video and reports its start, "lose"
+# then stops the way gdigrab does when the secure desktop appears, "deny"
+# stops at once (the secure desktop is still showing), "wait" records until q.
+FAKE_GDIGRAB = r"""
+import subprocess, sys, time
+plan_file, ffmpeg, dest = sys.argv[1], sys.argv[2], sys.argv[-1]
+plan = open(plan_file).read().split()
+open(plan_file, "w").write(" ".join(plan[1:]))
+step = plan[0]
+def say(line):
+    sys.stderr.write(line + "\n"); sys.stderr.flush()
+if step == "deny":
+    say("[gdigrab @ 0x1] Failed to capture image (error 5)")
+    sys.exit(1)
+subprocess.run([ffmpeg, "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                "testsrc=size=320x240:rate=15:duration=2", "-pix_fmt", "yuv420p",
+                "-f", "matroska", dest], check=True)
+say("Input #0, gdigrab, from 'desktop':")
+say("  Duration: N/A, start: %.6f, bitrate: N/A" % time.time())
+say("  Stream #0:0: Video: bmp, bgra, 320x240, 15 fps")
+say("[libx264 @ 0x2] kb/s:690.74")
+if step == "lose":
+    time.sleep(1.0)
+    say("[gdigrab @ 0x1] Failed to capture image (error 5)")
+    say("[libx264 @ 0x2] frame I:1 Avg QP:20.00")
+    sys.exit(0)
+sys.stdin.read(1)
+"""
+
+
+class SecureDesktopTests(unittest.TestCase):
+    """Windows' secure desktop (an administrator prompt, the lock screen)
+    stops gdigrab; the recording pauses and carries on into one video."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="screencap_uac_"))
+        self.fake = self.tmp / "fake_gdigrab.py"
+        self.fake.write_text(FAKE_GDIGRAB, encoding="utf-8")
+        self.plan = self.tmp / "plan.txt"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def record(self, plan, clicks=()):
+        self.plan.write_text(plan, encoding="utf-8")
+
+        def command(ffmpeg, dest, *args, **kwargs):
+            return [sys.executable, str(self.fake), str(self.plan), FFMPEG, str(dest)]
+        rec = recorder.Recorder(FFMPEG, self.tmp / "rec.mkv", keys=False)
+        states = []
+        with mock.patch.object(recorder, "command", command), \
+                mock.patch.object(recorder, "unsupported_reason", return_value=None), \
+                mock.patch.object(recorder, "open_input", side_effect=OSError("no input")):
+            rec.start()
+            end = time.monotonic() + 30
+            while time.monotonic() < end:
+                states.append(rec.keep_going())
+                if states[-1] == "recording" and "paused" in states:
+                    break
+                time.sleep(0.25)
+            for t in clicks:
+                rec.events.events.append({"t": t(), "type": "click", "button": "left",
+                                          "x": 1, "y": 1, "count": 1})
+            time.sleep(1.0)
+            return rec, states, rec.stop()
+
+    @unittest.skipUnless(FFMPEG, "needs FFmpeg")
+    def test_the_recording_pauses_and_carries_on_in_one_video(self):
+        rec, states, video = self.record("lose deny deny wait",
+                                         clicks=[lambda: time.time() + 0.1])
+        self.assertIn("paused", states)
+        self.assertEqual(states[-1], "recording")
+        self.assertEqual(rec.pauses, 1)
+        self.assertEqual(sorted(p.name for p in self.tmp.iterdir()),
+                         ["fake_gdigrab.py", "plan.txt", "rec.events.json", "rec.mkv"])
+        duration, _, _ = sc.probe_duration(FFPROBE, video)
+        self.assertAlmostEqual(duration, 4.0, delta=0.3)      # both 2-second parts
+        events = recorder.load_events(video)
+        self.assertEqual(events.get("paused"), 1)
+        # the click was in the second part: after the first part's length
+        self.assertEqual(len(events["events"]), 1)
+        self.assertGreater(events["events"][0]["t"], 0.9)
+
+    def test_a_real_failure_is_still_reported_with_its_reason(self):
+        self.plan.write_text("lose", encoding="utf-8")
+        rec = recorder.Recorder("ffmpeg", self.tmp / "rec.mkv", keys=False)
+        rec.stderr_tail = ["[dshow @ 0x1] Could not run graph", "[libx264 @ 0x2] kb/s:690.74",
+                           "frame=  10 fps=0.0 q=-1.0 Lsize=1kB"]
+        self.assertEqual(rec.error_text(), "[dshow @ 0x1] Could not run graph")
+
+    def test_events_between_parts_are_dropped(self):
+        log = recorder.EventLog()
+        log.events = [{"t": t, "type": "click", "button": "left", "x": 0, "y": 0, "count": 1}
+                      for t in (101.0, 106.0, 112.0)]
+        out = log.result(parts=[(100.0, 104.0), (110.0, 115.0)])
+        self.assertEqual([e["t"] for e in out], [1.0, 6.0])
+
 
 CAN_RECORD = (tk is not None and FFMPEG and FFPROBE and recorder.unsupported_reason() is None
               and (os.name == "nt" or ctypes.util.find_library("Xtst")))

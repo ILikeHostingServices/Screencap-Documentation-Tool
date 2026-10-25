@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # recorder.py
-# 2026-10-16
-# Version: v1.1.0
+# 2026-10-25
+# Version: v1.2.0
 #
 # PURPOSE:
 # The built-in screen recorder. FFmpeg records the screen (and, if chosen,
@@ -34,6 +34,15 @@
 #
 # Next to each recording, <name>.events.json holds the clicks and keys with
 # their time in the recording and the screen area that was recorded.
+#
+# Windows shows administrator (UAC) prompts and the lock screen on a secure
+# desktop that no program may capture, and FFmpeg stops when it appears. The
+# recording then pauses: what was recorded is kept as a part, FFmpeg is
+# started again every second, and when the secure desktop has closed the
+# recording carries on into a new part. On Stop the parts are joined into
+# one video (parts of a different screen size, after the resolution changed,
+# are saved as "<name> (part N).mkv" instead). The time on the secure desktop
+# is left out, and so are the clicks made there.
 
 import ctypes
 import ctypes.util
@@ -57,6 +66,12 @@ TYPING_GAP = 3.0             # keystrokes closer than this are one "typing" acti
 REPEAT_GAP = 1.0             # the same key pressed again within this counts up
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+RETRY_SECONDS = 1.0          # how often a paused recording tries to carry on
+# FFmpeg's gdigrab cannot copy the screen: the secure desktop is showing
+CAPTURE_LOST_RE = re.compile(r"Failed to capture image")
+SIZE_RE = re.compile(r"Video: .*?(\d{2,5})x(\d{2,5})")
+# Encoder statistics FFmpeg prints when it finishes: never the reason it stopped
+STATS_RE = re.compile(r"^\[(?:libx264|libx265|h264_\w+|hevc_\w+|aac)\b[^\]]*\] |^(?:frame|video|size)[=:]")
 MODIFIERS = ("Ctrl", "Alt", "Shift", "Win", "Cmd")
 NAMED_KEYS = ("Enter", "Tab", "Esc", "Delete", "Up", "Down", "Left", "Right", "Home", "End",
               "PageUp", "PageDown", "Insert") + tuple(f"F{n}" for n in range(1, 13))
@@ -222,6 +237,8 @@ def command(ffmpeg, dest, encoder, microphone=None, display=None, screen_index=N
     if audio:
         cmd += ["-map", "1:a:0" if plat != "macos" else "0:a:0", "-c:a", "aac", "-b:a", "128k"]
     cmd += ["-vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p", "-r", str(FPS)]
+    if Path(dest).suffix.lower() != ".mkv":    # a part being recorded (.tmp)
+        encoder = encoder + ["-f", "matroska"]
     cmd += encoder + [str(dest)]
     return cmd
 
@@ -703,15 +720,28 @@ class EventLog:
                 self.events.append({"t": t, "type": "key", "key": name, "count": 1,
                                     "t_last": t})
 
-    def result(self, offset=0.0, until=None):
+    def result(self, offset=0.0, until=None, parts=None):
         """Events with times moved into the recording (t - offset), without
-        the ones after `until` (the click on Stop)."""
+        the ones after `until` (the click on Stop). With parts, a list of
+        (start, end) clock times of the pieces joined into one video, an
+        event's time is its place in the joined video, and events between
+        the parts (on a secure desktop) are left out."""
         out = []
         for e in self.events:
             if until is not None and e["t"] > until:
                 continue
+            t = e["t"] - offset
+            if parts:
+                t, before = None, 0.0
+                for start, end in parts:
+                    if start <= e["t"] <= end:
+                        t = before + e["t"] - start
+                        break
+                    before += end - start
+                if t is None:
+                    continue
             e = {k: v for k, v in e.items() if k != "t_last"}
-            e["t"] = round(e["t"] - offset, 3)
+            e["t"] = round(t, 3)
             if e["t"] >= 0:
                 out.append(e)
         return out
@@ -742,6 +772,14 @@ class Recorder:
         self._stop = threading.Event()
         self._poll_error = None
         self._threads = []
+        self.parts = []               # finished parts: path, start, end, size
+        self.part_path = self.dest    # the part being recorded now
+        self.paused_since = None      # clock time the secure desktop stopped FFmpeg
+        self._cmd = None
+        self._reader = None
+        self._capture_lost = None     # clock time FFmpeg said it lost the screen
+        self._size = None             # the screen size FFmpeg is recording
+        self._last_try = 0.0
 
     # -- control
 
@@ -757,30 +795,94 @@ class Recorder:
             video, _ = list_avfoundation(self.ffmpeg)
             screen_index = next((i for i, n in sorted(video.items())
                                  if n.lower().startswith("capture screen")), None)
-        cmd = command(self.ffmpeg, self.dest, pick_encoder(self.ffmpeg), self.microphone,
-                      self.display, screen_index)
+        self._cmd = (pick_encoder(self.ffmpeg), screen_index)
         poll = threading.Thread(target=self._poll, daemon=True)
         self._threads.append(poll)
         poll.start()
         try:
-            self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
-                                         stderr=subprocess.PIPE, creationflags=NO_WINDOW)
+            self._launch()
         except OSError as exc:
             self._finish(2)   # stop reading clicks and keys again
             raise RecorderError(f"FFmpeg could not be started: {exc}") from exc
-        reader = threading.Thread(target=self._read_stderr, daemon=True)
-        self._threads.append(reader)
-        reader.start()
+
+    def _launch(self):
+        """Start FFmpeg recording into self.part_path."""
+        encoder, screen_index = self._cmd
+        cmd = command(self.ffmpeg, self.part_path, encoder, self.microphone,
+                      self.display, screen_index)
+        self.started_wall = None
+        self._capture_lost = None
+        self._size = None
+        self._last_try = time.time()
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.PIPE, creationflags=NO_WINDOW)
+        self._reader = threading.Thread(target=self._read_stderr, args=(self.proc,),
+                                        daemon=True)
+        self._threads.append(self._reader)
+        self._reader.start()
 
     def running(self):
         return self.proc is not None and self.proc.poll() is None
 
     def recording(self):
-        """True once the first frame is in."""
-        return self.started_wall is not None and self.running()
+        """True once the first frame is in (paused on a secure desktop or not)."""
+        return bool(self.parts) or (self.started_wall is not None and self.running())
 
     def elapsed(self):
-        return max(0.0, time.time() - self.started_wall) if self.started_wall else 0.0
+        done = sum(p["end"] - p["start"] for p in self.parts)
+        if self.started_wall is not None and self.running():
+            done += max(0.0, time.time() - self.started_wall)
+        return done
+
+    def _part_ok(self):
+        return self.started_wall is not None and self.part_path.is_file() and \
+            self.part_path.stat().st_size > 0
+
+    def _next_part_path(self):
+        return self.dest.with_name(f"{self.dest.stem}.part{len(self.parts) + 1}.tmp")
+
+    def keep_going(self):
+        """Call about every quarter second while recording. Returns
+        "starting", "recording", or "paused" (the secure desktop is showing:
+        an administrator prompt or the lock screen). Raises RecorderError
+        when FFmpeg stopped for any other reason."""
+        if self.running():
+            if self.started_wall is None:
+                return "paused" if self.paused_since else "starting"
+            self.paused_since = None
+            return "recording"
+        if self._reader is not None:
+            self._reader.join(1)    # the last lines say why FFmpeg stopped
+        try:
+            self.proc.stdin.close()
+        except (AttributeError, OSError):
+            pass
+        now = time.time()
+        lost = self._capture_lost is not None
+        if self._part_ok():
+            self.parts.append({"path": self.part_path, "start": self.started_wall,
+                               "end": self._capture_lost or now, "size": self._size})
+            self.started_wall = None
+            if not lost:
+                raise RecorderError("The recording stopped by itself. FFmpeg said:\n" +
+                                    self.error_text())
+            self.part_path = self._next_part_path()
+        elif not lost:
+            raise RecorderError("The recording stopped by itself. FFmpeg said:\n" +
+                                self.error_text())
+        else:
+            _unlink(self.part_path if self.part_path != self.dest else None)
+        if self.paused_since is None:
+            self.paused_since = now
+            if self.log:
+                self.log.info("Recording paused: Windows is showing a secure desktop "
+                              "(an administrator prompt or the lock screen)")
+        if now - self._last_try >= RETRY_SECONDS and not self._stop.is_set():
+            try:
+                self._launch()
+            except OSError as exc:
+                raise RecorderError(f"FFmpeg could not be started again: {exc}") from exc
+        return "paused"
 
     def set_ignore_window(self, window_id, rect=None):
         """Clicks on this window (the recorder's own controls) are dropped.
@@ -796,31 +898,75 @@ class Recorder:
         path. Raises RecorderError when FFmpeg failed."""
         stopped_at = time.time()
         self._finish(timeout)
-        if not self.dest.is_file() or self.dest.stat().st_size == 0:
-            raise RecorderError("The recording could not be made. FFmpeg said:\n" +
-                                self.error_text())
-        if self.started_wall is None:
+        if self._part_ok():
+            self.parts.append({"path": self.part_path, "start": self.started_wall,
+                               "end": stopped_at, "size": self._size})
+        elif self.part_path != self.dest:
+            _unlink(self.part_path)     # a try that never got past the secure desktop
+        if not self.parts:
+            if not self.dest.is_file() or self.dest.stat().st_size == 0:
+                raise RecorderError("The recording could not be made. FFmpeg said:\n" +
+                                    self.error_text())
             raise RecorderError("FFmpeg did not report when the recording started, so "
                                 "clicks cannot be placed in it. FFmpeg said:\n" +
                                 self.error_text())
-        events = self.events.result(self.started_wall, until=stopped_at - 0.4)
+        # Parts of the same screen size become one video; a part after the
+        # screen size changed starts a video of its own
+        groups = []
+        for part in self.parts:
+            if groups and groups[-1][-1]["size"] == part["size"]:
+                groups[-1].append(part)
+            else:
+                groups.append([part])
+        for n, group in enumerate(groups):
+            out = self.dest if n == 0 else \
+                self.dest.with_name(f"{self.dest.stem} (part {n + 1}){self.dest.suffix}")
+            self._join(group, out)
+            spans = [(p["start"], p["end"]) for p in group]
+            self._write_events(out, self.events.result(until=stopped_at - 0.4, parts=spans),
+                               pauses=len(group) - 1)
+        self.pauses = len(self.parts) - 1
+        return self.dest
+
+    def _join(self, group, out):
+        """Make one video at out from the parts in group."""
+        if len(group) == 1:
+            if group[0]["path"] != out:
+                os.replace(group[0]["path"], out)
+            return
+        if group[0]["path"] == out:     # the first part is already named like the result
+            first = out.with_name(f"{out.stem}.part0.tmp")
+            os.replace(out, first)
+            group[0]["path"] = first
+        listing = out.with_name(f"{out.stem}.parts.txt")
+        listing.write_text("".join("file '{}'\n".format(str(p["path"]).replace("'", "'\\''"))
+                                   for p in group), encoding="utf-8")
+        res = _run([self.ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "concat",
+                    "-safe", "0", "-i", str(listing), "-c", "copy", "-f", "matroska", str(out)])
+        _unlink(listing)
+        if res.returncode != 0 or not out.is_file():
+            raise RecorderError("The parts of the recording could not be joined. FFmpeg "
+                                f"said:\n{(res.stderr or '').strip()[-500:]}")
+        for p in group:
+            _unlink(p["path"])
+
+    def _write_events(self, video, events, pauses=0):
         data = {"format": EVENTS_FORMAT, "platform": platform_name(),
                 "screen": self.screen, "events": events,
                 "keys": bool(self.keys), "recorded": time.strftime("%Y-%m-%d %H:%M:%S")}
+        if pauses:
+            data["paused"] = pauses
         if self._poll_error:
             data["input_error"] = self._poll_error
-        tmp = events_path(self.dest).with_suffix(".tmp")
+        tmp = events_path(video).with_suffix(".tmp")
         tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
-        os.replace(tmp, events_path(self.dest))
-        return self.dest
+        os.replace(tmp, events_path(video))
 
     def cancel(self):
         self._finish(10)
-        for p in (self.dest, events_path(self.dest)):
-            try:
-                p.unlink()
-            except OSError:
-                pass
+        for p in [self.dest, events_path(self.dest), self.part_path] + \
+                [part["path"] for part in self.parts]:
+            _unlink(p)
 
     def _finish(self, timeout):
         self._stop.set()
@@ -849,19 +995,26 @@ class Recorder:
             t.join(2)
 
     def error_text(self):
-        lines = [ln for ln in self.stderr_tail if ln.strip()]
+        """FFmpeg's last lines, without the encoder statistics it prints when
+        it finishes (they say nothing about why it stopped)."""
+        lines = [ln for ln in self.stderr_tail if ln.strip() and not STATS_RE.search(ln)]
         return "\n".join(lines[-12:]) or "(no output)"
 
     # -- threads
 
-    def _read_stderr(self):
+    def _read_stderr(self, proc):
         input_seen = False
-        for raw in iter(self.proc.stderr.readline, b""):
+        for raw in iter(proc.stderr.readline, b""):
             line = raw.decode("utf-8", "replace").rstrip()
             self.stderr_tail = (self.stderr_tail + [line])[-60:]
+            if CAPTURE_LOST_RE.search(line) and self._capture_lost is None:
+                self._capture_lost = time.time()
             if line.startswith("Input #0"):
                 input_seen = True
-            elif input_seen and self.started_wall is None:
+            elif input_seen and self._size is None and SIZE_RE.search(line):
+                m = SIZE_RE.search(line)
+                self._size = (int(m.group(1)), int(m.group(2)))
+            if input_seen and self.started_wall is None:
                 m = START_RE.search(line)
                 if m:
                     start = float(m.group(1))
@@ -871,7 +1024,7 @@ class Recorder:
                         else time.time()
             if self.started_wall is None and line.startswith("Press [q]"):
                 self.started_wall = time.time()
-        self.proc.stderr.close()
+        proc.stderr.close()
 
     def _poll(self):
         try:
@@ -907,6 +1060,15 @@ class Recorder:
             close = getattr(source, "close", None)
             if close:
                 close()
+
+
+def _unlink(path):
+    if path is None:
+        return
+    try:
+        Path(path).unlink()
+    except OSError:
+        pass
 
 
 def hide_from_capture(window_id):

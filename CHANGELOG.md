@@ -1,8 +1,18 @@
-CHANGELOG.md v1.43.0 (Last Rev: 2026-10-19)
+CHANGELOG.md v1.44.0 (Last Rev: 2026-10-25)
 
 # Changelog
 
 Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35.0), newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## Unreleased
+
+Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0).
+
+**Fixed**
+- A recording whose sound runs longer than its picture (phones often record this way) failed on its last screenshot with "frame extraction failed". The length of the picture is used now, and a screenshot asked for after the last picture uses the last picture.
+- On Windows, an administrator (UAC) prompt or the lock screen during a recording stopped it with "Recording did not work". These screens cannot be recorded, so the recording now pauses while one is showing and carries on when it closes, and the parts are saved as one video.
+- When a recording does fail, the message shows FFmpeg's reason instead of its encoder statistics.
+- The Windows file details showed "Copyright" twice ("Copyright: Copyright (c) 2026 ...").
 
 ## v1.36.1 - Published by ILHS Software, LLC (2026-10-19)
 

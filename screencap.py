@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-10-14
-# Version: v1.15.0
+# 2026-10-25
+# Version: v1.15.1
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -44,7 +44,7 @@ import workers  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.15.0"
+VERSION = "1.15.1"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -133,7 +133,9 @@ def probe_duration(ffprobe, video):
     if not streams:
         raise RuntimeError("no video stream found")
     duration = None
-    for value in (data.get("format", {}).get("duration"), streams[0].get("duration")):
+    # The video stream's own length first: a recording's audio can run longer
+    # than its picture, and there is no frame to save after the last one
+    for value in (streams[0].get("duration"), data.get("format", {}).get("duration")):
         try:
             duration = float(value)
             break
@@ -274,15 +276,20 @@ def group_changes(events, duration, args):
 
 
 def extract_frame(ffmpeg, video, t, dest, args):
-    cmd = [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
-           "-ss", f"{t:.3f}", "-i", str(video), "-map", "0:v:0", "-frames:v", "1"]
-    if args.format == "jpg":
-        cmd += ["-q:v", "2"]
-    cmd.append(str(dest))
-    res = run(cmd)
+    quality = ["-q:v", "2"] if args.format == "jpg" else []
+    base = [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y"]
+    res = run(base + ["-ss", f"{t:.3f}", "-i", str(video), "-map", "0:v:0",
+                      "-frames:v", "1"] + quality + [str(dest)])
+    if res.returncode == 0 and not dest.is_file():
+        # No frame at or after t (the picture ended first, as in a recording
+        # whose length comes from its audio): keep the last frame before it
+        start = max(t - 5.0, 0.0)
+        res = run(base + ["-ss", f"{start:.3f}", "-t", f"{t - start + 0.05:.3f}",
+                          "-i", str(video), "-map", "0:v:0", "-update", "1"]
+                  + quality + [str(dest)])
     if res.returncode != 0 or not dest.is_file():
-        raise RuntimeError(f"frame extraction at {fmt_ts(t)} failed: "
-                           f"{res.stderr.strip()[-300:]}")
+        reason = res.stderr.strip()[-300:] or "FFmpeg returned no picture at this time"
+        raise RuntimeError(f"frame extraction at {fmt_ts(t)} failed: {reason}")
 
 
 # ---------------------------------------------------------------------------
