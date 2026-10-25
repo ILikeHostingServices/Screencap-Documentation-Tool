@@ -1,6 +1,6 @@
 # winget.yml
-# 2026-10-10
-# Version: v1.2.4
+# 2026-10-25
+# Version: v1.3.0
 #
 # PURPOSE:
 # Publishes a release to the Windows Package Manager (winget), so it can be
@@ -13,9 +13,11 @@
 #      install test is skipped with a warning; Microsoft's own pipeline
 #      installs every submission anyway).
 #   4. Opens a pull request on microsoft/winget-pkgs with Microsoft's
-#      wingetcreate tool, unless that version is already listed there or a
-#      pull request for this package is still open (one at a time; the
-#      newest release can be submitted by hand once it has merged).
+#      wingetcreate tool, unless that version is already listed there. When
+#      a pull request of ours for this package is still waiting for review
+#      (winget takes one at a time), that pull request is brought up to this
+#      release instead: its older manifest is replaced and its title says the
+#      new version, so the review is always of the newest release.
 # Called by the release workflow after the Windows build is attached, or run
 # by hand (Actions > Publish to winget > Run workflow) for an existing release.
 # The pull request is opened with the WINGET_TOKEN repository secret: a
@@ -166,13 +168,34 @@ jobs:
             exit 0
           }
           # Already listed (or merged earlier): nothing to do
-          $path = "manifests/i/ILikeHostingServices/ScreencapDocumentationTool/$v"
-          gh api "repos/microsoft/winget-pkgs/contents/$path" --silent 2>$null
+          $pkgdir = 'manifests/i/ILHS/ScreencapDocumentationTool'
+          gh api "repos/microsoft/winget-pkgs/contents/$pkgdir/$v" --silent 2>$null
           if ($LASTEXITCODE -eq 0) { Write-Host "$env:PACKAGE_ID $v is already in winget-pkgs."; exit 0 }
-          # One pull request at a time: wait for an open one to be merged or closed
-          $open = gh api -X GET search/issues -f q="repo:microsoft/winget-pkgs is:pr is:open in:title $env:PACKAGE_ID" --jq '.items[] | "\(.html_url) \(.title)"'
+          gh api "repos/microsoft/winget-pkgs/contents/$pkgdir" --silent 2>$null
+          $kind = if ($LASTEXITCODE -eq 0) { 'Update' } else { 'New package' }
+          # One pull request at a time: bring a waiting one of ours up to this release
+          $open = gh api -X GET search/issues -f q="repo:microsoft/winget-pkgs is:pr is:open author:ILHS-Owner in:title $env:PACKAGE_ID" --jq '.items[0].number'
           if ($open) {
-            Write-Host "::warning::A winget pull request for $env:PACKAGE_ID is still open, so $v was not submitted: $open"
+            $pr = gh api "repos/microsoft/winget-pkgs/pulls/$open" | ConvertFrom-Json
+            $old = gh api "repos/microsoft/winget-pkgs/pulls/$open/files" --jq '.[].filename' |
+              ForEach-Object { Split-Path $_ -Parent } | Sort-Object -Unique
+            git clone --depth 1 --filter=blob:none --sparse --branch $pr.head.ref `
+              "https://x-access-token:$($env:WINGET_TOKEN)@github.com/$($pr.head.repo.full_name).git" pr
+            if ($LASTEXITCODE -ne 0) { throw "Could not clone the branch of pull request #$open" }
+            Push-Location pr
+            git sparse-checkout set $pkgdir
+            foreach ($d in $old) { if (Test-Path $d) { git rm -q -r $d } }
+            New-Item -ItemType Directory -Force "$pkgdir/$v" | Out-Null
+            Copy-Item "..\build\winget\$v\*" "$pkgdir/$v/"
+            git add $pkgdir
+            git -c user.name=ILHS-Owner -c user.email=337515992+ILHS-Owner@users.noreply.github.com `
+              commit -q -m "$kind`: $env:PACKAGE_ID version $v"
+            git push -q origin HEAD
+            if ($LASTEXITCODE -ne 0) { throw "Could not update pull request #$open" }
+            Pop-Location
+            $env:GH_TOKEN = $env:WINGET_TOKEN
+            gh api -X PATCH "repos/microsoft/winget-pkgs/pulls/$open" -f title="$kind`: $env:PACKAGE_ID version $v" --silent
+            Write-Host "Pull request #$open ($($pr.html_url)) now submits $env:PACKAGE_ID $v."
             exit 0
           }
           Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe

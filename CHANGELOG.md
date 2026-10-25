@@ -14,6 +14,9 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 - When a recording does fail, the message shows FFmpeg's reason instead of its encoder statistics.
 - The Windows file details showed "Copyright" twice ("Copyright: Copyright (c) 2026 ...").
 
+**winget**
+- The winget listing uses the ScreenCap Docs name and the website. While a winget pull request is waiting for Microsoft's review, each new release now brings that pull request up to date instead of waiting for it to be merged.
+
 ## v1.36.1 - Published by ILHS Software, LLC (2026-10-19)
 
 **Published by ILHS Software, LLC**
