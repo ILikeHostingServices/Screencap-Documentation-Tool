@@ -1,4 +1,4 @@
-BRANDING.md v1.1.0 (Last Rev: 2026-10-17)
+BRANDING.md v1.2.0 (Last Rev: 2026-10-25)
 
 # Branding
 
@@ -61,7 +61,7 @@ Every text color above meets 4.5:1 contrast on paper and sheet in both themes. S
 ## Screenshots
 
 - Screenshots in `docs/screenshots/` are made by `packaging/screenshots/make_screenshots.sh` for every feature release.
-- Marketing screenshots (website, stores) come from a clean Windows 11 VM at 1920 x 1080 and 100% scaling, light theme, a plain wallpaper, the real current release, and a real open-source app as the example task. No real names, emails, or keys: use `alex.morgan@example.com` and "Northwind Traders".
+- Marketing screenshots (website, stores) come from a clean Windows 11 VM at 1920 x 1080 and 100% scaling, light theme, a plain wallpaper, the real current release, and real apps as the example tasks, from more than one kind of program. No real names, emails, or keys: use the made-up new employee in `packaging/screenshots/demo_common.py` (Gordon Freeman, Black Mesa Research Facility, `Gordon.Freeman@totallyblackmesa.tld`, 555-01xx phone numbers).
 
 ## Release notes
 

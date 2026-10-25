@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  onboarding.html
+  2026-10-25
+  Version: v1.0.0
+
+  PURPOSE:
+  A made-up internal web page, "Black Mesa Research Facility: New Employee
+  Onboarding", filled in by web_demo.py for the store screenshots: the kind
+  of web form IT and HR people write how-to guides for. Black Mesa, Gordon
+  Freeman, and every name, address, and number here are fictional (555-01xx
+  phone numbers and the .tld domain are reserved for examples). Nothing is
+  sent anywhere: Submit only shows a confirmation on the same page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New Employee Onboarding - Black Mesa Research Facility</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.4 "DejaVu Sans", Arial, sans-serif; background: #eef1f4; color: #1d2733; }
+  header { background: #6b2a1a; color: #fff; padding: 14px 28px; display: flex; align-items: baseline; gap: 18px; }
+  header strong { font-size: 20px; letter-spacing: .04em; }
+  header span { opacity: .85; font-size: 14px; }
+  main { max-width: 1120px; margin: 22px auto; background: #fff; border: 1px solid #cfd6de; border-radius: 6px; padding: 22px 30px 26px; }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  p.sub { margin: 0 0 18px; color: #556070; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  input, select { width: 100%; font: inherit; padding: 7px 9px; border: 1px solid #aab4c0; border-radius: 4px; background: #fff; }
+  fieldset { grid-column: 1 / -1; border: 1px solid #cfd6de; border-radius: 4px; padding: 8px 14px 10px; margin: 0; }
+  legend { font-weight: 600; font-size: 14px; padding: 0 4px; }
+  fieldset label { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; margin: 2px 22px 2px 0; }
+  fieldset input { width: auto; }
+  .actions { margin-top: 18px; display: flex; gap: 12px; }
+  button { font: inherit; font-weight: 600; padding: 9px 22px; border-radius: 4px; border: 1px solid #aab4c0; background: #f4f6f8; cursor: pointer; }
+  button.primary { background: #c8571b; border-color: #c8571b; color: #fff; }
+  #done { display: none; margin-top: 16px; padding: 12px 16px; border-left: 4px solid #2f8a4c; background: #eaf6ee; }
+</style>
+</head>
+<body>
+<header><strong>BLACK MESA</strong><span>Research Facility &middot; Human Resources &middot; Internal</span></header>
+<main>
+  <h1>New Employee Onboarding</h1>
+  <p class="sub">Creates the employee record, the network account, and the badge request.</p>
+  <form id="f" autocomplete="off">
+    <div class="grid">
+      <div><label for="first">First name</label><input id="first"></div>
+      <div><label for="last">Last name</label><input id="last"></div>
+      <div><label for="dept">Department</label>
+        <select id="dept"><option></option><option>Anomalous Materials</option><option>Biological Research</option><option>Research Administration</option><option>Security</option></select></div>
+      <div><label for="emp">Employee ID</label><input id="emp"></div>
+      <div><label for="title">Job title</label><input id="title"></div>
+      <div><label for="clear">Security clearance</label>
+        <select id="clear"><option></option><option>Level 1</option><option>Level 2</option><option>Level 3</option><option>Level 4</option><option>Level 5</option></select></div>
+      <div><label for="where">Workspace location</label><input id="where"></div>
+      <div><label for="mail">Email address</label><input id="mail"></div>
+      <div><label for="office">Office phone</label><input id="office"></div>
+      <div><label for="mobile">Mobile phone</label><input id="mobile"></div>
+      <fieldset><legend>System roles (AD groups)</legend>
+        <label><input type="checkbox" id="g1"> grp_research_lvl3</label>
+        <label><input type="checkbox" id="g2"> grp_sector_c_access</label>
+        <label><input type="checkbox" id="g3"> grp_anti_mass_spectrometer_ops</label>
+      </fieldset>
+    </div>
+    <div class="actions"><button type="submit" class="primary">Submit</button><button type="reset">Clear</button></div>
+  </form>
+  <div id="done">Request submitted. The network account and badge for <b id="who"></b> will be ready within one business day.</div>
+</main>
+<script>
+document.getElementById('f').addEventListener('submit', function (e) {
+  e.preventDefault();
+  document.getElementById('who').textContent =
+    document.getElementById('first').value + ' ' + document.getElementById('last').value;
+  document.getElementById('done').style.display = 'block';
+});
+</script>
+</body>
+</html>
