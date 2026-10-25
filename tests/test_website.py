@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_website.py
-# 2026-10-22
-# Version: v1.0.0
+# 2026-10-25
+# Version: v1.1.0
 #
 # PURPOSE:
 # Tests for the website build (website/build.py): every menu page is built
@@ -50,6 +50,9 @@ class WebsiteTests(unittest.TestCase):
             self.assertIn('<link rel="canonical" href="https://screencap.ilhs.app/' + slug + '/">', text)
         self.assertIn('<a href="download/">Download</a>', self.page("index.html"))
         self.assertIn('content="noindex"', self.page("404.html"))
+        # the credits page is linked from every page's footer
+        self.assertIn("Valve Corporation", self.page("credits/index.html"))
+        self.assertIn('href="../credits/">Credits</a>', self.page("features/index.html"))
 
     def test_download_links_name_the_release(self):
         text = self.page("download/index.html")

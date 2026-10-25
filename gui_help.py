@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_help.py
-# 2026-10-17
-# Version: v1.5.1
+# 2026-10-25
+# Version: v1.6.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -249,6 +249,7 @@ class AboutWindow(tk.Toplevel):
                 ("Project on GitHub", updates.REPO_URL),
                 ("Release Notes", updates.RELEASES_URL),
                 ("License", f"{updates.REPO_URL}/blob/main/LICENSE"),
+                ("Credits", f"{updates.REPO_URL}/blob/main/CREDITS.md"),
                 ("Privacy", f"{updates.REPO_URL}/blob/main/CODE_SIGNING_POLICY.md#privacy"))):
             if n:
                 ttk.Label(links, text="\u00b7", style="Muted.TLabel").pack(side="left", padx=8)

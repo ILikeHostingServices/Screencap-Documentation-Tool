@@ -1,4 +1,4 @@
-CHANGELOG.md v1.45.0 (Last Rev: 2026-10-25)
+CHANGELOG.md v1.46.0 (Last Rev: 2026-10-25)
 
 # Changelog
 
@@ -17,6 +17,9 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 **Improved**
 - Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
 - New screenshots, showing tasks in three different programs: a web form, LibreOffice Calc, and KeePassXC.
+
+**Credits**
+- New credits and notices (`CREDITS.md`, **Help > About > Credits**, and the website's Credits page): Half-Life and Black Mesa, used for the made-up sample data in the screenshots, belong to Valve Corporation, which has no part in ScreenCap Docs.
 
 **winget**
 - The winget listing uses the ScreenCap Docs name and the website. While a winget pull request is waiting for Microsoft's review, each new release now brings that pull request up to date instead of waiting for it to be merged.

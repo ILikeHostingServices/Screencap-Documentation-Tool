@@ -1,4 +1,4 @@
-README.md v1.54.0 (Last Rev: 2026-10-25)
+README.md v1.55.0 (Last Rev: 2026-10-25)
 
 # ScreenCap Docs
 
@@ -52,7 +52,7 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 | ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
 | Export the steps as one HTML, Word, or PDF document. | Or as a PowerPoint presentation, one slide per step. |
 
-The screenshots show real tasks recorded with the built-in recorder, for a made-up new employee (Gordon Freeman at the fictional Black Mesa Research Facility) in three different programs: an onboarding form in a web browser, a staff directory in LibreOffice Calc, and a login saved in KeePassXC. `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
+The screenshots show real tasks recorded with the built-in recorder, for a made-up new employee (Gordon Freeman at the fictional Black Mesa Research Facility) in three different programs: an onboarding form in a web browser, a staff directory in LibreOffice Calc, and a login saved in KeePassXC. Half-Life and Black Mesa belong to Valve Corporation, which has no part in this project; see [CREDITS.md](CREDITS.md). `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
 
 ### Coming From Steps Recorder
 
@@ -805,7 +805,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 
 ScreenCap Docs is made by ILHS Software, LLC and is free and open source under the [MIT License](LICENSE). You may use, copy, change, and share it, including at work and in commercial settings, as long as the copyright notice and license text stay with it. It comes as is, with no warranty.
 
-FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them.
+FFmpeg, Tesseract, Pandoc, and VLC are separate programs with their own licenses. The tool runs them but does not include them. [CREDITS.md](CREDITS.md) lists who owns the names in the screenshots and examples.
 
 Support is best effort, with no guaranteed response time. For bugs and ideas, use **Help > Report a Problem...** or **Suggest an Idea...** in the GUI, or open an [issue on GitHub](https://github.com/ILikeHostingServices/Screencap-Documentation-Tool/issues/new/choose). Include the details from **Help > About > Copy Details** (or `screencap.py --version`), plus the relevant lines from `output/screencap.log`. Never attach real recordings or screenshots; a synthetic example is enough. Report security problems privately as described in [SECURITY.md](SECURITY.md). To help with the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
