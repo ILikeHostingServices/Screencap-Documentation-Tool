@@ -1,4 +1,4 @@
-# Created by packaging/make_winget_manifests.py from the Screencap Documentation Tool repository
+# Created by packaging/make_winget_manifests.py from the ScreenCap Docs repository
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 
 PackageIdentifier: {PACKAGE_ID}
@@ -8,14 +8,14 @@ Publisher: ILHS Software, LLC
 PublisherUrl: https://github.com/ILikeHostingServices
 PublisherSupportUrl: {REPO_URL}/issues
 PrivacyUrl: {REPO_URL}/blob/main/CODE_SIGNING_POLICY.md#privacy
-PackageName: Screencap Documentation Tool
-PackageUrl: {REPO_URL}
+PackageName: ScreenCap Docs
+PackageUrl: https://screencap.ilhs.app
 License: MIT
 LicenseUrl: {REPO_URL}/blob/main/LICENSE
 Copyright: Copyright (c) 2026 ILHS Software, LLC
 ShortDescription: A free Steps Recorder replacement that turns screen recordings into step-by-step screenshot documentation.
 Description: |-
-  Screencap Documentation Tool finds every step in a screen recording with FFmpeg scene detection and saves a screenshot of each one.
+  ScreenCap Docs (formerly Screencap Documentation Tool) finds every step in a screen recording with FFmpeg scene detection and saves a screenshot of each one.
   A free replacement for Windows Steps Recorder (psr.exe), which Microsoft has deprecated: its built-in recorder notes every click, so each step gets a red ring where you clicked and a first-draft caption such as Click "Next". Typed text is never saved.
   Review the steps, add captions, arrows, and labels, crop, blur sensitive information automatically, and export the result as HTML, Word, PDF, or PowerPoint documentation with your own logo and Word template.
   Everything runs locally on the PC, with no telemetry.

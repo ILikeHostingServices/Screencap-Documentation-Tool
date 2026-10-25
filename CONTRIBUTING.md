@@ -1,4 +1,4 @@
-CONTRIBUTING.md v1.2.0 (Last Rev: 2026-10-17)
+CONTRIBUTING.md v1.3.0 (Last Rev: 2026-10-25)
 
 # Contributing
 
@@ -32,7 +32,24 @@ Every commit must carry a `Signed-off-by:` line with your name and email, which 
 - **Dependencies.** The app uses only the Python standard library, so it installs on locked-down PCs without extra packages. A new dependency (a Python package, a helper program, or a GitHub Action) needs a reason in the pull request, must be free and open source, actively maintained, and installable from the standard source (PyPI, winget, the distribution's packages, or the GitHub Marketplace). Third-party GitHub Actions are pinned to a full commit SHA and kept up to date by Dependabot. Helper programs are installed by the installers and listed in the README; the Windows build's components are listed in the SBOM attached to each release.
 - **No secrets or personal data.** No keys, tokens, real email addresses, recordings, or screenshots of real systems in commits.
 
-The maintainer writes the release notes and `CHANGELOG.md` entry when a release is cut.
+Pull requests do not change the app's version. Add a short note for each change people will notice under `## Unreleased` at the top of `CHANGELOG.md`; the maintainer turns those notes into the release notes when the release is cut.
+
+## Release Process
+
+ScreenCap Docs ships on a release train: changes are collected and released together, about every 4 weeks, instead of one release per change.
+
+1. **Between releases.** Pull requests merge into `main` once every check passes. `main` is always tested but never published by itself: nothing reaches users until a release is cut. Changes that only touch the documentation, the website, or the workflows never get a version of their own.
+2. **Scope.** What goes into the next release is agreed at the start of the cycle. An idea that comes up during the cycle goes on the list for the following release.
+3. **Release preparation.** One pull request per release:
+   - no new features are merged into `main` while it is open;
+   - a full code, security, and dependency review of everything since the last release;
+   - a hands-on test of the Windows installer on a clean Windows 11 PC, and of the Linux packages;
+   - new screenshots when the app looks different;
+   - the version number (Major.Minor.Patch), `CHANGELOG.md`, and the release notes in `.github/releases/`.
+4. **Publishing.** After the preparation pull request merges, the release is listed in `.github/releases/manifest.txt` and the Publish releases workflow builds and publishes it everywhere at once.
+5. **Patch releases.** A security fix, or a fix for a bug that stops people from using the app, does not wait for the train: it is released on its own as a patch release (for example v1.38.1).
+
+The website's pages about new features are merged with the release preparation, so the website never describes something that is not released yet.
 
 ## Running From Source And Building
 

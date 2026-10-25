@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # make_version_info.py
-# 2026-10-17
-# Version: v1.0.1
+# 2026-10-25
+# Version: v1.0.2
 #
 # PURPOSE:
 # Writes the Windows version resource (the details on a file's Properties >
@@ -27,7 +27,7 @@ TEMPLATE = """VSVersionInfo(
       StringStruct('FileDescription', '{app}'),
       StringStruct('FileVersion', '{ver}'),
       StringStruct('InternalName', 'ScreencapDocumentationTool'),
-      StringStruct('LegalCopyright', 'Copyright (c) 2026 ILHS Software, LLC. MIT License.'),
+      StringStruct('LegalCopyright', '(c) 2026 ILHS Software, LLC. MIT License.'),
       StringStruct('OriginalFilename', 'Screencap Documentation Tool.exe'),
       StringStruct('ProductName', '{app}'),
       StringStruct('ProductVersion', '{ver}')])]),
