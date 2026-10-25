@@ -1,4 +1,4 @@
-CHANGELOG.md v1.44.0 (Last Rev: 2026-10-25)
+CHANGELOG.md v1.45.0 (Last Rev: 2026-10-25)
 
 # Changelog
 
@@ -13,6 +13,10 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 - On Windows, an administrator (UAC) prompt or the lock screen during a recording stopped it with "Recording did not work". These screens cannot be recorded, so the recording now pauses while one is showing and carries on when it closes, and the parts are saved as one video.
 - When a recording does fail, the message shows FFmpeg's reason instead of its encoder statistics.
 - The Windows file details showed "Copyright" twice ("Copyright: Copyright (c) 2026 ...").
+
+**Improved**
+- Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
+- New screenshots, showing tasks in three different programs: a web form, LibreOffice Calc, and KeePassXC.
 
 **winget**
 - The winget listing uses the ScreenCap Docs name and the website. While a winget pull request is waiting for Microsoft's review, each new release now brings that pull request up to date instead of waiting for it to be merged.

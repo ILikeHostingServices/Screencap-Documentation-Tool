@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 #
 # gui_shots.py
-# 2026-10-20
-# Version: v1.3.0
+# 2026-10-25
+# Version: v1.4.0
 #
 # PURPOSE:
-# Opens the GUI on the demo recording made by make_screenshots.sh and takes
-# the store screenshots: the Steps tab, the Annotate menu, the Record
-# window, the dark theme, a recording in progress, and the update window
-# (as a user of the previous release sees this one). Also exports the
-# demo as HTML and as PowerPoint (with a made-up logo) for the document
-# screenshots. Run by make_screenshots.sh.
+# Opens the GUI on the three demo recordings made by make_screenshots.sh
+# (Gordon Freeman's first day at the made-up Black Mesa Research Facility:
+# an onboarding web form, a Calc staff directory, and a KeePassXC login)
+# and takes the store screenshots: the Steps tab, the Annotate menu, the
+# Record window, the dark theme, a recording in progress, and the update
+# window (as a user of the previous release sees this one). Also exports
+# the web form steps as HTML and the KeePassXC steps as PowerPoint (with a
+# made-up logo) for the document screenshots. Run by make_screenshots.sh.
 #
 # Usage: gui_shots.py DEMO_DOCUMENTS_FOLDER OUTPUT_FOLDER
 
@@ -52,10 +54,18 @@ def click(w):
                     str(w.winfo_rooty() + w.winfo_height() // 2), "click", "1"])
 app.v_source.set(str(D / "Recordings")); app.v_output.set(str(D / "Output"))
 app.refresh_videos(); pump(1)
-app.tree.selection_set(app.tree.get_children()[0]); pump(); app.show_steps(); pump(1)
 ed = app.editor
-ed.v_doc_title.set("Create the Northwind Traders password database"); ed.v_doc_version.set("v1.0.0"); ed.v_doc_author.set("IT Service Desk")
-ed.save(wait=True); pump(1)
+TITLES = {"Fill in the onboarding form": "Onboard a new employee (HR web form)",
+          "Add an employee to the staff directory": "Add a new employee to the staff directory",
+          "Save a login in KeePassXC": "Save a new employee's network login in KeePassXC"}
+def open_recording(name):
+    """Show the steps of the recording called name, with its document title."""
+    iid = next(i for i, (video, _) in app.videos.items() if video.stem == name)
+    app.tree.selection_set(iid); pump(); app.show_steps(); pump(1)
+    if ed.v_doc_title.get() != TITLES[name]:
+        ed.v_doc_title.set(TITLES[name]); ed.v_doc_version.set("v1.0.0"); ed.v_doc_author.set("IT Service Desk")
+        ed.save(wait=True); pump(1)
+open_recording("Save a login in KeePassXC")
 def goto(caption_start, fallback):
     """Show the step whose caption starts with caption_start (else step
     number fallback): the steps can differ a little between recordings."""
@@ -66,13 +76,14 @@ def goto(caption_start, fallback):
 goto('Click next to "Enter password"', 4)             # the password, blurred
 ed.v_view.set("final"); ed.on_select(); pump(2.5)
 shot("01-steps-editor")
-# Annotations on the welcome screen (points in recording pixels)
-goto('Click "Create new database"', 1)
+# Annotations on the finished web form (points in recording pixels)
+open_recording("Fill in the onboarding form")
+goto('Click "Submit"', len(ed.doc["steps"]) - 1)
 st = ed.current_step()
 st.setdefault("annotations", []).extend([
-    {"kind": "number", "at": [540, 536], "n": 1},
-    {"kind": "arrow", "from": [720, 676], "to": [700, 556]},
-    {"kind": "text", "at": [610, 696], "text": "Start with a new database"}])
+    {"kind": "number", "at": [236, 681], "n": 1},
+    {"kind": "arrow", "from": [600, 760], "to": [400, 695]},
+    {"kind": "text", "at": [610, 750], "text": "Check every field, then submit"}])
 ed.set_dirty(); ed.save(wait=True); pump(1)
 ed.v_view.set("final"); ed.on_select(); pump(2.5)
 click(menubutton("Annotate")); pump(1)
@@ -84,7 +95,8 @@ shot("03-record-window")
 dlg = next(w for w in root.winfo_children() if isinstance(w, gui.gui_recorder.RecordDialog)); dlg.destroy(); pump()
 # Dark theme, the finished step
 app.set_theme("dark"); pump(1)
-# The last step with something blurred: the new login with its email blurred
+# The staff directory after sorting, the email addresses blurred
+open_recording("Add an employee to the staff directory")
 blurred = [i for i, st in enumerate(ed.doc["steps"]) if st.get("auto_redactions")]
 ed.step_by((blurred[-1] if blurred else len(ed.doc["steps"]) - 3) - (ed.current_index() or 0))
 ed.v_view.set("final"); ed.on_select(); pump(2.5)
@@ -113,9 +125,9 @@ with mock.patch.object(updates, "can_install", return_value=True), \
                     "+repage", str(OUT / "08-update.png")])
     print("shot 08-update", flush=True)
     upd.destroy(); pump()
-# Recording in progress: KeePassXC on screen, the Recording window in the corner
-wiz = subprocess.Popen([sys.executable, str(HERE / "keepassxc_demo.py"), "--static"])
-pump(2)
+# Recording in progress: the web form on screen, the Recording window in the corner
+wiz = subprocess.Popen([sys.executable, str(HERE / "web_demo.py"), "--static"])
+pump(4)
 app.start_recording(); pump(1)
 dlg = next(w for w in root.winfo_children() if isinstance(w, gui.gui_recorder.RecordDialog))
 dlg.v_mic.set(gui.gui_recorder.NO_MIC); dlg.start()
@@ -125,17 +137,19 @@ while not (app.recording and app.recording.rec and app.recording.rec.recording()
 pump(4.2)
 shot("05-recording")
 app.recording.discard(); pump(1)
-wiz.terminate()
+wiz.terminate(); wiz.wait(10)
 root.deiconify(); pump(1)
 import export  # noqa: E402
+open_recording("Fill in the onboarding form")
 html = export.export(ed.out_dir, ed.doc, "html")
 (OUT / "export.path").write_text(str(html))
 logo = OUT.parent / "demo-logo.png"
 import annotate  # noqa: E402
 font = annotate.find_font()
 font_opt = f"fontfile={annotate.filter_path(font)}:" if font else ""
-subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=0x1f4e8c:s=560x120",
-                "-vf", f"drawtext={font_opt}text='NORTHWIND TRADERS':fontcolor=white:fontsize=42:"
+open_recording("Save a login in KeePassXC")
+subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=0x6b2a1a:s=560x120",
+                "-vf", f"drawtext={font_opt}text='BLACK MESA':fontcolor=white:fontsize=48:"
                 "x=(w-text_w)/2:y=(h-text_h)/2", "-frames:v", "1", str(logo)], check=True)
 ed.doc["steps"][0]["narration"] = "Open KeePassXC from the applications menu."
 deck = export.export(ed.out_dir, ed.doc, "pptx", logo=logo)

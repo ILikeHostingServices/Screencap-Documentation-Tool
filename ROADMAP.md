@@ -1,4 +1,4 @@
-ROADMAP.md v1.8.1 (Last Rev: 2026-10-19)
+ROADMAP.md v1.9.0 (Last Rev: 2026-10-25)
 
 # Roadmap
 
@@ -8,7 +8,9 @@ What ScreenCap Docs plans to do over the next year, what it will not do, and ide
 
 | Area | Plan |
 | --- | --- |
-| Recording | Choose what to record, like the Windows Snipping Tool: the whole screen, one window, or a region you draw; and record system sound, switchable on and off (v1.37.0). |
+| Recording | Choose what to record, like the Windows Snipping Tool: the whole screen, one window, or a region you draw; and record system sound, switchable on and off (v1.38.0). |
+| Languages | Choose the app's language and region: date format, 12 or 24 hour time, and the installer in the same language (v1.38.0 if it is ready by the feature freeze, else v1.39.0). |
+| Releases | One release every 4 weeks, collected under "Unreleased" in `CHANGELOG.md`; patch releases only for security fixes and blocking bugs (see `CONTRIBUTING.md`). v1.38.0 is planned for 2026-11-22. |
 | Distribution | Publish the Microsoft Store listing, finish the winget listing, publish to the AUR once account sign-ups reopen, and evaluate Flathub. |
 | Website | Keep https://screencap.ilhs.app current with each release, and replace its screenshots with ones taken on a clean Windows 11 PC. |
 | Trust | Reapply for free code signing for the Windows programs; attach an SBOM to every compiled download, snaps included; keep the OpenSSF Best Practices and Baseline results current. |

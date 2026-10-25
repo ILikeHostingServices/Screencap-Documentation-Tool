@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # actions.py
-# 2026-10-20
-# Version: v1.2.2
+# 2026-10-25
+# Version: v1.3.0
 #
 # PURPOSE:
 # Uses the clicks and keys noted by the built-in recorder (recorder.py) to
@@ -137,6 +137,26 @@ def nearby_label(lines, x, y, width):
     if best is None:
         return None
     return _phrase(lines[best[1]], best[2], leftward=True)
+
+
+def above_label(lines, x, y, width):
+    """Text just above (x, y) and starting left of it, such as the label
+    over an empty text box on a web form. None when there is none. Of the
+    labels on the row above, the nearest one left of the click is taken: in
+    two columns of boxes, the one over the right column belongs to it."""
+    reach_y, reach_x = max(30, width // 40), max(300, width // 3)
+    best = None
+    for li, words in enumerate(lines):
+        for wi, (text, (bx, by, bw, bh)) in enumerate(words):
+            gap_y = y - (by + bh)
+            if not _is_word(text) or not 0 <= gap_y <= reach_y or not 0 <= x - bx <= reach_x:
+                continue
+            d = (gap_y // max(bh, 1), x - bx)
+            if best is None or d < best[0]:
+                best = (d, li, wi)
+    if best is None:
+        return None
+    return _phrase(lines[best[1]], best[2])
 
 
 def right_label(lines, x, y, width):
@@ -391,7 +411,8 @@ def label_action(a, video, ffmpeg, tesseract, width, height, extra, tmp):
     if label:
         a["label"] = label
     elif a["type"] == "click":
-        near = safe_label(nearby_label(lines, a["x"], a["y"], width), extra)
+        near = safe_label(nearby_label(lines, a["x"], a["y"], width) or
+                          above_label(lines, a["x"], a["y"], width), extra)
         if near:
             a["near"] = near
 

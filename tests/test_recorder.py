@@ -2,7 +2,7 @@
 #
 # test_recorder.py
 # 2026-10-25
-# Version: v1.2.0
+# Version: v1.3.0
 #
 # PURPOSE:
 # Tests for the built-in recorder and the use of its clicks: turning mouse
@@ -209,6 +209,15 @@ class ActionTests(unittest.TestCase):
         field = [ocr_line("Product", "key:", y=500) + [("I", [380, 498, 6, 18])]]
         self.assertIsNone(actions.click_label(field, 382, 505, 1280))
         self.assertEqual(actions.nearby_label(field, 382, 505, 1280), "Product key")
+        # a web form: the label is above its box, in one of two columns
+        form = [ocr_line("First", "name", y=200) +
+                [("Last", [814, 200, 40, 20]), ("name", [862, 200, 40, 20])]]
+        self.assertIsNone(actions.nearby_label(form, 528, 238, 1600))
+        self.assertEqual(actions.above_label(form, 528, 238, 1600), "First name")
+        self.assertEqual(actions.above_label(form, 1071, 238, 1600), "Last name")
+        # words far above, or below the click, are not its label
+        self.assertIsNone(actions.above_label(form, 528, 400, 1600))
+        self.assertIsNone(actions.above_label(form, 528, 205, 1600))
 
     def test_light_text_on_a_colored_button_beats_the_next_button(self):
         # "Continue" (white on green) is only read from just the button, and
