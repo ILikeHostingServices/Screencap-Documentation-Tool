@@ -1,4 +1,4 @@
-CONTRIBUTING.md v1.3.0 (Last Rev: 2026-10-25)
+CONTRIBUTING.md v1.4.0 (Last Rev: 2026-10-25)
 
 # Contributing
 
@@ -47,7 +47,11 @@ ScreenCap Docs ships on a release train: changes are collected and released toge
    - new screenshots when the app looks different;
    - the version number (Major.Minor.Patch), `CHANGELOG.md`, and the release notes in `.github/releases/`.
 4. **Publishing.** After the preparation pull request merges, the release is listed in `.github/releases/manifest.txt` and the Publish releases workflow builds and publishes it everywhere at once.
-5. **Patch releases.** A security fix, or a fix for a bug that stops people from using the app, does not wait for the train: it is released on its own as a patch release (for example v1.38.1).
+5. **Bug fix releases.** Bug fixes and security fixes do not wait for the train. When a bug is found well before the next release, its fix ships on its own as a bug fix release that only adds 1 to the last number (Patch): v1.38.0, then v1.38.1, v1.38.2, and so on. A bug fix release holds only fixes, never new features:
+   - it is made on a `release/X.Y` branch started from the last release's tag (for example `release/1.38` from `v1.38.0`), with the fix copied onto it from `main` and the current `.github/workflows/` files (GitHub refuses a release tag on a commit whose workflow files are out of date);
+   - the fix also stays in `main`, under **Fixed** in "Unreleased", so the next train release includes it;
+   - it gets the same checks as any release, its own `CHANGELOG.md` entry and release notes, and a line in `.github/releases/manifest.txt` pointing at the `release/X.Y` commit;
+   - when the next train release is a few days away, the fix rides that release instead.
 
 The website's pages about new features are merged with the release preparation, so the website never describes something that is not released yet.
 
