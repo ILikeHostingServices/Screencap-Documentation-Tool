@@ -1,4 +1,4 @@
-CREDITS.md v1.0.0 (Last Rev: 2026-10-25)
+CREDITS.md v1.1.0 (Last Rev: 2026-10-26)
 
 # Credits And Notices
 
@@ -11,11 +11,11 @@ The screenshots in `docs/screenshots/`, the README, and https://screencap.ilhs.a
 | Name | Owner |
 | --- | --- |
 | Half-Life, Black Mesa, the Black Mesa Research Facility, and its characters (Gordon Freeman, Isaac Kleiner, Eli Vance, Barney Calhoun, and others) | Trademarks and copyrighted material of Valve Corporation. |
-| Harris & Thompson, Inc. | A fictional company made up by ILHS Software, LLC for examples. |
+| Harris & Thompson Inc and its staff (Jennifer Harris, Brad Thompson, and others) | A fictional accounting firm made up by ILHS Software, LLC for examples. |
 
 ScreenCap Docs and ILHS Software, LLC are not affiliated with, sponsored by, or endorsed by Valve Corporation. The Black Mesa names are used only as fictional sample data, as a nod from fans, in the same spirit as the many fan maps, games, and tools that reference them. All rights to them stay with Valve Corporation; on request, they will be replaced.
 
-The phone numbers use the 555-01xx range and the email addresses use the `.tld` ending, both set aside for examples, so they can never reach anyone.
+The phone numbers use the 555-01xx range and the email addresses use the `.tld` and `.corp` endings, all set aside for examples or private use, so they can never reach anyone. The full sample data is in `packaging/screenshots/sample_data/`.
 
 ## Programs Shown In The Screenshots
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # make_screenshots.sh
-# 2026-10-25
-# Version: v1.3.0
+# 2026-10-26
+# Version: v1.4.0
 #
 # PURPOSE:
 # Makes the screenshots used in the README, the Linux software center
@@ -56,8 +56,9 @@ rm -rf "$DOCS/Recordings" "$DOCS/Output"
 mkdir -p "$DOCS/Recordings"
 
 # record DEMO SECONDS NAME [PROCESSING OPTIONS...]
-# The demo opens its app first and starts clicking 3 seconds after it
-# starts; the recording starts in between. Recordings already processed are
+# The demo opens its app and starts clicking 3 seconds after its window is
+# open; the recording starts 1 second after the demo, and runs long enough
+# for a slow first start of the app. Recordings already processed are
 # skipped, so each run below processes only the one just added.
 record() {
     local demo="$1" seconds="$2" name="$3"
@@ -80,9 +81,9 @@ record() {
 }
 # A finer sensitivity than the default, so filling in each field of a form
 # is a step of its own; each cropped to the part of the screen used
-record web_demo.py 62 "Fill in the onboarding form" --crop 220:84:1160:720 -t 0.002
-record calc_demo.py 50 "Add an employee to the staff directory" --crop 0:0:1160:400 -t 0.002
-record keepassxc_demo.py 62 "Save a login in KeePassXC" --crop 300:120:1000:704 -t 0.002
+record web_demo.py 75 "Fill in the onboarding form" --crop 220:84:1160:720 -t 0.002
+record calc_demo.py 65 "Add an employee to the staff directory" --crop 0:0:1160:400 -t 0.002
+record keepassxc_demo.py 75 "Save a login in KeePassXC" --crop 300:120:1000:704 -t 0.002
 
 echo "Taking the GUI screenshots..."
 HOME="$DEMO_HOME" "$PY" "$HERE/gui_shots.py" "$DOCS" "$OUT"

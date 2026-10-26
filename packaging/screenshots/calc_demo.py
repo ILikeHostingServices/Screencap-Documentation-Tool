@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # calc_demo.py
-# 2026-10-25
-# Version: v1.0.0
+# 2026-10-26
+# Version: v1.1.0
 #
 # PURPOSE:
 # One of the example tasks in the store screenshots: adding the new
@@ -27,22 +27,21 @@ import tempfile
 import time
 from pathlib import Path
 
-from demo_common import PERSON, click, clock, exit_on_terminate, key, type_text, wait_window, xdo
+from demo_common import (PERSON, click, clock, exit_on_terminate, key, people, type_text,
+                         wait_window, xdo)
 
 NAME = "Black Mesa staff directory"
 SHEET = Path.home() / "Documents" / f"{NAME}.ods"
 # Left behind if Calc is stopped; Calc would then ask about it
 LOCK = SHEET.with_name(f".~lock.{SHEET.name}#")
-ROWS = [
-    ["Last name", "First name", "Department", "Employee ID", "Job title", "Clearance",
-     "Workspace", "Email"],
-    ["Kleiner", "Isaac", "Research Administration", "1002", "Senior Research Scientist",
-     "Level 5", "Sector C, Administration", "Isaac.Kleiner@totallyblackmesa.tld"],
-    ["Vance", "Eli", "Anomalous Materials", "1045", "Research Scientist", "Level 4",
-     "Sector C, Test Lab C-33/a", "Eli.Vance@totallyblackmesa.tld"],
-    ["Calhoun", "Barney", "Security", "3301", "Security Guard", "Level 2",
-     "Sector C, Checkpoint", "Barney.Calhoun@totallyblackmesa.tld"],
-]
+# The columns of people.csv shown, and their headings in the spreadsheet
+COLUMNS = {"Last Name": "Last name", "First Name": "First name", "Department": "Department",
+           "Employee ID": "Employee ID", "Job Title": "Job title",
+           "Security Clearance": "Clearance", "Workspace Location": "Workspace",
+           "Email Address": "Email"}
+# The new employee's colleagues are in the directory already
+ROWS = [list(COLUMNS.values())] + [
+    [r[c] for c in COLUMNS] for r in people(PERSON["Company"]) if r != PERSON]
 
 
 def make_sheet(profile):
@@ -80,10 +79,9 @@ def open_calc():
 def run_task(start):
     at = clock(start)
     p = PERSON
-    # Row 5 is the first empty row; Tab moves to the next cell
-    at(3.0); click(75, 220)
-    fields = [p["last"], p["first"], p["department"], p["employee_id"], p["title"],
-              p["clearance"], p["workspace"], p["email"]]
+    # The first empty row (rows are 17 pixels apart); Tab moves to the next cell
+    at(3.0); click(75, 152 + 17 * len(ROWS))
+    fields = [p[c] for c in COLUMNS]
     t = 5.0
     for n, value in enumerate(fields):
         at(t)
@@ -101,8 +99,9 @@ def run_task(start):
 
 def main():
     exit_on_terminate()
-    start = time.monotonic()
     proc, profile = open_calc()
+    # The steps are timed from when the window is open: a first start can be slow
+    start = time.monotonic()
     try:
         if "--static" in sys.argv:
             proc.wait()

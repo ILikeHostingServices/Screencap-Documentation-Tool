@@ -1,4 +1,4 @@
-README.md v1.55.0 (Last Rev: 2026-10-25)
+README.md v1.56.0 (Last Rev: 2026-10-26)
 
 # ScreenCap Docs
 
@@ -9,7 +9,7 @@ README.md v1.55.0 (Last Rev: 2026-10-25)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15607/badge)](https://www.bestpractices.dev/projects/15607)
 [![Website](https://img.shields.io/badge/website-screencap.ilhs.app-2563EB)](https://screencap.ilhs.app)
 
-![The Steps tab: each step of saving a new employee's login in KeePassXC, with its screenshot, a red ring where the mouse was clicked, the password blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
+![The Steps tab: each step of saving a login in KeePassXC, with its screenshot, a red ring where the mouse was clicked, the password blurred, and the first-draft caption written from the clicks](docs/screenshots/01-steps-editor.png)
 
 ## Overview
 
@@ -52,7 +52,7 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 | ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
 | Export the steps as one HTML, Word, or PDF document. | Or as a PowerPoint presentation, one slide per step. |
 
-The screenshots show real tasks recorded with the built-in recorder, for a made-up new employee (Gordon Freeman at the fictional Black Mesa Research Facility) in three different programs: an onboarding form in a web browser, a staff directory in LibreOffice Calc, and a login saved in KeePassXC. Half-Life and Black Mesa belong to Valve Corporation, which has no part in this project; see [CREDITS.md](CREDITS.md). `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
+The screenshots show real tasks recorded with the built-in recorder, with made-up sample data, in three different programs: a new employee's onboarding form in a web browser and his entry in a staff directory in LibreOffice Calc (Gordon Freeman at the Black Mesa Research Facility), and a federal tax portal login saved in KeePassXC (the fictional accounting firm Harris & Thompson Inc). Half-Life and Black Mesa belong to Valve Corporation, which has no part in this project; see [CREDITS.md](CREDITS.md). `packaging/screenshots/make_screenshots.sh` makes them again (see [Files](#files)).
 
 ### Coming From Steps Recorder
 
@@ -93,7 +93,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
-| `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records three tasks with the built-in recorder on a virtual display (a web form in Chromium, `web_demo.py` and `onboarding.html`; a spreadsheet in LibreOffice Calc, `calc_demo.py`; and KeePassXC, `keepassxc_demo.py`; their shared made-up data is in `demo_common.py`) and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, KeePassXC, LibreOffice Calc and Impress, ImageMagick, and Chromium. |
+| `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records three tasks with the built-in recorder on a virtual display (a web form in Chromium, `web_demo.py` and `onboarding.html`; a spreadsheet in LibreOffice Calc, `calc_demo.py`; and KeePassXC, `keepassxc_demo.py`; their made-up people and companies are in `sample_data/people.csv` and `companies.csv`, read by `demo_common.py`) and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, KeePassXC, LibreOffice Calc and Impress, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
 | `website/` | The project website at https://screencap.ilhs.app: one page per menu link (`pages/`) sharing one header and footer (`layout.html`), built by `build.py` and published to GitHub Pages with the apt and dnf repositories by `package-repos.yml`. Preview it with `python3 website/build.py --out _site` and `python3 -m http.server --directory _site`. |
 | `docs/SECURITY_FOR_IT.md` | For IT and security teams: network use, files and settings, administrator controls, behaviors security tools may notice, and how to verify a download. |

@@ -1,38 +1,48 @@
 #!/usr/bin/env python3
 #
 # demo_common.py
-# 2026-10-25
-# Version: v1.0.0
+# 2026-10-26
+# Version: v1.1.0
 #
 # PURPOSE:
 # What the screenshot demos (keepassxc_demo.py, calc_demo.py, web_demo.py)
 # share: real mouse and keyboard input with xdotool, so the built-in
 # recorder notes real clicks and keys; waiting for a window; and a clock
-# that runs each demo's steps at fixed times after it starts (the
-# recording starts in between, see make_screenshots.sh).
+# that runs each demo's steps at fixed times after its window opened (the
+# recording is already running by then, see make_screenshots.sh).
 #
-# The sample data is the made-up Black Mesa employee Gordon Freeman: every
-# name, address, and number in it is fictional (555-01xx phone numbers and
-# the .tld domain are reserved for examples).
+# The sample data is in sample_data/: two made-up companies
+# (companies.csv) and their staff (people.csv). Every name, address, and
+# number in it is fictional (555-01xx phone numbers and the .tld and .corp
+# endings are set aside for examples); the Black Mesa names belong to
+# Valve Corporation (see CREDITS.md). Edit the CSV files (in a spreadsheet
+# program, saved as CSV) to change what the demos type.
 
+import csv
 import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
-PERSON = {
-    "first": "Gordon",
-    "last": "Freeman",
-    "company": "Black Mesa Research Facility",
-    "department": "Anomalous Materials",
-    "employee_id": "4176",
-    "title": "Research Associate / Theoretical Physicist",
-    "clearance": "Level 3",
-    "workspace": "Sector C, Test Lab C-33/a",
-    "email": "Gordon.Freeman@totallyblackmesa.tld",
-    "office": "+1-555-019-1998",
-    "mobile": "+1-555-010-1825",
-}
+DATA = Path(__file__).resolve().parent / "sample_data"
+
+
+def people(company=None):
+    """The rows of people.csv (dicts keyed by its headings), in file order,
+    only those of company when it is given."""
+    with open(DATA / "people.csv", newline="", encoding="utf-8") as f:
+        return [r for r in csv.DictReader(f) if company in (None, r["Company"])]
+
+
+def person(first, last):
+    return next(r for r in people() if (r["First Name"], r["Last Name"]) == (first, last))
+
+
+# The new employee in the onboarding form and the staff directory, and the
+# partner who saves a login in KeePassXC
+PERSON = person("Gordon", "Freeman")
+PARTNER = person("Jennifer", "Harris")
 
 
 def exit_on_terminate():

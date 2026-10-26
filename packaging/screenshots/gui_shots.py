@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 #
 # gui_shots.py
-# 2026-10-25
-# Version: v1.4.0
+# 2026-10-26
+# Version: v1.5.0
 #
 # PURPOSE:
 # Opens the GUI on the three demo recordings made by make_screenshots.sh
-# (Gordon Freeman's first day at the made-up Black Mesa Research Facility:
-# an onboarding web form, a Calc staff directory, and a KeePassXC login)
+# (made-up sample data from sample_data/: Gordon Freeman's onboarding web
+# form and staff directory entry at the Black Mesa Research Facility, and a
+# Harris & Thompson partner's tax portal login saved in KeePassXC)
 # and takes the store screenshots: the Steps tab, the Annotate menu, the
 # Record window, the dark theme, a recording in progress, and the update
 # window (as a user of the previous release sees this one). Also exports
@@ -57,7 +58,7 @@ app.refresh_videos(); pump(1)
 ed = app.editor
 TITLES = {"Fill in the onboarding form": "Onboard a new employee (HR web form)",
           "Add an employee to the staff directory": "Add a new employee to the staff directory",
-          "Save a login in KeePassXC": "Save a new employee's network login in KeePassXC"}
+          "Save a login in KeePassXC": "Save the federal tax portal login in KeePassXC"}
 def open_recording(name):
     """Show the steps of the recording called name, with its document title."""
     iid = next(i for i, (video, _) in app.videos.items() if video.stem == name)
@@ -148,8 +149,8 @@ import annotate  # noqa: E402
 font = annotate.find_font()
 font_opt = f"fontfile={annotate.filter_path(font)}:" if font else ""
 open_recording("Save a login in KeePassXC")
-subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=0x6b2a1a:s=560x120",
-                "-vf", f"drawtext={font_opt}text='BLACK MESA':fontcolor=white:fontsize=48:"
+subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=0x1f3a5f:s=560x120",
+                "-vf", f"drawtext={font_opt}text='HARRIS & THOMPSON':fontcolor=white:fontsize=40:"
                 "x=(w-text_w)/2:y=(h-text_h)/2", "-frames:v", "1", str(logo)], check=True)
 ed.doc["steps"][0]["narration"] = "Open KeePassXC from the applications menu."
 deck = export.export(ed.out_dir, ed.doc, "pptx", logo=logo)
