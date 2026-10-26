@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # web_demo.py
-# 2026-10-25
-# Version: v1.0.0
+# 2026-10-26
+# Version: v1.1.0
 #
 # PURPOSE:
 # One of the example tasks in the store screenshots: filling in a made-up
@@ -62,18 +62,18 @@ def run_task(start):
     at = clock(start)
     p = PERSON
     # Each field is a step of its own: a click next to its label, then typing
-    at(3.0); click(528, 242); type_text(p["first"])
-    at(6.5); click(1071, 242); type_text(p["last"])
+    at(3.0); click(528, 242); type_text(p["First Name"])
+    at(6.5); click(1071, 242); type_text(p["Last Name"])
     at(10.0); click(528, 317)                               # Department
     at(12.0); click(370, 374)                               # Anomalous Materials
-    at(15.0); click(1071, 318); type_text(p["employee_id"])
-    at(18.5); click(528, 394); type_text(p["title"])
+    at(15.0); click(1071, 318); type_text(p["Employee ID"])
+    at(18.5); click(528, 394); type_text(p["Job Title"])
     at(24.0); click(1071, 393)                              # Security clearance
     at(26.0); click(860, 503)                               # Level 3
-    at(29.0); click(528, 470); type_text(p["workspace"])
-    at(33.5); click(1071, 470); type_text(p["email"])
-    at(38.5); click(528, 546); type_text(p["office"])
-    at(42.5); click(1071, 546); type_text(p["mobile"])
+    at(29.0); click(528, 470); type_text(p["Workspace Location"])
+    at(33.5); click(1071, 470); type_text(p["Email Address"])
+    at(38.5); click(528, 546); type_text(p["Office Phone"])
+    at(42.5); click(1071, 546); type_text(p["Mobile Phone"])
     # AD groups: clicking the name ticks its box
     at(46.5); click(373, 618)
     at(48.5); click(559, 618)
@@ -83,8 +83,9 @@ def run_task(start):
 
 def main():
     exit_on_terminate()
-    start = time.monotonic()
     proc, profile = open_form()
+    # The steps are timed from when the window is open: a first start can be slow
+    start = time.monotonic()
     try:
         if "--static" in sys.argv:
             proc.wait()
