@@ -1,4 +1,4 @@
-CHANGELOG.md v1.48.0 (Last Rev: 2026-10-30)
+CHANGELOG.md v1.49.0 (Last Rev: 2026-10-30)
 
 # Changelog
 
@@ -11,6 +11,7 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 **Improved**
 - Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
 - New screenshots, showing tasks in three different programs (a web form, LibreOffice Calc, and KeePassXC) for two made-up organizations.
+- A Snap Store set in `docs/store/`: the five screenshots the store allows and a featured banner, made by `packaging/screenshots/make_store_images.sh`.
 
 **Credits**
 - New credits and notices (`CREDITS.md`, **Help > About > Credits**, and the website's Credits page): Half-Life and Black Mesa, used for the made-up sample data in the screenshots, belong to Valve Corporation, which has no part in ScreenCap Docs.

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # make_screenshots.sh
-# 2026-10-26
-# Version: v1.4.0
+# 2026-10-30
+# Version: v1.5.0
 #
 # PURPOSE:
 # Makes the screenshots used in the README, the Linux software center
@@ -17,7 +17,8 @@
 #   2. processes them, each cropped to the part of the screen it uses,
 #   3. opens the GUI on them and takes the screenshots (gui_shots.py),
 #   4. exports the steps as HTML and PowerPoint and takes pictures of them
-#      (the slides are drawn by LibreOffice Impress).
+#      (the slides are drawn by LibreOffice Impress),
+#   5. makes the Snap Store set in docs/store/ (make_store_images.sh).
 # The screenshots go to docs/screenshots/.
 #
 # Needs (Linux): Xvfb (xvfb-run), openbox, xdotool, KeePassXC 2.7, ImageMagick (import),
@@ -110,3 +111,9 @@ montage "$WORK"/slides/s-*.png -tile 2x2 -geometry 768x432+12+12 -background "#2
 convert "$WORK/slides/grid.png" -gravity center -background "#2b5d7a" -extent 1600x972 \
     "$OUT/07-powerpoint.png"
 ls -la "$OUT"
+if [ -n "${CHROME:-}" ]; then
+    echo "Making the Snap Store images..."
+    CHROME="$CHROME" "$HERE/make_store_images.sh"
+else
+    echo "Chromium was not found (set CHROME): skipped docs/store/" >&2
+fi
