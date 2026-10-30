@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # build.py
-# 2026-10-22
-# Version: v1.0.0
+# 2026-10-30
+# Version: v1.1.0
 #
 # PURPOSE:
 # Builds the website at https://screencap.ilhs.app: one page per menu link,
@@ -10,7 +10,9 @@
 # same way the ilhs.app site is built). Writes the pages and copies the
 # styles, the scripts, the icon (assets/icon.png), and the screenshots
 # (docs/screenshots/) into one folder, then checks that every link between
-# the pages, and to their pictures and section ids, exists.
+# the pages, and to their pictures and section ids, exists. Also checks that
+# site.css holds the ILHS Shared Sizing Spec token block exactly as pinned
+# in docs/shared/ilhs-sizing-tokens.css.
 # Run by .github/workflows/package-repos.yml, which publishes the folder to
 # GitHub Pages with the apt and dnf repositories. Python 3.8+, standard
 # library only.
@@ -56,6 +58,8 @@ META_RE = re.compile(r"\A<!--\n(?P<meta>.*?)\n-->\n", re.DOTALL)
 PLACEHOLDER_RE = re.compile(r"\{\{(\w+)\}\}")
 LINK_RE = re.compile(r'(?:href|src)="([^"]*)"')
 ID_RE = re.compile(r'\sid="([^"]+)"')
+SIZING_PIN = ROOT / "docs" / "shared" / "ilhs-sizing-tokens.css"
+SIZING_RE = re.compile(r"/\* ILHS Shared Sizing Spec v[\d.]+ start.*?/\* ILHS Shared Sizing Spec v[\d.]+ end \*/", re.DOTALL)
 
 
 class BuildError(Exception):
@@ -96,8 +100,18 @@ def fingerprint(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()[:10]
 
 
+def check_sizing():
+    """site.css must hold the shared sizing token block exactly as pinned."""
+    pinned = SIZING_RE.search(SIZING_PIN.read_text(encoding="utf-8"))
+    used = SIZING_RE.search((HERE / "assets" / "site.css").read_text(encoding="utf-8"))
+    if not pinned or not used or pinned.group(0) != used.group(0):
+        raise BuildError("website/assets/site.css does not hold the ILHS Shared Sizing Spec "
+                         "token block exactly as pinned in docs/shared/ilhs-sizing-tokens.css")
+
+
 def render(version):
     """Return {output path: page HTML} for every page."""
+    check_sizing()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         raise BuildError(f"version {version!r} is not Major.Minor.Patch")
     config = json.loads((HERE / "site.json").read_text(encoding="utf-8"))

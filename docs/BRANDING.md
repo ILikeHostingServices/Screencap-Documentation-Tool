@@ -1,4 +1,4 @@
-BRANDING.md v1.3.0 (Last Rev: 2026-10-26)
+BRANDING.md v1.4.0 (Last Rev: 2026-10-30)
 
 # Branding
 
@@ -51,6 +51,11 @@ Every text color above meets 4.5:1 contrast on paper and sheet in both themes. S
 - **Website and marketing:** Familjen Grotesk 700 for headings, Source Sans 3 for text, JetBrains Mono for commands, versions, and labels (Google Fonts, with system fallbacks).
 - **The app:** the system font (Segoe UI on Windows). No web fonts in the app.
 - **Exports:** Segoe UI, then Arial and Helvetica.
+
+## Sizes
+
+- The website follows the **ILHS Shared Sizing Spec** (v1.0.1, kept in the maintainers' internal brand notes), the source of truth for type sizes, spacing, content width, and tap targets on every ILHS website, so screencap.ilhs.app and ilhs.app match. At 1920 x 1080: 17 px body text, 56 px home headline, 44 px page titles, 32 px section headings, 1200 px content width; phones get 0.85x and 4K at 100% scaling grows to 1.25x.
+- Its token block is pinned in `docs/shared/ilhs-sizing-tokens.css` and copied unchanged into the top of `website/assets/site.css`; `website/build.py` fails if the two differ. Size everything with those tokens or rem, never px for text. A change to the spec is made in the internal spec first, then the pinned copy and the stylesheet block are replaced here together.
 
 ## Icon
 
