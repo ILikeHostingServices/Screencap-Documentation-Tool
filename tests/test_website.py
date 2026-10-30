@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_website.py
-# 2026-10-25
-# Version: v1.1.0
+# 2026-10-30
+# Version: v1.2.0
 #
 # PURPOSE:
 # Tests for the website build (website/build.py): every menu page is built
@@ -84,6 +84,18 @@ class WebsiteTests(unittest.TestCase):
             if target[1]:
                 self.assertIn(f'id="{target[1]}"', page)
         self.assertIn('id="how"', self.page("index.html"))
+
+    def test_sizes_follow_the_shared_sizing_spec(self):
+        # The ILHS Shared Sizing Spec block is copied in unchanged, and no
+        # text size is written in px (it would not follow the browser's
+        # text size setting)
+        css = (ROOT / "website" / "assets" / "site.css").read_text(encoding="utf-8")
+        start = css.index("/* ILHS Shared Sizing Spec v1.0.0 start")
+        end = css.index("/* ILHS Shared Sizing Spec v1.0.0 end */")
+        self.assertLess(start, end)
+        self.assertIn("--wrap-max: 75rem;", css[start:end])
+        rest = css[:start] + css[end:]
+        self.assertNotRegex(rest, r"font(-size)?:[^;}]*\d+px")
 
     def test_bad_version_or_page_is_an_error(self):
         with self.assertRaises(build.BuildError):
