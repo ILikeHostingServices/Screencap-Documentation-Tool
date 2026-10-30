@@ -54,8 +54,8 @@ Every text color above meets 4.5:1 contrast on paper and sheet in both themes. S
 
 ## Sizes
 
-- The website follows the **ILHS Shared Sizing Spec** (`docs/SIZING.md` in [ILikeHostingServices/ILHS-Primary-Website](https://github.com/ILikeHostingServices/ILHS-Primary-Website)), the source of truth for type sizes, spacing, content width, and tap targets on every ILHS website, so screencap.ilhs.app and ilhs.app match. At 1920 x 1080: 17 px body text, 56 px home headline, 44 px page titles, 32 px section headings, 1200 px content width; phones get 0.85x and 4K at 100% scaling grows to 1.25x.
-- Its token block is copied unchanged into the top of `website/assets/site.css`. Size everything with those tokens or rem, never px for text. A change to the spec is made in ilhs.app first, then copied here.
+- The website follows the **ILHS Shared Sizing Spec** (v1.0.1, kept in the maintainers' internal brand notes), the source of truth for type sizes, spacing, content width, and tap targets on every ILHS website, so screencap.ilhs.app and ilhs.app match. At 1920 x 1080: 17 px body text, 56 px home headline, 44 px page titles, 32 px section headings, 1200 px content width; phones get 0.85x and 4K at 100% scaling grows to 1.25x.
+- Its token block is pinned in `docs/shared/ilhs-sizing-tokens.css` and copied unchanged into the top of `website/assets/site.css`; `website/build.py` fails if the two differ. Size everything with those tokens or rem, never px for text. A change to the spec is made in the internal spec first, then the pinned copy and the stylesheet block are replaced here together.
 
 ## Icon
 

@@ -8,13 +8,14 @@
   website/build.py. Moved out of the old single-page index.html so the
   pages share one cached file.
 
-  Sizes follow the ILHS Shared Sizing Spec (docs/SIZING.md in
-  ILikeHostingServices/ILHS-Primary-Website), the source of truth for type
-  sizes, spacing, and content width on every ILHS website: the block below
-  is copied from it unchanged, and every size here uses its tokens or rem.
+  Sizes follow the ILHS Shared Sizing Spec, the source of truth for type
+  sizes, spacing, and content width on every ILHS website (kept in the
+  maintainers' internal brand notes). The block below is copied from it
+  unchanged, matches the pinned copy in docs/shared/ilhs-sizing-tokens.css
+  (website/build.py checks), and every size here uses its tokens or rem.
 */
 
-/* ILHS Shared Sizing Spec v1.0.0 start: copy from ilhs.app docs/SIZING.md, do not edit here */
+/* ILHS Shared Sizing Spec v1.0.1 start: from ilhs-internal org/brand/SIZING.md, do not edit here */
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -43,7 +44,7 @@ html {
   --gap: clamp(0.75rem, 0.4213rem + 1.35vw, 1.5rem);             /* 12 -> 24 px */
   --tap: max(2.75rem, 44px);
 }
-/* ILHS Shared Sizing Spec v1.0.0 end */
+/* ILHS Shared Sizing Spec v1.0.1 end */
 
 /* Layout: a "how-to guide" page. The hero is step 1 of a real guide; features are numbered steps, the way the tool's own output reads.
    Colors and type follow docs/BRANDING.md: brand-blue for buttons, links, and accents; click-red only for what the product draws. */
