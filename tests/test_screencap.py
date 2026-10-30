@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-16
-# Version: v1.13.1
+# 2026-10-25
+# Version: v1.14.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -13,6 +13,7 @@
 # Run from the repository root:
 #   python -m unittest discover -s tests -v
 
+import argparse
 import json
 import os
 import re
@@ -264,6 +265,39 @@ REVISIT_FILTER = ("drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:"
                   "enable='between(t,3,6)+gte(t,9)',"
                   "drawbox=x=320:y=230:w=14:h=14:color=black:t=fill:enable='gte(t,12)',"
                   "drawbox=x='100+t*40':y=600:w=12:h=18:color=black:t=fill")
+
+
+@unittest.skipUnless(FFMPEG and FFPROBE, "FFmpeg is not installed")
+class VideoEndTests(unittest.TestCase):
+    """A recording whose audio runs longer than its picture (phones often
+    record this way) once failed on the last screenshot."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="screencap_end_"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def make(self, name):
+        path = self.tmp / name
+        subprocess.run([FFMPEG, "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                        "testsrc=size=320x240:rate=30:duration=4", "-f", "lavfi", "-i",
+                        "sine=duration=4.8", "-map", "0:v", "-map", "1:a", "-c:v", "libx264",
+                        "-pix_fmt", "yuv420p", "-c:a", "aac", str(path)], check=True)
+        return path
+
+    def test_length_is_the_pictures_not_the_sounds(self):
+        duration, _, _ = sc.probe_duration(FFPROBE, self.make("phone.mp4"))
+        self.assertAlmostEqual(duration, 4.0, delta=0.1)
+
+    def test_a_time_after_the_last_picture_gives_the_last_picture(self):
+        video = self.make("phone.mkv")       # an .mkv video stream has no length of its own
+        dest = self.tmp / "last.png"
+        sc.extract_frame(FFMPEG, video, 4.6, dest, argparse.Namespace(format="png"))
+        self.assertTrue(dest.is_file())
+        with self.assertRaises(RuntimeError):
+            sc.extract_frame(FFMPEG, self.tmp / "missing.mkv", 1.0, self.tmp / "x.png",
+                             argparse.Namespace(format="png"))
 
 
 @unittest.skipUnless(FFMPEG and FFPROBE, "FFmpeg is not installed")

@@ -1,6 +1,6 @@
 ; installer.iss
-; 2026-10-17
-; Version: v1.8.1
+; 2026-10-25
+; Version: v1.8.2
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of ScreenCap Docs, the packaged
@@ -99,7 +99,7 @@ VersionInfoCompany=ILHS Software, LLC
 VersionInfoDescription={#AppName} Setup
 VersionInfoProductName={#AppName}
 VersionInfoProductVersion={#AppVersion}
-VersionInfoCopyright=Copyright (c) 2026 ILHS Software, LLC. MIT License.
+VersionInfoCopyright=(c) 2026 ILHS Software, LLC. MIT License.
 ; Close a running copy before replacing its files
 CloseApplications=yes
 ; Tell open programs (Explorer, new terminals) that the PATH changed

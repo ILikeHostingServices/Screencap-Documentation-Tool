@@ -1,4 +1,4 @@
-README.md v1.52.0 (Last Rev: 2026-10-19)
+README.md v1.53.0 (Last Rev: 2026-10-25)
 
 # ScreenCap Docs
 
@@ -423,6 +423,7 @@ What it is used for:
 By system:
 
 - **Windows:** all monitors are recorded, at their full resolution. The small Recording window is left out of the video (Windows 10 version 2004 and later).
+  Administrator (UAC) prompts and the lock screen cannot be recorded by any program: while one is showing, the Recording window says **Paused (admin prompt)**, and the recording carries on by itself when it closes. The parts are saved as one video, without the prompt; the log says how many times it paused.
 - **macOS:** the main display is recorded. The first time, macOS asks to allow the app (or Terminal, for the Python install) under **System Settings > Privacy & Security > Screen Recording**, and **Input Monitoring** for keys. Restart the app after allowing it.
 - **Linux:** the whole screen of an X11 session is recorded. Wayland sessions do not let other programs record the screen or see clicks: choose an "on Xorg" or "X11" session at the login screen, or record with the desktop's own recorder (GNOME: Ctrl+Shift+Alt+R) and put the file in the Recordings folder. The Recording window shows in the video there, in the bottom-right corner. In the snap, connect the microphone once with `sudo snap connect screencap-documentation-tool:audio-record`.
 
@@ -786,6 +787,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | Keys are not noted on macOS | Allow the app (or Terminal) in **System Settings > Privacy & Security > Input Monitoring**. Clicks are noted without it. |
 | `Clicks and keys could not be read` in the log | The recording was kept, without click rings or click captions. On Linux, install `libxtst6` (Debian, Ubuntu) or `libXtst` (Fedora, openSUSE). |
 | Captions say "the marked spot" instead of the button's name | Tesseract OCR is not installed, or could not read the words there (very small text, an icon without text). Install Tesseract and process the recording again with **Reprocess recordings that are already done**. |
+| `Recording did not work` on Windows with `Failed to capture image` | Windows switched to a screen that cannot be recorded (an administrator prompt, the lock screen, or a remote desktop session that was minimized or disconnected), and the recording could not carry on. Keep the remote desktop window open while recording. |
 | No microphones in the list | FFmpeg found none. On Windows check **Settings > Privacy & security > Microphone > Let desktop apps access your microphone**. In the snap, run `sudo snap connect screencap-documentation-tool:audio-record`. |
 
 ### Processing Problems
@@ -796,6 +798,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | `0 raw changes` for a recording | The threshold is too high for this recording. Use Sensitivity **High** (command line: `--threshold 0.002`). |
 | `ffprobe failed: ... moov atom not found` | The `.mp4` or `.mov` was never finalized, because the recording crashed or is still being written. Recording to `.mkv` in OBS avoids this. |
 | `no video stream found` | The file is audio-only or damaged. |
+| `frame extraction at <time> failed` | Fixed in v1.38.0 for recordings whose sound runs longer than the picture. If it still happens, the file is damaged near that time: trim the end off, or send the log with a bug report. |
 | Very slow on long 4K recordings | Decoding the video is the bottleneck. Keep `--analyze-fps` at 5, or lower it to 2. |
 
 ## License And Support
