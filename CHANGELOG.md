@@ -1,4 +1,4 @@
-CHANGELOG.md v1.47.0 (Last Rev: 2026-10-26)
+CHANGELOG.md v1.48.0 (Last Rev: 2026-10-30)
 
 # Changelog
 
@@ -6,13 +6,7 @@ Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35
 
 ## Unreleased
 
-Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0).
-
-**Fixed**
-- A recording whose sound runs longer than its picture (phones often record this way) failed on its last screenshot with "frame extraction failed". The length of the picture is used now, and a screenshot asked for after the last picture uses the last picture.
-- On Windows, an administrator (UAC) prompt or the lock screen during a recording stopped it with "Recording did not work". These screens cannot be recorded, so the recording now pauses while one is showing and carries on when it closes, and the parts are saved as one video.
-- When a recording does fail, the message shows FFmpeg's reason instead of its encoder statistics.
-- The Windows file details showed "Copyright" twice ("Copyright: Copyright (c) 2026 ...").
+Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2.
 
 **Improved**
 - Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
@@ -20,6 +14,16 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 
 **Credits**
 - New credits and notices (`CREDITS.md`, **Help > About > Credits**, and the website's Credits page): Half-Life and Black Mesa, used for the made-up sample data in the screenshots, belong to Valve Corporation, which has no part in ScreenCap Docs.
+
+## v1.36.2 - Bug fixes from Windows 11 testing (2026-10-30)
+
+A bug fix release made from v1.36.1 with only fixes. They are in main too, so v1.38.0 has them.
+
+**Fixed**
+- A recording whose sound runs longer than its picture (phones often record this way) failed on its last screenshot with "frame extraction failed". The length of the picture is used now, and a screenshot asked for after the last picture uses the last picture.
+- On Windows, an administrator (UAC) prompt or the lock screen during a recording stopped it with "Recording did not work". These screens cannot be recorded, so the recording now pauses while one is showing and carries on when it closes, and the parts are saved as one video.
+- When a recording does fail, the message shows FFmpeg's reason instead of its encoder statistics.
+- The Windows file details showed "Copyright" twice ("Copyright: Copyright (c) 2026 ...").
 
 **winget**
 - The winget listing uses the ScreenCap Docs name and the website. While a winget pull request is waiting for Microsoft's review, each new release now brings that pull request up to date instead of waiting for it to be merged.
