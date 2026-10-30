@@ -1,4 +1,4 @@
-README.md v1.56.0 (Last Rev: 2026-10-26)
+README.md v1.57.0 (Last Rev: 2026-10-30)
 
 # ScreenCap Docs
 
@@ -93,7 +93,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `packaging/homebrew/` | The Homebrew formula generator (`make_formula.py`), its test (`test_formula.sh`), and the files of the `ILikeHostingServices/homebrew-tap` repository (`tap/`). |
 | `packaging/aur/` | The Arch Linux PKGBUILD (AUR) template and its generator. |
 | `snap/snapcraft.yaml` | The snap package (Snap Store). |
-| `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records three tasks with the built-in recorder on a virtual display (a web form in Chromium, `web_demo.py` and `onboarding.html`; a spreadsheet in LibreOffice Calc, `calc_demo.py`; and KeePassXC, `keepassxc_demo.py`; their made-up people and companies are in `sample_data/people.csv` and `companies.csv`, read by `demo_common.py`) and takes the GUI pictures (`gui_shots.py`). Linux only; needs Xvfb, openbox, xdotool, KeePassXC, LibreOffice Calc and Impress, ImageMagick, and Chromium. |
+| `packaging/screenshots/` | Makes the screenshots in `docs/screenshots/` (README, Linux software centers, Snap Store): `make_screenshots.sh` records three tasks with the built-in recorder on a virtual display (a web form in Chromium, `web_demo.py` and `onboarding.html`; a spreadsheet in LibreOffice Calc, `calc_demo.py`; and KeePassXC, `keepassxc_demo.py`; their made-up people and companies are in `sample_data/people.csv` and `companies.csv`, read by `demo_common.py`) and takes the GUI pictures (`gui_shots.py`). `make_store_images.sh` then makes the Snap Store set in `docs/store/` (five screenshots and the featured banner, drawn from `banner.html`). Linux only; needs Xvfb, openbox, xdotool, KeePassXC, LibreOffice Calc and Impress, ImageMagick, and Chromium. |
 | `docs/screenshots/` | The screenshots of the app. |
 | `website/` | The project website at https://screencap.ilhs.app: one page per menu link (`pages/`) sharing one header and footer (`layout.html`), built by `build.py` and published to GitHub Pages with the apt and dnf repositories by `package-repos.yml`. Preview it with `python3 website/build.py --out _site` and `python3 -m http.server --directory _site`. |
 | `docs/SECURITY_FOR_IT.md` | For IT and security teams: network use, files and settings, administrator controls, behaviors security tools may notice, and how to verify a download. |
