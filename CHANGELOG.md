@@ -1,4 +1,4 @@
-CHANGELOG.md v1.51.0 (Last Rev: 2026-11-04)
+CHANGELOG.md v1.52.0 (Last Rev: 2026-11-04)
 
 # Changelog
 
@@ -16,6 +16,9 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 - Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
 - New screenshots, showing tasks in three different programs (a web form, LibreOffice Calc, and KeePassXC) for two made-up organizations.
 - A Snap Store set in `docs/store/`: the five screenshots the store allows and a featured banner, made by `packaging/screenshots/make_store_images.sh`.
+
+**Fixed**
+- An email address shown as an underlined link (in LibreOffice Calc, for example) was not always blurred: the underline makes Tesseract split the address into pieces, so only the part after the break was blurred, or nothing. The whole address is now blurred, while ordinary words in front of it, such as "Email:" or "to", stay readable.
 
 **Credits**
 - New credits and notices (`CREDITS.md`, **Help > About > Credits**, and the website's Credits page): Half-Life and Black Mesa, used for the made-up sample data in the screenshots, belong to Valve Corporation, which has no part in ScreenCap Docs.

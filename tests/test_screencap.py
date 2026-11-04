@@ -2,7 +2,7 @@
 #
 # test_screencap.py
 # 2026-11-04
-# Version: v1.15.0
+# Version: v1.16.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -536,6 +536,27 @@ class RedactionTests(unittest.TestCase):
         lines = [[("Join", [0, 0, 40, 20]), ("CORP-DOMAIN", [50, 0, 120, 20])]]
         self.assertFalse(redact.find_sensitive(lines, 1280, 720))
         self.assertTrue(redact.find_sensitive(lines, 1280, 720, ["corp-domain"]))
+
+    def test_email_split_by_ocr(self):
+        # A link underline in Calc makes Tesseract split the address; the
+        # whole address is blurred, and ordinary words before it are not
+        def boxes(*words):
+            line = [(w, [i * 60, 0, 50, 20]) for i, w in enumerate(words)]
+            found = redact.find_sensitive([line], 1280, 720)
+            return [(r["box"][0], r["box"][0] + r["box"][2]) for r in found
+                    if r["reason"] == "email address"]
+        pad = 3
+        for words in [("\u2018gordon", "freeman@blackmesa.corp"),
+                      ("gordon", "freeman", "@blackmesa.corp"),
+                      ("gordon", ".freeman@blackmesa.corp")]:
+            spans = boxes(*words)
+            right = (len(words) - 1) * 60 + 50
+            self.assertIn((0, right + pad), spans, words)  # left edge clipped at 0
+        # A label, a capitalized word, or "to" stays readable
+        for words in [("Contact", "gordon@x.com"), ("Email:", "gordon@x.com"),
+                      ("Send", "to", "me@x.com"), ("see", "@x.com")]:
+            start = (len(words) - 1) * 60
+            self.assertTrue(all(left >= start - pad for left, _ in boxes(*words)), words)
 
     def test_two_copies_and_switches(self):
         out = self.tmp / "out"
