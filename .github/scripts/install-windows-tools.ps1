@@ -1,6 +1,6 @@
 # install-windows-tools.ps1
 # 2026-11-04
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Installs the helper programs the Windows CI jobs need (FFmpeg, Tesseract,
@@ -26,7 +26,7 @@ param(
     [string]$Source = $(if ($env:WINDOWS_TOOLS_SOURCE) { $env:WINDOWS_TOOLS_SOURCE } else { 'chocolatey' })
 )
 $ErrorActionPreference = 'Stop'
-$Tools = $Tools | ForEach-Object { $_ -split ',' } | Where-Object { $_ }
+$Tools = @($Tools | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 
 # Where each tool lands, so "installed" means "the program is there"
 function Test-Tool([string]$name) {
@@ -50,19 +50,21 @@ function Get-Missing { @($Tools | Where-Object { -not (Test-Tool $_) }) }
 if ($Source -eq 'chocolatey') {
     $waits = @(0, 60, 180)       # seconds before each try
     foreach ($wait in $waits) {
-        $missing = Get-Missing
+        $missing = @(Get-Missing)
         if (-not $missing) { break }
         if ($wait) {
             Write-Host "Still missing: $($missing -join ', '). Trying Chocolatey again in $wait s."
             Start-Sleep -Seconds $wait
         }
-        choco install @missing -y --no-progress
+        # An array argument passes each name separately (splatting a single
+        # name would pass it letter by letter)
+        choco install $missing -y --no-progress
         # Programs installed to Program Files are found by full path; PATH
         # changes from Chocolatey's shims apply to the next steps
         Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1" -ErrorAction SilentlyContinue
         if (Get-Command refreshenv -ErrorAction SilentlyContinue) { refreshenv | Out-Null }
     }
-    $missing = Get-Missing
+    $missing = @(Get-Missing)
     if ($missing) {
         Write-Host "::error::Chocolatey could not install $($missing -join ', ') after 3 tries (its feed is probably down; see https://status.chocolatey.org). Re-run later. If it stays down for hours, or a release cannot wait, use the Scoop fallback: see 'When Chocolatey is down' in CONTRIBUTING.md."
         exit 1
@@ -87,10 +89,10 @@ if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
 scoop bucket add extras 2>$null
 $names = @{ ffmpeg = 'main/ffmpeg'; tesseract = 'main/tesseract'; pandoc = 'main/pandoc'
             vlc = 'extras/vlc'; innosetup = 'extras/inno-setup' }
-foreach ($tool in Get-Missing) {
+foreach ($tool in @(Get-Missing)) {
     scoop install $names[$tool]
 }
-$missing = Get-Missing
+$missing = @(Get-Missing)
 if ($missing) {
     Write-Host "::error::Scoop could not install $($missing -join ', ') either."
     exit 1
