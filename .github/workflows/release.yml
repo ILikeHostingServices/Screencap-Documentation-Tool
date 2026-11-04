@@ -1,6 +1,6 @@
 # release.yml
-# 2026-10-16
-# Version: v1.9.0
+# 2026-11-04
+# Version: v1.10.0
 #
 # PURPOSE:
 # 1. Creates any annotated version tag listed in .github/releases/manifest.txt
@@ -35,6 +35,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tool_source:
+        description: "Where Windows helper programs come from: chocolatey, or scoop as the last resort when Chocolatey is down (see CONTRIBUTING.md)"
+        type: choice
+        options: [chocolatey, scoop]
+        default: chocolatey
 
 permissions:
   contents: write
@@ -143,6 +149,7 @@ jobs:
     uses: ./.github/workflows/build-windows.yml
     with:
       release_tag: ${{ needs.publish.outputs.build_tag }}
+      tool_source: ${{ inputs.tool_source || '' }}
 
   winget:
     name: Publish to winget

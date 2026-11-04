@@ -1,4 +1,4 @@
-CONTRIBUTING.md v1.4.0 (Last Rev: 2026-10-25)
+CONTRIBUTING.md v1.5.0 (Last Rev: 2026-11-04)
 
 # Contributing
 
@@ -54,6 +54,18 @@ ScreenCap Docs ships on a release train: changes are collected and released toge
    - when the next train release is a few days away, the fix rides that release instead.
 
 The website's pages about new features are merged with the release preparation, so the website never describes something that is not released yet.
+
+### When Chocolatey Is Down
+
+The Windows CI jobs install FFmpeg, Tesseract, Pandoc, VLC, and Inno Setup with Chocolatey (`.github/scripts/install-windows-tools.ps1`). The script tries three times over about five minutes, installs only what is still missing, and checks that each program is really there, because Chocolatey can report success when its feed timed out. A short outage is handled by re-running the failed jobs.
+
+Scoop is the last resort, for when Chocolatey has been down for a few hours or a release cannot wait. It downloads each tool from the project's own site and checks the SHA-256 in its manifest. A person turns it on; nothing switches to it by itself:
+
+1. Check https://status.chocolatey.org. If the outage is short, wait and re-run instead.
+2. For one run: start the workflow from the **Actions** tab (**Run workflow**) and pick **scoop** under the tool source. **Publish releases** passes the choice on to the Windows build.
+3. For every run until Chocolatey is back: set the repository variable `WINDOWS_TOOLS_SOURCE` to `scoop` (**Settings > Secrets and variables > Actions > Variables**).
+4. Runs that used Scoop show a warning and a note in the run summary.
+5. Once Chocolatey is back: delete the variable (or set it to `chocolatey`), then run **Tests** and **Windows build** again on the same commit or release tag with **chocolatey**, and check that they pass. If they do not, treat it as a bug in the release.
 
 ## Running From Source And Building
 

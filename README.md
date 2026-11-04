@@ -1,4 +1,4 @@
-README.md v1.58.0 (Last Rev: 2026-11-04)
+README.md v1.59.0 (Last Rev: 2026-11-04)
 
 # ScreenCap Docs
 

@@ -1,6 +1,6 @@
 # ci.yml
-# 2026-10-17
-# Version: v1.4.0
+# 2026-11-04
+# Version: v1.5.0
 #
 # PURPOSE:
 # Runs the automated tests on real Windows and Linux machines for every push
@@ -23,9 +23,21 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      tool_source:
+        description: "Where Windows helper programs come from: chocolatey, or scoop as the last resort when Chocolatey is down (see CONTRIBUTING.md)"
+        type: choice
+        options: [chocolatey, scoop]
+        default: chocolatey
 
 permissions:
   contents: read
+
+# Where the Windows jobs get FFmpeg and the other helper programs:
+# Chocolatey, or Scoop as the last resort (see "When Chocolatey is down" in
+# CONTRIBUTING.md and .github/scripts/install-windows-tools.ps1)
+env:
+  WINDOWS_TOOLS_SOURCE: ${{ inputs.tool_source || vars.WINDOWS_TOOLS_SOURCE || 'chocolatey' }}
 
 concurrency:
   group: tests-${{ github.ref }}
@@ -55,8 +67,9 @@ jobs:
 
       - name: Install FFmpeg, Tesseract, Pandoc, VLC (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          choco install ffmpeg tesseract pandoc vlc -y --no-progress
+          .github/scripts/install-windows-tools.ps1 -Tools ffmpeg,tesseract,pandoc,vlc
           # Tesseract, Pandoc, and VLC install to Program Files without
           # touching PATH; the tool finds them there, like on a real PC
 
@@ -127,7 +140,7 @@ jobs:
         shell: pwsh
         run: |
           $failed = $false
-          foreach ($f in 'install.ps1', 'Install-Prerequisites.ps1') {
+          foreach ($f in 'install.ps1', 'Install-Prerequisites.ps1', '.github/scripts/install-windows-tools.ps1') {
             $errors = $null
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors)
             if ($errors) { $errors | ForEach-Object { Write-Host "::error file=$f::$($_.Message)" }; $failed = $true }

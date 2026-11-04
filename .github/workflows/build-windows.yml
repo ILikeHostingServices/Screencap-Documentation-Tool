@@ -1,6 +1,6 @@
 # build-windows.yml
-# 2026-10-17
-# Version: v2.4.1
+# 2026-11-04
+# Version: v2.5.0
 #
 # PURPOSE:
 # Builds the packaged Windows app (PyInstaller, see packaging/screencap.spec)
@@ -34,11 +34,26 @@ on:
         description: "Release tag to build and attach files to (empty = just build)"
         required: false
         default: ""
+      tool_source:
+        description: "Where Windows helper programs come from: chocolatey, or scoop as the last resort when Chocolatey is down (see CONTRIBUTING.md)"
+        type: choice
+        options: [chocolatey, scoop]
+        default: chocolatey
   workflow_call:
     inputs:
       release_tag:
         type: string
         required: true
+      tool_source:
+        type: string
+        required: false
+        default: ""
+
+# Where the Windows jobs get FFmpeg and the other helper programs:
+# Chocolatey, or Scoop as the last resort (see "When Chocolatey is down" in
+# CONTRIBUTING.md and .github/scripts/install-windows-tools.ps1)
+env:
+  WINDOWS_TOOLS_SOURCE: ${{ inputs.tool_source || vars.WINDOWS_TOOLS_SOURCE || 'chocolatey' }}
 
 concurrency:
   group: windows-build-${{ inputs.release_tag || github.ref }}
@@ -71,6 +86,14 @@ jobs:
         with:
           ref: ${{ inputs.release_tag || github.sha }}
 
+      # This run's own CI scripts: a release tag being built can be older
+      # than them
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: _ci
+          sparse-checkout: .github/scripts
+
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -101,7 +124,7 @@ jobs:
             $bin >> $env:GITHUB_PATH
             & (Join-Path $bin 'ffmpeg.exe') -hide_banner -version | Select-Object -First 1
           } else {
-            choco install ffmpeg -y --no-progress
+            _ci/.github/scripts/install-windows-tools.ps1 -Tools ffmpeg
           }
 
       - name: Build
@@ -178,7 +201,7 @@ jobs:
           }
           if (-not $iscc) {
             if (Get-Command choco -ErrorAction SilentlyContinue) {
-              choco install innosetup -y --no-progress
+              _ci/.github/scripts/install-windows-tools.ps1 -Tools innosetup
             } else {
               # (the Windows on ARM machines have no Chocolatey)
               $is = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
