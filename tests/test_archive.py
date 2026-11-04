@@ -2,7 +2,7 @@
 #
 # test_archive.py
 # 2026-11-04
-# Version: v1.0.0
+# Version: v1.0.1
 #
 # PURPOSE:
 # Tests for archive.py: archiving a processed recording packs the video,
@@ -82,8 +82,9 @@ class ArchiveTests(unittest.TestCase):
     def test_restore_puts_everything_back(self):
         zip_path = self.archive(shrink=False)
         video, out_dir = archive.restore_recording(zip_path, self.source, self.output)
-        self.assertEqual(video, self.video)
-        self.assertEqual(out_dir, self.out_dir)
+        # Resolved: Windows can name the temp folder in short (8.3) form
+        self.assertEqual(video.resolve(), self.video.resolve())
+        self.assertEqual(out_dir.resolve(), self.out_dir.resolve())
         self.assertFalse(zip_path.exists())
         self.assertTrue(recorder.events_path(video).is_file())
         self.assertEqual(sorted(p.relative_to(out_dir).as_posix()
