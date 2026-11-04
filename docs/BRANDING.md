@@ -1,8 +1,8 @@
-BRANDING.md v1.4.0 (Last Rev: 2026-10-30)
+BRANDING.md v1.5.0 (Last Rev: 2026-11-04)
 
 # Branding
 
-The core brand rules for ScreenCap Docs, so the app, installer, README, release notes, website, and store listings stay consistent. The maintainers keep a fuller visual guide (components, tokens, artwork drafts) privately; this file holds everything needed to work in this repository.
+The core brand rules for ScreenCap Docs, so the app, installer, README, release notes, website, and store listings stay consistent. The maintainers keep a fuller visual guide (components, tokens, approved artwork) privately; this file holds everything needed to work in this repository.
 
 ## The name
 
@@ -15,7 +15,7 @@ The core brand rules for ScreenCap Docs, so the app, installer, README, release 
 ## Positioning
 
 - **One line:** A free Steps Recorder replacement for Windows, Linux, and macOS.
-- **Tagline:** Record a task once. Get the how-to guide.
+- **Tagline:** Record a task. Get the how-to guide.
 - **Summary (under 80 characters):** Free Steps Recorder replacement: record a task, get a step-by-step guide
 - **One sentence:** Record a task and get a step-by-step guide: screenshots with click rings, draft captions, auto-blurred secrets, and HTML, Word, PDF, or PowerPoint export.
 

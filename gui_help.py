@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_help.py
-# 2026-10-25
-# Version: v1.6.0
+# 2026-11-04
+# Version: v1.7.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -99,6 +99,10 @@ Export turns the saved steps into one document:
 - PowerPoint (.pptx): a title slide, then one widescreen slide per step with its screenshot and caption. Narration goes in the speaker notes, and animated clips get their own slide. Needs nothing else.
 
 Files are written to the export folder inside the recording's output folder; Open Exports shows it. Unsaved edits are saved first."""),
+    ("Archiving Recordings", """\
+File > Archive Selected Recordings (or right-click recordings in the list and choose Archive) packs each one into a single .zip in the "Archived recordings" folder inside your output folder: the video (re-encoded to take less space, unless you turn that off), its clicks and keys, and its whole output folder with the screenshots, captions, edits, and exports. The recording then leaves the list. Nothing is deleted until the .zip has been written and checked.
+
+File > Archived Recordings lists the archives. Restore puts the recording back in the recordings folder and its screenshots and captions back in the output folder, ready to edit or export again. If something of the same name is there already, " (restored)" is added to the name, so nothing is overwritten. Delete removes an archive for good. Untick "Shrink videos when archiving" there to keep the videos exactly as recorded."""),
     ("Keyboard Shortcuts", """\
 Up / Down            Previous / next step (Steps tab)
 Ctrl+Up / Ctrl+Down  Move the selected step up / down

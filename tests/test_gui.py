@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-10-15
-# Version: v1.10.0
+# 2026-11-04
+# Version: v1.11.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -11,7 +11,8 @@
 # screen with the Record button and stopping it from the Recording window,
 # the version in
 # the title, the Help menu (help, About, links, update check), the light,
-# dark, and system themes, and the Advanced Settings window. Skipped when Tkinter or a
+# dark, and system themes, the Advanced Settings window, and archiving and
+# restoring recordings. Skipped when Tkinter or a
 # display is not available (on Linux CI it runs under xvfb-run).
 
 import os
@@ -608,6 +609,40 @@ class GuiTests(unittest.TestCase):
                              theme.PALETTES["dark"]["surface"])
             menu = self.app.menus["View"]
             self.assertEqual(str(menu.cget("background")), theme.PALETTES["dark"]["surface"])
+        self.assertEqual(self.errors, [])
+
+    def test_archive_and_restore_recordings(self):
+        import gui_archive
+        source = self.tmp / "archive-src"
+        source.mkdir()
+        make_video(source / "Keep.mp4", duration=6)
+        make_video(source / "Old.mp4", duration=6)
+        self.app.v_source.set(str(source))
+        self.app.v_output.set(str(self.tmp / "archive-out"))
+        self.app.refresh_videos()
+        self.app.process_all()
+        self.wait_for_worker()
+        rows = {self.app.tree.item(i, "text"): i for i in self.app.tree.get_children()}
+        self.app.tree.selection_set(rows["Old.mp4"])
+        self.pump()
+        gui_archive.archive_selected(self.app)
+        self.wait_for_worker()
+        names = [self.app.tree.item(i, "text") for i in self.app.tree.get_children()]
+        self.assertEqual(names, ["Keep.mp4"], f"dialogs shown: {self.dialogs}")
+        self.assertFalse((source / "Old.mp4").exists())
+
+        win = gui_archive.ArchiveWindow(self.app)
+        self.pump()
+        self.assertEqual([win.tree.item(i, "text") for i in win.tree.get_children()],
+                         ["Old.mp4"])
+        win.tree.selection_set(win.tree.get_children()[0])
+        win.restore()
+        self.wait_for_worker()
+        self.assertEqual(win.tree.get_children(), ())
+        rows = {self.app.tree.item(i, "text"): self.app.tree.set(i, "status")
+                for i in self.app.tree.get_children()}
+        self.assertEqual(rows, {"Keep.mp4": "Done", "Old.mp4": "Done"})
+        win.destroy()
         self.assertEqual(self.errors, [])
 
     def test_advanced_settings_window_edits_the_same_settings(self):

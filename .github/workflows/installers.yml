@@ -1,6 +1,6 @@
 # installers.yml
-# 2026-10-16
-# Version: v1.1.2
+# 2026-11-04
+# Version: v1.2.0
 #
 # PURPOSE:
 # Runs the real one-step installers on clean Windows, Linux, and macOS
@@ -27,6 +27,12 @@ on:
   schedule:
     - cron: "17 6 * * 1"     # Mondays 06:17 UTC (02:17 US Eastern)
   workflow_dispatch:
+    inputs:
+      tool_source:
+        description: "Where Windows helper programs come from: chocolatey, or scoop as the last resort when Chocolatey is down (see CONTRIBUTING.md)"
+        type: choice
+        options: [chocolatey, scoop]
+        default: chocolatey
 
 permissions:
   contents: read
@@ -34,6 +40,12 @@ permissions:
 concurrency:
   group: installers-${{ github.ref }}
   cancel-in-progress: true
+
+# Where the Windows jobs get FFmpeg and the other helper programs:
+# Chocolatey, or Scoop as the last resort (see "When Chocolatey is down" in
+# CONTRIBUTING.md and .github/scripts/install-windows-tools.ps1)
+env:
+  WINDOWS_TOOLS_SOURCE: ${{ inputs.tool_source || vars.WINDOWS_TOOLS_SOURCE || 'chocolatey' }}
 
 jobs:
   windows:
@@ -60,8 +72,8 @@ jobs:
           "HAS_WINGET=$hasWinget" | Out-File -FilePath $env:GITHUB_ENV -Append
           $scopeSwitch = if ('${{ matrix.scope }}' -eq 'user') { @{ UserOnly = $true; WithWhisper = $true } } else { @{ SystemWide = $true } }
           if (-not $hasWinget) {
-            Write-Host "::warning::winget is not available on this runner image, so the prerequisite installs (winget) were not tested. Installing FFmpeg with Chocolatey instead."
-            choco install ffmpeg -y --no-progress
+            Write-Host "::warning::winget is not available on this runner image, so the prerequisite installs (winget) were not tested. Installing FFmpeg with Chocolatey (or the Scoop fallback) instead."
+            .github/scripts/install-windows-tools.ps1 -Tools ffmpeg
             & .\install.ps1 -InstallDir $env:INSTALL_DIR -Ref '${{ github.sha }}' -SkipPrerequisites @scopeSwitch
           } else {
             & .\install.ps1 -InstallDir $env:INSTALL_DIR -Ref '${{ github.sha }}' @scopeSwitch

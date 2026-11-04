@@ -1,4 +1,4 @@
-CHANGELOG.md v1.50.0 (Last Rev: 2026-11-04)
+CHANGELOG.md v1.51.0 (Last Rev: 2026-11-04)
 
 # Changelog
 
@@ -8,7 +8,11 @@ Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35
 
 Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2, and the fix for missed steps in v1.36.3.
 
+**Archive**
+- **File > Archive Selected Recordings** (also on the right-click menu of the recordings list) packs a recording, its screenshots, captions, and exports into one .zip, with the video re-encoded to take less space, and takes it off the list. **File > Archived Recordings** restores or deletes archives. Nothing is removed until the archive is checked, and restoring never overwrites.
+
 **Improved**
+- The tagline is now "Record a task. Get the how-to guide." on the website and the Snap Store banner.
 - Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
 - New screenshots, showing tasks in three different programs (a web form, LibreOffice Calc, and KeePassXC) for two made-up organizations.
 - A Snap Store set in `docs/store/`: the five screenshots the store allows and a featured banner, made by `packaging/screenshots/make_store_images.sh`.
