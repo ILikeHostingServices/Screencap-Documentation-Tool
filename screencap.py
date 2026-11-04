@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-10-25
-# Version: v1.15.1
+# 2026-11-04
+# Version: v1.15.2
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -27,6 +27,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from statistics import median
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -44,7 +45,7 @@ import workers  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.15.1"
+VERSION = "1.15.2"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -65,6 +66,10 @@ log = logging.getLogger("screencap")
 PTS_RE = re.compile(r"pts_time:\s*([0-9]+(?:\.[0-9]+)?)")
 SCORE_RE = re.compile(r"lavfi\.scene_score=\s*([0-9]+(?:\.[0-9]+)?)")
 OUT_TIME_RE = re.compile(r"^out_time_(?:us|ms)=([0-9]+)")
+
+# A change this many times bigger than the burst's typical change starts a
+# new step (see group_changes)
+SPLIT_RATIO = 5.0
 
 NO_WINDOW = stepdoc.NO_WINDOW
 
@@ -230,15 +235,33 @@ def group_changes(events, duration, args):
     one step, captured just before the next change starts. This shows the
     finished state of each step (form filled in, progress bar complete,
     cursor on the button about to be clicked).
-    capture point "start": captured `settle` seconds after each change."""
+    capture point "start": captured `settle` seconds after each change.
+
+    A change far bigger than the burst it falls in (SPLIT_RATIO times the
+    burst's typical change, for example a new page or app screen during a
+    blinking cursor, clock, or moving wallpaper) starts a new group, so
+    small changes that never stop cannot swallow the real steps."""
     groups = []
     for t, score in events:
-        if groups and (t - groups[-1]["end"] <= args.debounce
-                       and t - groups[-1]["start"] <= args.max_wait):
-            groups[-1]["end"] = t
-            groups[-1]["score"] = max(groups[-1]["score"], score)
+        g = groups[-1] if groups else None
+        if (g and t - g["end"] <= args.debounce and t - g["start"] <= args.max_wait
+                and not (t - g["start"] >= args.min_gap
+                         and score >= 2 * args.threshold
+                         and score >= SPLIT_RATIO * median(g["scores"]))):
+            g["end"] = t
+            g["score"] = max(g["score"], score)
+            g["scores"].append(score)
+            g["times"].append(t)
         else:
-            groups.append({"start": t, "end": t, "score": score})
+            groups.append({"start": t, "end": t, "score": score,
+                           "scores": [score], "times": [t]})
+    for g in groups:
+        # The last real change of the burst: in a burst of small changes
+        # around a few big ones (a blinking cursor or clock after a new
+        # screen), the small changes after the last big one are not steps
+        noise = SPLIT_RATIO * median(g["scores"])
+        g["key"] = g["end"] if g["score"] < noise else max(
+            t for t, score in zip(g["times"], g["scores"]) if score >= noise)
 
     last_frame = max(duration - 0.1, 0.0)
     steps = []
@@ -255,20 +278,29 @@ def group_changes(events, duration, args):
     else:
         steps.append({"time": min(args.settle, duration / 2), "still_from": 0.0,
                       "still_to": None, "score": None, "reason": "start"})
-        for g in groups:
-            steps.append({"time": min(g["end"] + args.settle, last_frame),
-                          "still_from": g["end"], "still_to": None,
+        for g, nxt in zip(groups, groups[1:] + [None]):
+            # Settle after the burst's last big change: small changes that go
+            # on after it (a blinking cursor, a clock) do not delay the shot
+            t = g["key"] + args.settle
+            if nxt is not None:
+                # Never after the next change has begun
+                t = max(min(t, nxt["start"] - args.lead), g["key"])
+            steps.append({"time": min(t, last_frame),
+                          "still_from": g["key"], "still_to": None,
                           "score": g["score"], "reason": "change"})
         steps.append({"time": last_frame, "still_from": None, "still_to": None,
                       "score": None, "reason": "end"})
 
-    # Drop captures that land too close to the previous one, but always keep
-    # the final state of the video.
+    # Drop captures that land too close to the previous one, keeping the one
+    # after the bigger change, and always keep the final state of the video.
     steps.sort(key=lambda s: s["time"])
     filtered = []
     for step in steps:
         if filtered and step["time"] - filtered[-1]["time"] < args.min_gap:
-            if step is steps[-1]:
+            prev = filtered[-1]
+            if step is steps[-1] or (
+                    prev["reason"] == "change" and step["reason"] == "change"
+                    and step["score"] > prev["score"]):
                 filtered[-1] = step
             continue
         filtered.append(step)

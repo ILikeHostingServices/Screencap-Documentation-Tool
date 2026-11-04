@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-10-15
-# Version: v2.5.0
+# 2026-11-04
+# Version: v2.6.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -982,9 +982,23 @@ class App:
             messagebox.showinfo(APP_NAME, "Select one or more videos first "
                                 "(Ctrl+click or Shift+click for several).", parent=self.root)
             return
-        self.start(sel)
+        done = [i for i in sel if self.videos[i][1] is not None
+                and (self.videos[i][1] / sc.INDEX_NAME).is_file()]
+        force = False
+        if done and not self.v_force.get():
+            which = ("This recording is" if len(sel) == 1 else
+                     f"{len(done)} of the selected recordings are")
+            answer = messagebox.askyesnocancel(
+                APP_NAME, f"{which} already processed.\n\nProcess again with the current "
+                "settings? The previous screenshots, captions, and exports are kept in a "
+                "previous-<date> folder next to the new ones.\n\nNo skips the finished ones.",
+                parent=self.root)
+            if answer is None:
+                return
+            force = answer
+        self.start(sel, force=force)
 
-    def start(self, iids):
+    def start(self, iids, force=False):
         if self.worker and self.worker.is_alive():
             return
         if not iids:
@@ -1000,6 +1014,7 @@ class App:
         except ValueError as exc:
             messagebox.showerror(APP_NAME, str(exc), parent=self.root)
             return
+        args.force = args.force or force
         if self.editor_iid in iids and not self.editor.confirm_discard():
             return
         self.save_settings()
