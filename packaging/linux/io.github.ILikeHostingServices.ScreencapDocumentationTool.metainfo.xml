@@ -65,6 +65,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.36.3" date="2026-11-04">
+      <description>
+        <p>Bug fixes: steps are no longer missed when something on screen keeps changing a little (a blinking indicator, a clock, or a live wallpaper), and Process Selected offers to process a finished recording again.</p>
+      </description>
+    </release>
     <release version="1.36.2" date="2026-10-30">
       <description>
         <p>Bug fixes: a recording no longer stops when a Windows administrator prompt appears, the last screenshot of a recording whose sound runs longer than its picture works, and the Windows file details show the copyright once.</p>

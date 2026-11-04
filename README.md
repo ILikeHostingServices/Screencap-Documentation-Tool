@@ -1,4 +1,4 @@
-README.md v1.53.0 (Last Rev: 2026-10-25)
+README.md v1.53.1 (Last Rev: 2026-11-04)
 
 # ScreenCap Docs
 
@@ -76,7 +76,7 @@ Steps Recorder watched your mouse and keyboard and took a small screenshot at ev
 Think of it like monitoring that alerts on state changes instead of polling on a timer: rather than grabbing a frame every N seconds, the tool only takes a screenshot when the screen actually changes state.
 
 1. **Detect changes.** FFmpeg samples the video (5 frames per second at 640 px wide, which keeps it fast) and scores how different each frame is from the one before. A score above the sensitivity threshold counts as a change.
-2. **Group bursts.** Changes that happen close together, like typing, a window animating open, or a fade, are merged into a single change. You get one screenshot per step, not twenty.
+2. **Group bursts.** Changes that happen close together, like typing, a window animating open, or a fade, are merged into a single change. You get one screenshot per step, not twenty. A change much bigger than the rest of a burst (a new screen while a cursor blinks, a clock ticks, or a live wallpaper moves) still starts its own step.
 3. **Capture the step.** The stable stretch between two changes is one step. By default the screenshot is taken just before the next change starts, so each step is shown finished: fields filled in, progress bar complete, mouse on the button about to be clicked. Screenshots come from the original video at full resolution.
 4. **Box what changed.** Each screenshot is compared with the previous step's, and a red box is drawn around the area that changed. A whole-screen change (a new window) gets no box, and small changes far from the main one, typically the mouse cursor, are left out.
 5. **Drop duplicates.** Each screenshot is compared with the ones already kept. If it is virtually identical to one of them (you went back to a screen you already captured), it is set aside as a deleted step you can restore.
@@ -545,7 +545,7 @@ The defaults are tuned for typical setup wizards. If a recording gives you too m
 | The red box is in the wrong place or not useful | Untick **Highlight > Red Box on This Step** for that step in the Steps tab, or untick **Highlight what changed in each step** before processing | `--no-highlight` |
 | Screenshots show a half-drawn window | **Screenshot taken**: Finished state, or raise **Settle after change** | `--capture-point end`, or raise `--settle` |
 
-After changing settings, reprocess with **Reprocess videos that are already done** ticked (command line: `--force`).
+After changing settings, select the recordings and click **Process Selected**: for recordings that are already done, ScreenCap Docs asks whether to process them again (or tick **Reprocess recordings that are already done** in Advanced Settings; command line: `--force`). The previous screenshots, captions, and exports are kept in a `previous-<date>-<time>` folder.
 
 **Speed.** Saving the screenshots, reading clicked words, scanning for sensitive text, and rendering run on all CPU cores (up to 8 at once), so a 3-minute recording with 40 steps takes about a third of the time it did before v1.33.0. Finding the steps reads the whole video once and is limited by how fast FFmpeg decodes it. To use fewer cores (for example on a shared server), set the `SCREENCAP_WORKERS` environment variable to the number to use; `SCREENCAP_WORKERS=1` does everything one at a time.
 
@@ -794,7 +794,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 
 | Symptom | Cause / Fix |
 | --- | --- |
-| `Skipping <video> (already processed ...)` | Output already exists. Tick **Reprocess videos that are already done** (command line: `--force`). |
+| `Skipping <video> (already processed ...)` | Output already exists. Select the recording and click **Process Selected**, then **Yes** to process it again, or tick **Reprocess recordings that are already done** (command line: `--force`). |
 | `0 raw changes` for a recording | The threshold is too high for this recording. Use Sensitivity **High** (command line: `--threshold 0.002`). |
 | `ffprobe failed: ... moov atom not found` | The `.mp4` or `.mov` was never finalized, because the recording crashed or is still being written. Recording to `.mkv` in OBS avoids this. |
 | `no video stream found` | The file is audio-only or damaged. |

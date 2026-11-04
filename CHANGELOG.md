@@ -1,8 +1,20 @@
-CHANGELOG.md v1.44.1 (Last Rev: 2026-10-30)
+CHANGELOG.md v1.44.2 (Last Rev: 2026-11-04)
 
 # Changelog
 
 Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35.0), newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
+
+## v1.36.3 - Missed steps when the screen keeps changing (2026-11-04)
+
+A bug fix release: only fixes, no new features.
+
+**Fixed**
+- Steps were missed in recordings where something on screen never stops changing a little, such as a blinking recording indicator, a clock, or a live wallpaper (common in phone screen recordings), most of all with a high sensitivity. Every change was merged into one long step that was only cut every 10 to 15 seconds, so a new screen in between got no screenshot. A change much bigger than the small ones around it now always starts its own step.
+- With **Screenshot taken: Right after each change**, the screenshot is now taken just after the last big change of a step, not after the small changes that follow it, and never after the next step has begun.
+- When two screenshots would be closer together than the minimum gap, the one after the bigger change is kept (it used to always be the first one).
+- **Process Selected** on a recording that is already done now asks whether to process it again with the current settings, instead of skipping it. The previous screenshots, captions, and exports are kept in a `previous-<date>-<time>` folder. Before, this needed **Reprocess recordings that are already done** in Advanced Settings.
+
+To get the missing steps in a recording you already processed, select it, click **Process Selected**, and choose **Yes**.
 
 ## v1.36.2 - Bug fixes from Windows 11 testing (2026-10-30)
 
