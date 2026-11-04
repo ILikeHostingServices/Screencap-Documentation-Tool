@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-11-04
-# Version: v2.6.0
+# Version: v2.7.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -41,6 +41,7 @@ import version  # noqa: E402
 import redact  # noqa: E402
 import screencap as sc  # noqa: E402
 import transcribe  # noqa: E402
+import gui_archive  # noqa: E402
 import gui_help  # noqa: E402
 import gui_recorder  # noqa: E402
 import updates  # noqa: E402
@@ -255,6 +256,11 @@ class App:
         file_menu.add_command(label="Open Output Folder",
                               command=lambda: self.open_folder(self.v_output))
         file_menu.add_separator()
+        file_menu.add_command(label="Archive Selected Recordings...",
+                              command=lambda: gui_archive.archive_selected(self))
+        file_menu.add_command(label="Archived Recordings...",
+                              command=lambda: gui_archive.ArchiveWindow(self))
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_close)
 
         view_menu = cascade("View")
@@ -390,6 +396,16 @@ class App:
         self.tree.bind("<<TreeviewSelect>>", lambda e: self.show_steps())
         self.tree.bind("<Return>", lambda e: self.show_steps())
         self.tree.bind("<Double-1>", lambda e: self.open_selected_output())
+        self.tree_menu = tk.Menu(self.tree, tearoff=False)
+        self.tree_menu.add_command(label="Process", command=self.process_selected)
+        self.tree_menu.add_command(label="Open Output Folder",
+                                   command=self.open_selected_output)
+        self.tree_menu.add_separator()
+        self.tree_menu.add_command(label="Archive...",
+                                   command=lambda: gui_archive.archive_selected(self))
+        for button in ("<Button-3>", "<Button-2>" if sys.platform == "darwin" else None):
+            if button:
+                self.tree.bind(button, self.show_tree_menu)
         btns = ttk.Frame(vids, style="Card.TFrame")
         btns.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         self.btn_all = ttk.Button(btns, text="Process All", style="Accent.TButton",
@@ -805,7 +821,8 @@ class App:
                                                     "export_logo", "export_template",
                                                     gui_recorder.MIC_KEY,
                                                     gui_recorder.KEYS_KEY,
-                                                    gui_recorder.PROCESS_KEY)
+                                                    gui_recorder.PROCESS_KEY,
+                                                    gui_archive.SHRINK_KEY)
                                if k in data}
         self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))
         if self.v_theme.get() not in theme.MODES:
@@ -1132,6 +1149,8 @@ class App:
                             self.show_steps()
                 elif kind == "done":
                     self.on_done(msg[1], msg[2])
+                elif kind == "call":           # finish background work on this thread
+                    msg[1]()
                 elif kind == "update":
                     self.updater.finished(msg[1], msg[2])
                     self.save_settings()
@@ -1186,6 +1205,15 @@ class App:
         else:
             self.set_status(f"Saved {Path(path).name}. Click Process Selected to make the "
                             "screenshots.")
+
+    def show_tree_menu(self, event):
+        """Right-click menu of the Recordings list, for the row clicked (added
+        to the selection) or the current selection."""
+        row = self.tree.identify_row(event.y)
+        if row and row not in self.tree.selection():
+            self.tree.selection_set(row)
+        if self.tree.selection() and not (self.worker and self.worker.is_alive()):
+            self.tree_menu.tk_popup(event.x_root, event.y_root)
 
     def selected_video(self):
         sel = [i for i in self.tree.selection() if i in self.videos]

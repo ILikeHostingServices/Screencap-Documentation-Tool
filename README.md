@@ -126,6 +126,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `annotate.py` | Annotations (arrows, numbered markers, text labels, click rings): draws them and gives FFmpeg the filters that put them on the screenshot. |
 | `recorder.py` | The built-in screen recorder: records with FFmpeg and notes clicks and keys with the system's own functions. |
 | `gui_recorder.py` | The GUI's Record window and the small Recording window (timer, Stop, Discard). |
+| `archive.py` | Archiving: packs a recording, its click log, and its output folder into one checked .zip, and restores it. |
+| `gui_archive.py` | The GUI's Archive Selected Recordings command and the Archived Recordings window. |
 | `actions.py` | Uses the noted clicks and keys: gives each to its step, adds click rings, and writes first-draft captions. |
 | `tests/` | Automated tests, including a GUI test that drives the real window. See [Automated Testing](#automated-testing). |
 | `ROADMAP.md` | Ideas on hold until they have been discussed further. |
@@ -171,6 +173,7 @@ Each run creates these files in the output folder:
 | `output/<video>/transcript.txt` | The full transcript with timestamps, written by Captions From Narration. |
 | `output/<video>/steps.json` | The step document: order, captions, deleted steps, and the settings used. This is the source of truth. |
 | `output/<video>/steps.hand-edited-*.md` | Backup of `steps.md`, made automatically if you edited it by hand and then saved from the editor. |
+| `output/Archived recordings/<video>.zip` | Archived recordings (see [Archiving Recordings](#archiving-recordings)): the video, its clicks, and its output folder in one file, with `archive.json` describing them. |
 | `output/<video>/previous-*/` | The previous results, moved here (not deleted) when a recording is reprocessed with `--force`. |
 | `output/screencap.log` | Detailed log of every run. Check here first when something goes wrong. |
 
@@ -385,7 +388,7 @@ sudo bash install.sh        # macOS: bash install.sh
 The window is laid out in the order you use it:
 
 1. **Folders** (top bar). **Recordings** is where recordings come from and **Output** is where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the recordings folder recursively.
-2. **Recordings** (left). **Record** (or Ctrl+R) records the screen with the built-in recorder (see [Recording The Screen](#recording-the-screen)). The list shows every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
+2. **Recordings** (left). **Record** (or Ctrl+R) records the screen with the built-in recorder (see [Recording The Screen](#recording-the-screen)). Right-click a recording to process it, open its output folder, or archive it (see [Archiving Recordings](#archiving-recordings)). The list shows every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
 3. **Settings** (left, below). Pick a **Preset** for the kind of recording (see [Presets](#presets)); a line under it says what it is for. **Sensitivity** (High, Normal, Low, or your own threshold) and **Screenshot taken** (the finished state of each step, or right after each change) are the settings you change most. The check boxes switch the red **highlight** box, automatic **blurring** of passwords, keys, IP and email addresses (see [Blurring Sensitive Information](#blurring-sensitive-information)), **duplicate removal**, and **Captions from narration**. **Save as Preset...** and **Delete Preset** manage your own presets.
 4. **Advanced Settings...** (also in the **View** menu) opens a separate window, grouped into **Timing**, **Detection** (frames checked per second, analysis width, duplicate tolerance), **Output** (image format and extra **Also blur** patterns), and **Run** (**Reprocess recordings that are already done**, and **Dry run** to count steps without saving anything). **Reset to Defaults** puts everything back.
 5. **Steps tab** (right). The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
@@ -428,6 +431,14 @@ By system:
 - **Linux:** the whole screen of an X11 session is recorded. Wayland sessions do not let other programs record the screen or see clicks: choose an "on Xorg" or "X11" session at the login screen, or record with the desktop's own recorder (GNOME: Ctrl+Shift+Alt+R) and put the file in the Recordings folder. The Recording window shows in the video there, in the bottom-right corner. In the snap, connect the microphone once with `sudo snap connect screencap-documentation-tool:audio-record`.
 
 On the command line, `screencap --record` records until you press Enter and then processes the recording (see the [Command Line Reference](#command-line-reference)).
+
+### Archiving Recordings
+
+**File > Archive Selected Recordings** (or right-click recordings in the list and choose **Archive**) packs each one into a single .zip in the "Archived recordings" folder inside your output folder: the video (re-encoded to take less space, unless you turn that off), its clicks and keys, and its whole output folder with the screenshots, captions, edits, and exports. The recording then leaves the list. Nothing is deleted until the .zip has been written and checked.
+
+**File > Archived Recordings** lists the archives. **Restore** puts the recording back in the recordings folder and its screenshots and captions back in the output folder, ready to edit or export again. If something of the same name is there already, " (restored)" is added to the name, so nothing is overwritten. **Delete** removes an archive for good. Untick "Shrink videos when archiving" there to keep the videos exactly as recorded.
+
+An archive is a normal .zip: `video/` holds the recording and its `.events.json`, `output/` the output folder, and `archive.json` the original file name and folder, when it was archived, the title, the number of steps, and a SHA-256 checksum of the original video.
 
 ### Help Menu And Update Checks
 
