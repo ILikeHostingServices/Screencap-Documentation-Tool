@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_screencap.py
-# 2026-10-25
-# Version: v1.14.0
+# 2026-11-04
+# Version: v1.15.0
 #
 # PURPOSE:
 # End-to-end tests for the detection engine and step document. Each run
@@ -137,6 +137,40 @@ class PresetTests(unittest.TestCase):
 
 
 @unittest.skipUnless(FFMPEG and FFPROBE, "FFmpeg is not installed")
+class GroupingTests(unittest.TestCase):
+    """group_changes on made-up scene scores (no FFmpeg needed)."""
+
+    def steps(self, events, *argv, duration=30.0):
+        args = sc.parse_args(["--preset", "Web Console", "-t", "0.001", *argv])
+        return [round(s["time"], 2) for s in sc.group_changes(events, duration, args)]
+
+    @staticmethod
+    def blinking(big):
+        """A small blink every 0.6 s (a recording indicator or live wallpaper)
+        with big screen changes at the given times."""
+        events = [(round(i * 0.6, 1), 0.0075) for i in range(1, 50)]
+        events += [(t, 0.5) for t in big]
+        return sorted(events)
+
+    def test_big_changes_in_endless_small_changes_are_steps(self):
+        # v1.36.2 merged all of these into one step cut at the 15 s limit
+        times = self.steps(self.blinking([5.0, 11.0, 20.0]), "--capture-point", "start")
+        self.assertEqual(times, [0.5, 5.5, 11.5, 20.5, 29.9])
+
+    def test_finished_state_shows_every_screen(self):
+        times = self.steps(self.blinking([5.0, 11.0, 20.0]))
+        for before in (5.0, 11.0, 20.0):       # a shot just before each change
+            self.assertTrue(any(before - 1.5 < t < before for t in times), (before, times))
+
+    def test_typing_burst_is_still_one_step(self):
+        typing = [(5.0 + i * 0.3, 0.004 + 0.001 * (i % 3)) for i in range(20)]
+        self.assertEqual(self.steps(typing, "--capture-point", "start"), [0.5, 11.2, 29.9])
+
+    def test_page_loading_is_still_one_step(self):
+        loading = [(5.0, 0.4), (5.4, 0.12), (5.9, 0.2), (6.6, 0.08), (7.5, 0.15)]
+        self.assertEqual(self.steps(loading, "--capture-point", "start"), [0.5, 8.0, 29.9])
+
+
 class EngineTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
