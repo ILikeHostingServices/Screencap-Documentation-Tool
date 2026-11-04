@@ -1,4 +1,4 @@
-CHANGELOG.md v1.49.0 (Last Rev: 2026-10-30)
+CHANGELOG.md v1.50.0 (Last Rev: 2026-11-04)
 
 # Changelog
 
@@ -6,7 +6,7 @@ Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35
 
 ## Unreleased
 
-Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2.
+Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2, and the fix for missed steps in v1.36.3.
 
 **Improved**
 - Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
@@ -15,6 +15,18 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 
 **Credits**
 - New credits and notices (`CREDITS.md`, **Help > About > Credits**, and the website's Credits page): Half-Life and Black Mesa, used for the made-up sample data in the screenshots, belong to Valve Corporation, which has no part in ScreenCap Docs.
+
+## v1.36.3 - Missed steps when the screen keeps changing (2026-11-04)
+
+A bug fix release: only fixes, no new features.
+
+**Fixed**
+- Steps were missed in recordings where something on screen never stops changing a little, such as a blinking recording indicator, a clock, or a live wallpaper (common in phone screen recordings), most of all with a high sensitivity. Every change was merged into one long step that was only cut every 10 to 15 seconds, so a new screen in between got no screenshot. A change much bigger than the small ones around it now always starts its own step.
+- With **Screenshot taken: Right after each change**, the screenshot is now taken just after the last big change of a step, not after the small changes that follow it, and never after the next step has begun.
+- When two screenshots would be closer together than the minimum gap, the one after the bigger change is kept (it used to always be the first one).
+- **Process Selected** on a recording that is already done now asks whether to process it again with the current settings, instead of skipping it. The previous screenshots, captions, and exports are kept in a `previous-<date>-<time>` folder. Before, this needed **Reprocess recordings that are already done** in Advanced Settings.
+
+To get the missing steps in a recording you already processed, select it, click **Process Selected**, and choose **Yes**.
 
 ## v1.36.2 - Bug fixes from Windows 11 testing (2026-10-30)
 
