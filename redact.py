@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # redact.py
-# 2026-10-14
-# Version: v1.2.0
+# 2026-11-04
+# Version: v1.3.0
 #
 # PURPOSE:
 # Finds sensitive information in screenshots so it can be blurred: reads the
@@ -51,6 +51,19 @@ PATTERNS = {
                              r"[\w\-+/=]{24,}(?![\w/])",
     "masked password": r"[\u2022\u25cf\u00b7*]{4,}",   # bullets, dots, asterisks
 }
+
+# OCR often splits an email address where a link underline crosses the
+# letters ("gordon" "freeman@blackmesa.corp", "gordon" "freeman"
+# "@blackmesa.corp"). A word holding "@domain" takes in up to two lowercase
+# pieces of the name in front of it (a label such as "Email:" has a capital
+# or a colon, so it is left alone).
+EMAIL_DOMAIN = re.compile(r"@[\w-]+(?:\.[\w-]+)+[.,;)]?$")
+EMAIL_PIECE = re.compile(r"^[\u2018\u2019'`\"(<]?[a-z0-9][a-z0-9._+-]*[.@]?$")
+# Ordinary words often written just before an address; they stop the
+# extension so "Send to me@x.com" keeps "to" readable
+EMAIL_STOP = {"a", "an", "and", "at", "bcc", "by", "cc", "contact", "e-mail", "email",
+              "for", "from", "is", "mail", "me", "my", "or", "see", "send", "the", "to",
+              "via", "write"}
 
 # Words that label a secret; everything after them on the same line is blurred
 LABEL_RE = re.compile(
@@ -144,6 +157,19 @@ def find_sensitive(lines, width, height, extra_patterns=()):
                 hit = [box for start, end, box in spans if start < m.end() and end > m.start()]
                 if hit:
                     found.append({"box": union(hit, pad, width, height), "reason": name})
+        # Email addresses that OCR split into pieces
+        def name_piece(text):
+            return (EMAIL_PIECE.match(text)
+                    and text.strip("\u2018\u2019'`\"(<") not in EMAIL_STOP)
+        for i, (word, _box) in enumerate(words):
+            if not EMAIL_DOMAIN.search(word):
+                continue
+            first = i
+            while first > 0 and i - first < 2 and name_piece(words[first - 1][0]):
+                first -= 1
+            if first < i:
+                found.append({"box": union([b for _, b in words[first:i + 1]], pad,
+                                           width, height), "reason": "email address"})
         # "Password: value" -> blur everything after the label on that line
         for i, (word, _box) in enumerate(words):
             label = LABEL_RE.match(word)
