@@ -130,6 +130,10 @@ class InstallerTests(unittest.TestCase):
                                                           "LaunchProgram"}
         self.assertEqual(sorted(used - set(english)), [])
         self.assertEqual(sorted(set(english) - used), [])
+        # Inno Setup's preprocessor reads a line starting with # as a
+        # directive, so a continued #13#10 must not begin a line
+        self.assertEqual([n for n, line in enumerate(script.splitlines(), 1)
+                          if re.match(r"\s*#\d", line)], [])
         # The installer's own words are no longer written out in the code
         code = script[script.index("\n[Code]\n"):]
         self.assertNotIn("Click Finish to close Setup", code)

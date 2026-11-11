@@ -699,7 +699,7 @@ begin
   if (CurPageID = wpFinished) and not UpdateMode then
     WizardForm.FinishedLabel.Caption :=
       FmtMessage(CustomMessage('FinishedInstalled'), ['{#AppName}', '{#AppVersion}']) +
-      #13#10#13#10 + CustomMessage('ClickFinish');
+      Chr(13) + Chr(10) + Chr(13) + Chr(10) + CustomMessage('ClickFinish');
   if not UpdateMode then
     Exit;
   Reinstall := CompareText(OldVersion, '{#AppVersion}') = 0;
