@@ -1,4 +1,4 @@
-CHANGELOG.md v1.54.0 (Last Rev: 2026-11-11)
+CHANGELOG.md v1.55.0 (Last Rev: 2026-11-11)
 
 # Changelog
 
@@ -17,6 +17,11 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 
 **Region**
 - Choose how dates and times are written: the system's own setting (the default), or 2026-11-22, 11/22/2026, 22/11/2026, or 22.11.2026, with 12- or 24-hour times. Used for the date on exported documents, the "Generated" line of `steps.md`, and the Archived Recordings window. **View > Advanced Settings > Region**; command line: `--date-format` and `--clock`. File names and stored times stay in year-month-day form so they sort the same everywhere.
+
+**Languages**
+- The app's windows in Spanish, French, German, and Portuguese (Brazil), as well as English: menus, buttons, the Record and Recording windows, Advanced Settings, Archived Recordings, the Steps tab, and their messages. **View > Language**; **System Language** (the default) follows the computer's language, and a new choice applies the next time the app starts. The Help guide, the built-in preset names and descriptions, the log, the command line, and the documents the app writes stay in English.
+- The Windows installer speaks the same five languages, matching the language of Windows (it asks only when none matches; `/LANG=german` and so on choose one).
+- Settings saved by this version keep **Screenshot taken** as a choice rather than its English wording, so it survives a change of language. Settings saved by earlier versions are read as before.
 
 **Improved**
 - The tagline is now "Record a task. Get the how-to guide." on the website and the Snap Store banner.

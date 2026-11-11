@@ -2,7 +2,7 @@
 #
 # test_gui.py
 # 2026-11-11
-# Version: v1.12.0
+# Version: v1.13.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -12,9 +12,11 @@
 # the version in
 # the title, the Help menu (help, About, links, update check), the light,
 # dark, and system themes, the Advanced Settings window, and archiving and
-# restoring recordings. Skipped when Tkinter or a
+# restoring recordings, the dates and times in Advanced Settings, and the
+# app in Spanish. Skipped when Tkinter or a
 # display is not available (on Linux CI it runs under xvfb-run).
 
+import json
 import os
 import re
 import shutil
@@ -79,9 +81,15 @@ class GuiTests(unittest.TestCase):
             setattr(mod, name, lambda *a, _answer=answer, _name=name, **k:
                     (cls.dialogs.append((_name, a[1] if len(a) > 1 else "")), _answer)[1])
         cls.gui = SourceFileLoader("screencap_gui", str(ROOT / "screencap_gui.pyw")).load_module()
+        # English windows whatever the computer's language (the tests look
+        # for English text); test_the_app_in_spanish switches language itself
+        import i18n
+        cls.language = mock.patch.object(i18n, "system_language", return_value="en")
+        cls.language.start()
 
     @classmethod
     def tearDownClass(cls):
+        cls.language.stop()
         for (mod, name), fn in cls.saved_dialogs.items():
             setattr(mod, name, fn)
         for k, v in cls.saved_env.items():
@@ -651,7 +659,6 @@ class GuiTests(unittest.TestCase):
         self.assertIn("Up to date", self.app.lbl_update.cget("text"))
 
     def test_themes_switch_and_are_remembered(self):
-        import json
         import theme
         self.assertIn(theme.system_theme(), ("light", "dark"))
         for mode in ("dark", "light", "system"):
@@ -713,11 +720,61 @@ class GuiTests(unittest.TestCase):
         self.pump()
         self.assertIs(self.app.open_advanced(), win)          # one window, brought back
         entries = [w for w in self.descendants(win) if isinstance(w, self.gui.ttk.Entry)]
-        self.assertEqual(len(entries), 10)   # 8 numbers, blur patterns, image format (a Combobox)
+        # 8 numbers, blur patterns, and the image format, dates, and times
+        # (Comboboxes)
+        self.assertEqual(len(entries), 12)
         self.app.v_debounce.set("2.5")
         self.assertEqual(self.app.build_args().debounce, 2.5)
+        boxes = [w for w in self.descendants(win) if isinstance(w, self.gui.ttk.Combobox)]
+        dates = next(b for b in boxes if "2026-11-22 (year-month-day)" in b.cget("values"))
+        dates.set("22.11.2026 (day.month.year)")
+        dates.event_generate("<<ComboboxSelected>>")
+        self.assertEqual(self.app.v_date_format.get(), "dmy-dot")
         win.destroy()
+        self.app.v_date_format.set("system")
         self.assertEqual(self.errors, [])
+
+    def test_the_app_in_spanish(self):
+        import i18n
+        self.tearDown()       # this test starts its own window, in Spanish
+        settings = json.loads(self.gui.SETTINGS_FILE.read_text(encoding="utf-8"))
+        settings.update(language="es", capture="Right after each change")  # an old English label
+        self.gui.SETTINGS_FILE.write_text(json.dumps(settings), encoding="utf-8")
+        try:
+            self.root = tk.Tk()
+            self.app = self.gui.App(self.root)
+            self.root.report_callback_exception = lambda *a: self.errors.append(a)
+            self.assertEqual(i18n.current(), "es")
+            self.assertEqual(self.app.menus["File"].entrycget(0, "label"), "Grabar pantalla...")
+            if self.app.menu_buttons:     # Alt+letter stays unique: Archivo, Ver, aYuda
+                self.assertEqual([b.cget("text") for b in self.app.menu_buttons.values()],
+                                 ["Archivo", "Ver", "Ayuda"])
+                self.assertEqual([str(b.cget("underline")) for b in
+                                  self.app.menu_buttons.values()], ["0", "0", "1"])
+            self.assertEqual(self.app.v_capture.get(), "Justo después de cada cambio")
+            self.assertEqual(self.app.build_args().capture_point, "start")
+            self.assertEqual(self.app.v_preset.get(), "Normal (recomendada)")
+            labels = [self.app.language_menu.entrycget(i, "label")
+                      for i in range(self.app.language_menu.index("end") + 1)
+                      if self.app.language_menu.type(i) == "radiobutton"]
+            self.assertEqual(labels, ["Idioma del sistema", "English", "Español", "Français",
+                                      "Deutsch", "Português (Brasil)"])
+            self.app.open_advanced().destroy()
+            self.app.save_settings()
+            saved = json.loads(self.gui.SETTINGS_FILE.read_text(encoding="utf-8"))
+            self.assertEqual((saved["language"], saved["capture"]), ("es", "start"))
+            # Choosing a language saves it and says it applies after a restart
+            self.app.v_language.set("fr")
+            self.app.set_language()
+            self.assertIn("Français", self.dialogs[-1][1])
+            saved = json.loads(self.gui.SETTINGS_FILE.read_text(encoding="utf-8"))
+            self.assertEqual(saved["language"], "fr")
+            self.assertEqual(self.errors, [])
+        finally:
+            self.app.v_language.set("en")
+            self.app.v_capture.set(list(self.app.capture_points)[0])
+            self.app.save_settings()
+            i18n.set_language("en")
 
     def test_installer_folders_are_applied_once(self):
         import apppaths

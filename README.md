@@ -1,4 +1,4 @@
-README.md v1.61.0 (Last Rev: 2026-11-11)
+README.md v1.62.0 (Last Rev: 2026-11-11)
 
 # ScreenCap Docs
 
@@ -127,6 +127,8 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `recorder.py` | The built-in screen recorder: records with FFmpeg and notes clicks and keys with the system's own functions. |
 | `gui_recorder.py` | The GUI's Record window and the small Recording window (timer, Stop, Discard). |
 | `region.py` | How dates and times are written (the system's own setting, or a chosen date format and 12- or 24-hour clock). |
+| `i18n.py` | The language of the app's windows: the system's language or the one chosen in **View > Language**, and `_()` for translated text. |
+| `translations.py` | The Spanish, French, German, and Portuguese (Brazil) translations of the app's windows. To add or change a text, see the notes at the top of the file. |
 | `archive.py` | Archiving: packs a recording, its click log, and its output folder into one checked .zip, and restores it. |
 | `gui_archive.py` | The GUI's Archive Selected Recordings command and the Archived Recordings window. |
 | `actions.py` | Uses the noted clicks and keys: gives each to its step, adds click rings, and writes first-draft captions. |
@@ -207,7 +209,7 @@ The Windows programs are not code signed. See [CODE_SIGNING_POLICY.md](CODE_SIGN
    - **Options** page: **Add the screencap command to the PATH** is ticked by default, so `screencap` works in any new terminal (PowerShell, Command Prompt, Windows Terminal), for all users or just you to match the install. Untick it to leave the PATH alone. Uninstalling takes it out again.
 4. Start the app from the Start Menu, or run `screencap --help` in a new terminal. To update, run the newer installer: it detects the installed copy and goes straight to **Ready to Update** (no license, folder, or options pages, unless FFmpeg is missing), keeping your desktop shortcut choice and the recordings and output folders chosen before. Updating from v1.23.2 or earlier asks for the folders once. To remove, use **Settings > Apps**. Uninstalling never deletes your recordings, output, or settings.
 
-For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` installs for all users (run it elevated, for example from Intune, SCCM, or PDQ). Add `/CURRENTUSER` for a per-user install without admin rights, `/MERGETASKS=desktopicon` for a desktop shortcut, `/MERGETASKS="!addtopath"` to leave the PATH alone (both together: `/MERGETASKS="desktopicon,!addtopath"`), `/DIR="D:\Apps\Screencap"` for another install folder, or `/SOURCEDIR="D:\Recordings" /OUTPUTDIR="D:\Screenshots"` for the recordings and output folders (without them, a new install uses the defaults and an update keeps the earlier folders). Silent uninstall: `"C:\Program Files\ILHS\Screencap-Documentation-Tool\unins000.exe" /VERYSILENT`.
+For deployment, it installs silently: `setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` installs for all users (run it elevated, for example from Intune, SCCM, or PDQ). Add `/CURRENTUSER` for a per-user install without admin rights, `/MERGETASKS=desktopicon` for a desktop shortcut, `/MERGETASKS="!addtopath"` to leave the PATH alone (both together: `/MERGETASKS="desktopicon,!addtopath"`), `/DIR="D:\Apps\Screencap"` for another install folder, or `/SOURCEDIR="D:\Recordings" /OUTPUTDIR="D:\Screenshots"` for the recordings and output folders (without them, a new install uses the defaults and an update keeps the earlier folders). Silent uninstall: `"C:\Program Files\ILHS\Screencap-Documentation-Tool\unins000.exe" /VERYSILENT`. Setup speaks English, Spanish, French, German, or Portuguese (Brazil), matching the language of Windows; `/LANG=spanish`, `french`, `german`, or `brazilianportuguese` chooses one.
 
 **Portable zip:**
 
@@ -394,7 +396,8 @@ The window is laid out in the order you use it:
 4. **Advanced Settings...** (also in the **View** menu) opens a separate window, grouped into **Timing**, **Detection** (frames checked per second, analysis width, duplicate tolerance), **Output** (image format and extra **Also blur** patterns), **Region** (how dates and times are written: the system's own setting, or 2026-11-22, 11/22/2026, 22/11/2026, or 22.11.2026, and 12- or 24-hour times; used for the date on exported documents, the "Generated" line of `steps.md`, and the Archived Recordings window), and **Run** (**Reprocess recordings that are already done**, and **Dry run** to count steps without saving anything). **Reset to Defaults** puts everything back.
 5. **Steps tab** (right). The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
 6. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`. Ctrl+1 and Ctrl+2 switch between the tabs.
-7. **Status bar** (bottom). On the left, what is happening; in the middle, the progress of a run; on the right, the version and whether it is the latest (**Up to date**, or **Update available** in orange). Click the update part to check again or to see the new version.
+7. **Language** (in the **View** menu). The windows in English, Spanish (Español), French (Français), German (Deutsch), or Portuguese (Português (Brasil)). **System Language**, the default, follows the computer's language, and English is used when the app does not have it. A new choice applies the next time the app starts. The Help guide, the built-in preset names and descriptions, the log, the command line, and the exported documents stay in English.
+8. **Status bar** (bottom). On the left, what is happening; in the middle, the progress of a run; on the right, the version and whether it is the latest (**Up to date**, or **Update available** in orange). Click the update part to check again or to see the new version.
 
 Drag the divider between the left side and the tabs to give either more room.
 

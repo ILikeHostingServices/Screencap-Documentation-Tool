@@ -20,18 +20,20 @@ import os
 import re
 import time
 
-# Choice -> (label, strftime pattern). "system" asks the operating system.
+from i18n import N_
+
+# Choice -> (label, strftime pattern); labels are translated where shown. "system" asks the operating system.
 DATE_FORMATS = {
-    "system": ("System setting", None),
-    "iso": ("2026-11-22 (year-month-day)", "%Y-%m-%d"),
-    "us": ("11/22/2026 (month/day/year)", "%m/%d/%Y"),
-    "dmy": ("22/11/2026 (day/month/year)", "%d/%m/%Y"),
-    "dmy-dot": ("22.11.2026 (day.month.year)", "%d.%m.%Y"),
+    "system": (N_("System setting"), None),
+    "iso": (N_("2026-11-22 (year-month-day)"), "%Y-%m-%d"),
+    "us": (N_("11/22/2026 (month/day/year)"), "%m/%d/%Y"),
+    "dmy": (N_("22/11/2026 (day/month/year)"), "%d/%m/%Y"),
+    "dmy-dot": (N_("22.11.2026 (day.month.year)"), "%d.%m.%Y"),
 }
 CLOCKS = {
-    "system": "System setting",
-    "24": "24-hour (14:05)",
-    "12": "12-hour (2:05 PM)",
+    "system": N_("System setting"),
+    "24": N_("24-hour (14:05)"),
+    "12": N_("12-hour (2:05 PM)"),
 }
 STORED = "%Y-%m-%d %H:%M:%S"     # how times are kept in files
 

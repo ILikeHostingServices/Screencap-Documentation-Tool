@@ -2,7 +2,7 @@
 #
 # gui_archive.py
 # 2026-11-11
-# Version: v1.1.0
+# Version: v1.2.0
 #
 # PURPOSE:
 # The GUI side of archive.py: File > Archive Selected Recordings (also on
@@ -18,6 +18,7 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 
 import archive
+from i18n import N_, _
 import region
 import screencap as sc
 import stepdoc
@@ -44,19 +45,20 @@ def archive_selected(app):
         return
     sel = [i for i in app.tree.selection() if i in app.videos]
     if not sel:
-        messagebox.showinfo(version.APP_NAME, "Select one or more recordings to archive "
-                            "(Ctrl+click or Shift+click for several).", parent=app.root)
+        messagebox.showinfo(version.APP_NAME, _("Select one or more recordings to archive "
+                            "(Ctrl+click or Shift+click for several)."), parent=app.root)
         return
     shrink = bool(app.settings_extra.get(SHRINK_KEY, True))
-    which = (f'"{app.tree.item(sel[0], "text")}"' if len(sel) == 1
-             else f"these {len(sel)} recordings")
+    which = (_('Archive "{name}"?').format(name=app.tree.item(sel[0], "text"))
+             if len(sel) == 1 else _("Archive these {n} recordings?").format(n=len(sel)))
     if not messagebox.askyesno(
             version.APP_NAME,
-            f"Archive {which}?\n\nThe recording, its screenshots, captions, and exports are "
-            f"packed into one file in the \"{archive.ARCHIVE_DIR_NAME}\" folder in your output "
-            "folder, and taken off the list."
-            + (" The video is re-encoded to take less space." if shrink else "")
-            + "\n\nBring it back any time with File > Archived Recordings.",
+            which + "\n\n"
+            + _("The recording, its screenshots, captions, and exports are packed into one "
+                "file in the \"{folder}\" folder in your output folder, and taken off the "
+                "list.").format(folder=archive.ARCHIVE_DIR_NAME)
+            + (" " + _("The video is re-encoded to take less space.") if shrink else "")
+            + "\n\n" + _("Bring it back any time with File > Archived Recordings."),
             parent=app.root):
         return
     if app.editor_iid in sel and not app.editor.confirm_discard():
@@ -75,13 +77,14 @@ def archive_selected(app):
         for n, (iid, video, out_dir) in enumerate(jobs):
             if app.cancel.is_set():
                 break
-            app.q.put(("row", iid, "Archiving", None))
+            app.q.put(("row", iid, N_("Archiving"), None))
             try:
                 archive.archive_recording(
                     video, out_dir, source, output, ffmpeg=ffmpeg, shrink=shrink,
                     cancel=app.cancel,
                     progress=lambda f, text, n=n: app.q.put(
-                        ("status", f"{text} ({n + 1} of {len(jobs)}, {f * 100:.0f}%)")))
+                        ("status", text + " " + _("({n} of {total}, {percent}%)").format(
+                            n=n + 1, total=len(jobs), percent=f"{f * 100:.0f}"))))
                 done += 1
             except stepdoc.Cancelled:
                 break
@@ -96,11 +99,12 @@ def archive_selected(app):
 def finished(app, done, failed):
     app.set_running(False)
     app.refresh_videos()
-    app.set_status(f"Archived {done} recording(s)." + (f" {len(failed)} failed." if failed
-                                                         else ""))
+    app.set_status(_("Archived {n} recording(s).").format(n=done)
+                   + (" " + _("{n} failed.").format(n=len(failed)) if failed else ""))
     if failed:
-        messagebox.showerror(version.APP_NAME, "Some recordings were not archived (nothing of "
-                             "theirs was deleted):\n\n" + "\n".join(failed), parent=app.root)
+        messagebox.showerror(version.APP_NAME, _("Some recordings were not archived (nothing "
+                                                 "of theirs was deleted):") + "\n\n"
+                             + "\n".join(failed), parent=app.root)
 
 
 class ArchiveWindow(tk.Toplevel):
@@ -109,24 +113,24 @@ class ArchiveWindow(tk.Toplevel):
     def __init__(self, app):
         super().__init__(app.root)
         self.app = app
-        self.title("Archived Recordings")
+        self.title(_("Archived Recordings"))
         self.transient(app.root)
         self.minsize(560, 320)
         body = ttk.Frame(self, padding=(22, 18))
         body.pack(fill="both", expand=True)
         body.columnconfigure(0, weight=1)
         body.rowconfigure(2, weight=1)
-        ttk.Label(body, text="Archived Recordings", style="Heading.TLabel").grid(
+        ttk.Label(body, text=_("Archived Recordings"), style="Heading.TLabel").grid(
             row=0, column=0, columnspan=2, sticky="w")
         self.v_where = tk.StringVar()
         ttk.Label(body, textvariable=self.v_where, style="Muted.TLabel", wraplength=520,
                   justify="left").grid(row=1, column=0, columnspan=2, sticky="w", pady=(2, 10))
         self.tree = ttk.Treeview(body, columns=("archived", "steps", "size"),
                                  selectmode="extended", height=10)
-        for col, text, width, anchor in (("#0", "Recording", 220, "w"),
-                                         ("archived", "Archived", 140, "w"),
-                                         ("steps", "Steps", 60, "center"),
-                                         ("size", "Size", 80, "e")):
+        for col, text, width, anchor in (("#0", _("Recording"), 220, "w"),
+                                         ("archived", _("Archived"), 140, "w"),
+                                         ("steps", _("Steps"), 60, "center"),
+                                         ("size", _("Size"), 80, "e")):
             self.tree.heading(col, text=text, anchor=anchor)
             self.tree.column(col, width=width, anchor=anchor, stretch=(col == "#0"))
         self.tree.grid(row=2, column=0, sticky="nsew")
@@ -136,16 +140,16 @@ class ArchiveWindow(tk.Toplevel):
         self.tree.bind("<Double-1>", lambda e: self.restore())
 
         self.v_shrink = tk.BooleanVar(value=bool(app.settings_extra.get(SHRINK_KEY, True)))
-        ttk.Checkbutton(body, text="Shrink videos when archiving (smaller files, slightly "
-                                   "lower picture quality)", variable=self.v_shrink,
+        ttk.Checkbutton(body, text=_("Shrink videos when archiving (smaller files, slightly "
+                                   "lower picture quality)"), variable=self.v_shrink,
                         command=self.save_shrink).grid(row=3, column=0, columnspan=2,
                                                        sticky="w", pady=(10, 0))
         btns = ttk.Frame(body)
         btns.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(14, 0))
-        ttk.Button(btns, text="Open Folder", command=self.open_folder).pack(side="left")
-        ttk.Button(btns, text="Delete...", command=self.delete).pack(side="left", padx=(8, 0))
-        ttk.Button(btns, text="Close", command=self.destroy).pack(side="right")
-        self.btn_restore = ttk.Button(btns, text="Restore", style="Accent.TButton",
+        ttk.Button(btns, text=_("Open Folder"), command=self.open_folder).pack(side="left")
+        ttk.Button(btns, text=_("Delete..."), command=self.delete).pack(side="left", padx=(8, 0))
+        ttk.Button(btns, text=_("Close"), command=self.destroy).pack(side="right")
+        self.btn_restore = ttk.Button(btns, text=_("Restore"), style="Accent.TButton",
                                       command=self.restore)
         self.btn_restore.pack(side="right", padx=(0, 8))
         self.bind("<Escape>", lambda e: self.destroy())
@@ -172,11 +176,13 @@ class ArchiveWindow(tk.Toplevel):
                                            size_text(path.stat().st_size)))
             self.archives[iid] = path
         total = sum(p.stat().st_size for p in self.archives.values())
-        self.v_where.set(f"{len(found)} archive(s), {size_text(total)}, in {self.folder()}. "
-                         "Restore puts the recording and its screenshots back in your "
-                         "recordings and output folders." if found else
-                         f"Nothing archived yet. Archive recordings from the File menu or "
-                         f"by right-clicking them in the list. They are kept in {self.folder()}.")
+        self.v_where.set(
+            _("{n} archive(s), {size}, in {folder}. Restore puts the recording and its "
+              "screenshots back in your recordings and output folders.").format(
+                n=len(found), size=size_text(total), folder=self.folder()) if found else
+            _("Nothing archived yet. Archive recordings from the File menu or by "
+              "right-clicking them in the list. They are kept in {folder}.").format(
+                folder=self.folder()))
 
     def selected(self):
         return [self.archives[i] for i in self.tree.selection() if i in self.archives]
@@ -215,10 +221,10 @@ class ArchiveWindow(tk.Toplevel):
             self.btn_restore.configure(state="normal")
             self.load()
         self.app.refresh_videos()
-        self.app.set_status(f"Restored {len(restored)} recording(s).")
+        self.app.set_status(_("Restored {n} recording(s).").format(n=len(restored)))
         if failed:
-            messagebox.showerror(self.version.APP_NAME, "Some archives were not restored:\n\n"
-                                 + "\n".join(failed), parent=self)
+            messagebox.showerror(self.version.APP_NAME, _("Some archives were not restored:")
+                                 + "\n\n" + "\n".join(failed), parent=self)
 
     def delete(self):
         paths = self.selected()
@@ -226,8 +232,8 @@ class ArchiveWindow(tk.Toplevel):
             return
         if not messagebox.askyesno(
                 self.version.APP_NAME,
-                f"Delete {len(paths)} archive(s) for good?\n\nThe recordings, screenshots, "
-                "and captions in them cannot be brought back.", icon="warning", parent=self):
+                _("Delete {n} archive(s) for good?\n\nThe recordings, screenshots, and captions "
+                  "in them cannot be brought back.").format(n=len(paths)), icon="warning", parent=self):
             return
         for p in paths:
             p.unlink(missing_ok=True)
