@@ -45,8 +45,8 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 
 | | |
 | --- | --- |
-| ![Recording the screen: an employee onboarding web form being recorded, with the small Recording window and its Stop and Discard buttons in the corner](docs/screenshots/05-recording.png) | ![The Record window: microphone, noting keys, and making the screenshots when the recording stops](docs/screenshots/03-record-window.png) |
-| **Record** the task: every click is noted. | Choose a microphone for narration, or none. |
+| ![Recording the screen: an employee onboarding web form being recorded, with the small Recording window and its Stop and Discard buttons in the corner](docs/screenshots/05-recording.png) | ![The Record window: what to record (whole screen, one window, or an area), microphone, the computer's sound, noting keys, and making the screenshots when the recording stops](docs/screenshots/03-record-window.png) |
+| **Record** the task: every click is noted. | Choose what to record, a microphone, and the computer's sound. |
 | ![The Annotate menu with a numbered marker, an arrow, and a text label drawn on a step](docs/screenshots/02-annotate-menu.png) | ![The dark theme](docs/screenshots/04-dark-theme.png) |
 | Add arrows, numbers, and labels. | Light, dark, or the system's theme. |
 | ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
