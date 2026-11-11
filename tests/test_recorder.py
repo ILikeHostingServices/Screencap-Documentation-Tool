@@ -574,7 +574,6 @@ class LiveRecordingTests(unittest.TestCase):
         frame = actions.to_frame(events, 400, 300)
         self.assertEqual([e["x"] for e in frame if e["type"] == "click"], [200])
 
-    @unittest.skipIf(os.name == "nt", "X11 only: Windows picks by the visible frame")
     def test_the_window_under_a_point_is_found(self):
         rect = recorder.window_at(self.button.winfo_rootx() + 5, self.button.winfo_rooty() + 5)
         self.assertIsNotNone(rect)
