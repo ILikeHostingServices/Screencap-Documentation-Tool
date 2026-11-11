@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # stepdoc.py
-# 2026-10-16
-# Version: v1.8.1
+# 2026-11-11
+# Version: v1.9.0
 #
 # PURPOSE:
 # The step document for one processed recording: loads and saves steps.json,
@@ -32,6 +32,7 @@ import annotate
 import clips
 import imaging
 import redact
+import region
 import workers
 
 SCHEMA = 2
@@ -552,7 +553,7 @@ def markdown(doc, unredacted=False):
     lines += [
         f"- Source video: `{doc.get('source_video', '')}`",
         f"- Duration: {fmt_ts(doc.get('duration') or 0)}",
-        f"- Generated: {time.strftime('%Y-%m-%d %H:%M:%S')} by screencap.py "
+        f"- Generated: {region.format_datetime()} by screencap.py "
         f"v{doc.get('tool_version', '')}",
         f"- Settings: threshold={s.get('threshold')}, debounce={s.get('debounce')}s, "
         f"capture-point={s.get('capture_point')}, min-gap={s.get('min_gap')}s",

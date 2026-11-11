@@ -1,6 +1,6 @@
 ; installer.iss
-; 2026-10-25
-; Version: v1.8.2
+; 2026-11-11
+; Version: v1.9.0
 ;
 ; PURPOSE:
 ; Inno Setup script for the Windows installer of ScreenCap Docs, the packaged
@@ -30,6 +30,10 @@
 ; on by default, /MERGETASKS="!addtopath" leaves it out, and uninstalling
 ; takes it out again. Recordings, output, and settings are never touched by
 ; uninstalling.
+; Setup speaks English, Spanish, French, German, or Portuguese (Brazil),
+; whichever matches Windows (asked only when none does; /LANG=german and so
+; on choose one). Inno Setup's own pages use its translations; the text
+; this script adds is in [CustomMessages], just before [Code].
 ;
 ; Build from the repository root, after the PyInstaller build:
 ;   iscc /DAppVersion=1.16.0 packaging\installer.iss                (x64 PCs)
@@ -104,13 +108,22 @@ VersionInfoCopyright=(c) 2026 ILHS Software, LLC. MIT License.
 CloseApplications=yes
 ; Tell open programs (Explorer, new terminals) that the PATH changed
 ChangesEnvironment=yes
+; The language of Windows, without asking, when setup has it
+ShowLanguageDialog=auto
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "french"; MessagesFile: "compiler:Languages\French.isl"
+Name: "german"; MessagesFile: "compiler:Languages\German.isl"
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
-Name: "addtopath"; Description: "Add the screencap command to the PATH (use it in any terminal)"
-Name: "ffmpeg"; Description: "Install FFmpeg with winget (required, and not found on this PC)"; Check: not FfmpegFound
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
+Name: "addtopath"; Description: "{cm:TaskPath}"
+Name: "ffmpeg"; Description: "{cm:TaskFfmpeg}"; Check: not FfmpegFound
 ; Offered only while one of them is missing, so an update never runs winget again for nothing
-Name: "extras"; Description: "Also install Tesseract OCR (automatic blurring) and Pandoc (Word export) with winget"; Flags: unchecked; Check: not ExtrasFound
+Name: "extras"; Description: "{cm:TaskExtras}"; Flags: unchecked; Check: not ExtrasFound
 
 [Files]
 Source: "..\dist\Screencap-Documentation-Tool\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -147,17 +160,231 @@ Type: files; Name: "{autoprograms}\{#OldAppName}.lnk"
 Type: files; Name: "{autodesktop}\{#OldAppName}.lnk"
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AppUserModelId}"; Comment: "Capture a screenshot of every step in screen recordings"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AppUserModelId}"; Comment: "{cm:ShortcutComment}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AppUserModelId}"; Tasks: desktopicon
 
 [Run]
-Filename: "{cmd}"; Parameters: "/c winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements --scope {code:WingetScope}"; StatusMsg: "Installing FFmpeg with winget..."; Flags: runhidden waituntilterminated; Tasks: ffmpeg
-Filename: "{cmd}"; Parameters: "/c winget install --id UB-Mannheim.TesseractOCR -e --accept-source-agreements --accept-package-agreements"; StatusMsg: "Installing Tesseract OCR with winget..."; Flags: runhidden waituntilterminated; Tasks: extras
-Filename: "{cmd}"; Parameters: "/c winget install --id JohnMacFarlane.Pandoc -e --accept-source-agreements --accept-package-agreements --scope {code:WingetScope}"; StatusMsg: "Installing Pandoc with winget..."; Flags: runhidden waituntilterminated; Tasks: extras
-Filename: "{app}\{#AppExe}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{cmd}"; Parameters: "/c winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements --scope {code:WingetScope}"; StatusMsg: "{cm:InstallingWith,FFmpeg}"; Flags: runhidden waituntilterminated; Tasks: ffmpeg
+Filename: "{cmd}"; Parameters: "/c winget install --id UB-Mannheim.TesseractOCR -e --accept-source-agreements --accept-package-agreements"; StatusMsg: "{cm:InstallingWith,Tesseract OCR}"; Flags: runhidden waituntilterminated; Tasks: extras
+Filename: "{cmd}"; Parameters: "/c winget install --id JohnMacFarlane.Pandoc -e --accept-source-agreements --accept-package-agreements --scope {code:WingetScope}"; StatusMsg: "{cm:InstallingWith,Pandoc}"; Flags: runhidden waituntilterminated; Tasks: extras
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 ; Update Now in the app runs setup silently with /RELAUNCH=1: open the app
 ; again afterwards, as the signed-in user (not as administrator)
 Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: RelaunchAfterUpdate
+
+[CustomMessages]
+; The text this script adds, in each language of [Languages]. %1, %2, %3
+; are filled in by the code (FmtMessage) or by {cm:Name,value}.
+
+english.TaskPath=Add the screencap command to the PATH (use it in any terminal)
+english.TaskFfmpeg=Install FFmpeg with winget (required, and not found on this PC)
+english.TaskExtras=Also install Tesseract OCR (automatic blurring) and Pandoc (Word export) with winget
+english.ShortcutComment=Capture a screenshot of every step in screen recordings
+english.InstallingWith=Installing %1 with winget...
+english.RemoveOldFailed=Setup could not remove the copy installed earlier in %1. Uninstall it from Settings > Apps, then run this setup again.
+english.FoldersTitle=Recordings and Output Folders
+english.FoldersQuestion=Where should your recordings and screenshots be kept?
+english.FoldersInfo=The source folder holds the screen recordings to process. The output folder receives the screenshots and documents made from them. You can change both later in the app.
+english.FoldersDefault=Use the default folders (recommended)
+english.FoldersOwn=Choose my own folders
+english.ChooseTitle=Choose Folders
+english.ChooseQuestion=Where should the source and output folders be?
+english.ChooseInfo=Setup creates any folder that does not exist yet. Files already in a folder are kept.
+english.SourcePrompt=Source folder (screen recordings):
+english.OutputPrompt=Output folder (screenshots and documents):
+english.BothFolders=Choose both a source folder and an output folder.
+english.DefaultFolders=The default folders are:
+english.SourceLabel=Source:
+english.OutputLabel=Output:
+english.FinishedInstalled=%1 v%2 is installed. Start it from the Start Menu.
+english.ClickFinish=Click Finish to close Setup.
+english.ReadyReinstallText=Setup is ready to reinstall %1 v%2.
+english.ReadyUpdateFromText=Setup is ready to update %1 from v%2 to v%3.
+english.ReadyUpdateText=Setup is ready to update %1 to v%2.
+english.ReadyReinstallTitle=Ready to Reinstall
+english.ReinstallButton=Reinstall
+english.ReadyUpdateTitle=Ready to Update
+english.UpdateButton=Update
+english.ReadyReplace=Click %1 to replace the installed copy with this version. Your recordings, output, settings, and presets are kept.
+english.FinishedReinstalled=%1 v%2 has been reinstalled.
+english.FinishedUpdated=%1 has been updated to v%2.
+english.MemoFolders=Recordings and output folders:
+english.MemoKept=Kept from the current installation:
+english.MemoStartMenu=Start Menu shortcut
+english.MemoDesktop=Desktop shortcut
+english.MemoPath=The screencap command on the PATH
+english.MemoSettings=Settings and saved presets
+english.MemoFfmpeg=FFmpeg (not found on this PC)
+english.MemoExtras=Tesseract OCR and Pandoc (not both found on this PC)
+english.MemoWinget=Also installed with winget:
+
+spanish.TaskPath=Añadir el comando screencap al PATH (usarlo en cualquier terminal)
+spanish.TaskFfmpeg=Instalar FFmpeg con winget (necesario y no encontrado en este equipo)
+spanish.TaskExtras=Instalar también Tesseract OCR (difuminado automático) y Pandoc (exportar a Word) con winget
+spanish.ShortcutComment=Captura cada paso de las grabaciones de pantalla
+spanish.InstallingWith=Instalando %1 con winget...
+spanish.RemoveOldFailed=El instalador no pudo quitar la copia instalada antes en %1. Desinstálela desde Configuración > Aplicaciones y vuelva a ejecutar este instalador.
+spanish.FoldersTitle=Carpetas de grabaciones y de salida
+spanish.FoldersQuestion=¿Dónde se guardan sus grabaciones y capturas?
+spanish.FoldersInfo=La carpeta de origen contiene las grabaciones que se van a procesar. La carpeta de salida recibe las capturas y los documentos creados a partir de ellas. Puede cambiar ambas más tarde en la aplicación.
+spanish.FoldersDefault=Usar las carpetas predeterminadas (recomendado)
+spanish.FoldersOwn=Elegir mis propias carpetas
+spanish.ChooseTitle=Elegir carpetas
+spanish.ChooseQuestion=¿Dónde deben estar las carpetas de origen y de salida?
+spanish.ChooseInfo=El instalador crea las carpetas que aún no existan. Los archivos que ya haya en una carpeta se conservan.
+spanish.SourcePrompt=Carpeta de origen (grabaciones de pantalla):
+spanish.OutputPrompt=Carpeta de salida (capturas y documentos):
+spanish.BothFolders=Elija una carpeta de origen y una de salida.
+spanish.DefaultFolders=Las carpetas predeterminadas son:
+spanish.SourceLabel=Origen:
+spanish.OutputLabel=Salida:
+spanish.FinishedInstalled=%1 v%2 está instalado. Inícielo desde el menú Inicio.
+spanish.ClickFinish=Haga clic en Finalizar para cerrar el instalador.
+spanish.ReadyReinstallText=El instalador está listo para reinstalar %1 v%2.
+spanish.ReadyUpdateFromText=El instalador está listo para actualizar %1 de v%2 a v%3.
+spanish.ReadyUpdateText=El instalador está listo para actualizar %1 a v%2.
+spanish.ReadyReinstallTitle=Listo para reinstalar
+spanish.ReinstallButton=Reinstalar
+spanish.ReadyUpdateTitle=Listo para actualizar
+spanish.UpdateButton=Actualizar
+spanish.ReadyReplace=Haga clic en %1 para sustituir la copia instalada por esta versión. Se conservan sus grabaciones, salida, ajustes y ajustes predefinidos.
+spanish.FinishedReinstalled=%1 v%2 se ha reinstalado.
+spanish.FinishedUpdated=%1 se ha actualizado a v%2.
+spanish.MemoFolders=Carpetas de grabaciones y de salida:
+spanish.MemoKept=Se conserva de la instalación actual:
+spanish.MemoStartMenu=Acceso directo en el menú Inicio
+spanish.MemoDesktop=Acceso directo en el escritorio
+spanish.MemoPath=El comando screencap en el PATH
+spanish.MemoSettings=Ajustes y ajustes predefinidos guardados
+spanish.MemoFfmpeg=FFmpeg (no encontrado en este equipo)
+spanish.MemoExtras=Tesseract OCR y Pandoc (no se encontraron ambos en este equipo)
+spanish.MemoWinget=También se instala con winget:
+
+french.TaskPath=Ajouter la commande screencap au PATH (l'utiliser dans tout terminal)
+french.TaskFfmpeg=Installer FFmpeg avec winget (requis, introuvable sur ce PC)
+french.TaskExtras=Installer aussi Tesseract OCR (floutage automatique) et Pandoc (export Word) avec winget
+french.ShortcutComment=Capture chaque étape des enregistrements d'écran
+french.InstallingWith=Installation de %1 avec winget...
+french.RemoveOldFailed=Le programme d'installation n'a pas pu supprimer la copie installée auparavant dans %1. Désinstallez-la depuis Paramètres > Applications, puis relancez cette installation.
+french.FoldersTitle=Dossiers des enregistrements et de sortie
+french.FoldersQuestion=Où conserver vos enregistrements et captures ?
+french.FoldersInfo=Le dossier source contient les enregistrements à traiter. Le dossier de sortie reçoit les captures et documents créés à partir d'eux. Vous pourrez changer les deux plus tard dans l'application.
+french.FoldersDefault=Utiliser les dossiers par défaut (recommandé)
+french.FoldersOwn=Choisir mes propres dossiers
+french.ChooseTitle=Choisir les dossiers
+french.ChooseQuestion=Où placer les dossiers source et de sortie ?
+french.ChooseInfo=L'installation crée les dossiers qui n'existent pas encore. Les fichiers déjà présents sont conservés.
+french.SourcePrompt=Dossier source (enregistrements d'écran) :
+french.OutputPrompt=Dossier de sortie (captures et documents) :
+french.BothFolders=Choisissez un dossier source et un dossier de sortie.
+french.DefaultFolders=Les dossiers par défaut sont :
+french.SourceLabel=Source :
+french.OutputLabel=Sortie :
+french.FinishedInstalled=%1 v%2 est installé. Lancez-le depuis le menu Démarrer.
+french.ClickFinish=Cliquez sur Terminer pour fermer l'installation.
+french.ReadyReinstallText=L'installation est prête à réinstaller %1 v%2.
+french.ReadyUpdateFromText=L'installation est prête à mettre à jour %1 de v%2 vers v%3.
+french.ReadyUpdateText=L'installation est prête à mettre à jour %1 vers v%2.
+french.ReadyReinstallTitle=Prêt à réinstaller
+french.ReinstallButton=Réinstaller
+french.ReadyUpdateTitle=Prêt à mettre à jour
+french.UpdateButton=Mettre à jour
+french.ReadyReplace=Cliquez sur %1 pour remplacer la copie installée. Vos enregistrements, sorties, paramètres et préréglages sont conservés.
+french.FinishedReinstalled=%1 v%2 a été réinstallé.
+french.FinishedUpdated=%1 a été mis à jour vers v%2.
+french.MemoFolders=Dossiers des enregistrements et de sortie :
+french.MemoKept=Conservé de l'installation actuelle :
+french.MemoStartMenu=Raccourci du menu Démarrer
+french.MemoDesktop=Raccourci sur le bureau
+french.MemoPath=La commande screencap dans le PATH
+french.MemoSettings=Paramètres et préréglages enregistrés
+french.MemoFfmpeg=FFmpeg (introuvable sur ce PC)
+french.MemoExtras=Tesseract OCR et Pandoc (pas tous deux trouvés sur ce PC)
+french.MemoWinget=Également installé avec winget :
+
+german.TaskPath=Den Befehl screencap zum PATH hinzufügen (in jedem Terminal nutzbar)
+german.TaskFfmpeg=FFmpeg mit winget installieren (erforderlich, auf diesem PC nicht gefunden)
+german.TaskExtras=Auch Tesseract OCR (automatisches Unkenntlichmachen) und Pandoc (Word-Export) mit winget installieren
+german.ShortcutComment=Ein Screenshot für jeden Schritt in Bildschirmaufnahmen
+german.InstallingWith=%1 wird mit winget installiert...
+german.RemoveOldFailed=Setup konnte die früher in %1 installierte Kopie nicht entfernen. Deinstallieren Sie sie unter Einstellungen > Apps und starten Sie dieses Setup erneut.
+german.FoldersTitle=Aufnahme- und Ausgabeordner
+german.FoldersQuestion=Wo sollen Ihre Aufnahmen und Screenshots liegen?
+german.FoldersInfo=Der Quellordner enthält die zu verarbeitenden Bildschirmaufnahmen. Der Ausgabeordner erhält die daraus erstellten Screenshots und Dokumente. Beides können Sie später in der App ändern.
+german.FoldersDefault=Standardordner verwenden (empfohlen)
+german.FoldersOwn=Eigene Ordner wählen
+german.ChooseTitle=Ordner wählen
+german.ChooseQuestion=Wo sollen Quell- und Ausgabeordner liegen?
+german.ChooseInfo=Setup legt fehlende Ordner an. Vorhandene Dateien in einem Ordner bleiben erhalten.
+german.SourcePrompt=Quellordner (Bildschirmaufnahmen):
+german.OutputPrompt=Ausgabeordner (Screenshots und Dokumente):
+german.BothFolders=Wählen Sie einen Quell- und einen Ausgabeordner.
+german.DefaultFolders=Die Standardordner sind:
+german.SourceLabel=Quelle:
+german.OutputLabel=Ausgabe:
+german.FinishedInstalled=%1 v%2 ist installiert. Starten Sie es über das Startmenü.
+german.ClickFinish=Klicken Sie auf Fertigstellen, um Setup zu beenden.
+german.ReadyReinstallText=Setup ist bereit, %1 v%2 neu zu installieren.
+german.ReadyUpdateFromText=Setup ist bereit, %1 von v%2 auf v%3 zu aktualisieren.
+german.ReadyUpdateText=Setup ist bereit, %1 auf v%2 zu aktualisieren.
+german.ReadyReinstallTitle=Bereit zur Neuinstallation
+german.ReinstallButton=Neu installieren
+german.ReadyUpdateTitle=Bereit zum Aktualisieren
+german.UpdateButton=Aktualisieren
+german.ReadyReplace=Klicken Sie auf %1, um die installierte Kopie zu ersetzen. Aufnahmen, Ausgaben, Einstellungen und Voreinstellungen bleiben erhalten.
+german.FinishedReinstalled=%1 v%2 wurde neu installiert.
+german.FinishedUpdated=%1 wurde auf v%2 aktualisiert.
+german.MemoFolders=Aufnahme- und Ausgabeordner:
+german.MemoKept=Aus der aktuellen Installation übernommen:
+german.MemoStartMenu=Verknüpfung im Startmenü
+german.MemoDesktop=Desktopverknüpfung
+german.MemoPath=Der Befehl screencap im PATH
+german.MemoSettings=Einstellungen und gespeicherte Voreinstellungen
+german.MemoFfmpeg=FFmpeg (auf diesem PC nicht gefunden)
+german.MemoExtras=Tesseract OCR und Pandoc (nicht beide auf diesem PC gefunden)
+german.MemoWinget=Außerdem mit winget installiert:
+
+brazilianportuguese.TaskPath=Adicionar o comando screencap ao PATH (usar em qualquer terminal)
+brazilianportuguese.TaskFfmpeg=Instalar o FFmpeg com o winget (necessário e não encontrado neste PC)
+brazilianportuguese.TaskExtras=Instalar também o Tesseract OCR (desfoque automático) e o Pandoc (exportação para Word) com o winget
+brazilianportuguese.ShortcutComment=Captura cada etapa das gravações de tela
+brazilianportuguese.InstallingWith=Instalando %1 com o winget...
+brazilianportuguese.RemoveOldFailed=O instalador não conseguiu remover a cópia instalada antes em %1. Desinstale-a em Configurações > Aplicativos e execute este instalador novamente.
+brazilianportuguese.FoldersTitle=Pastas de gravações e de saída
+brazilianportuguese.FoldersQuestion=Onde suas gravações e capturas devem ficar?
+brazilianportuguese.FoldersInfo=A pasta de origem guarda as gravações de tela a processar. A pasta de saída recebe as capturas e os documentos criados a partir delas. Você pode mudar as duas depois no aplicativo.
+brazilianportuguese.FoldersDefault=Usar as pastas padrão (recomendado)
+brazilianportuguese.FoldersOwn=Escolher minhas próprias pastas
+brazilianportuguese.ChooseTitle=Escolher pastas
+brazilianportuguese.ChooseQuestion=Onde devem ficar as pastas de origem e de saída?
+brazilianportuguese.ChooseInfo=O instalador cria as pastas que ainda não existem. Os arquivos já presentes em uma pasta são mantidos.
+brazilianportuguese.SourcePrompt=Pasta de origem (gravações de tela):
+brazilianportuguese.OutputPrompt=Pasta de saída (capturas e documentos):
+brazilianportuguese.BothFolders=Escolha uma pasta de origem e uma de saída.
+brazilianportuguese.DefaultFolders=As pastas padrão são:
+brazilianportuguese.SourceLabel=Origem:
+brazilianportuguese.OutputLabel=Saída:
+brazilianportuguese.FinishedInstalled=O %1 v%2 está instalado. Abra-o pelo menu Iniciar.
+brazilianportuguese.ClickFinish=Clique em Concluir para fechar o instalador.
+brazilianportuguese.ReadyReinstallText=O instalador está pronto para reinstalar o %1 v%2.
+brazilianportuguese.ReadyUpdateFromText=O instalador está pronto para atualizar o %1 da v%2 para a v%3.
+brazilianportuguese.ReadyUpdateText=O instalador está pronto para atualizar o %1 para a v%2.
+brazilianportuguese.ReadyReinstallTitle=Pronto para reinstalar
+brazilianportuguese.ReinstallButton=Reinstalar
+brazilianportuguese.ReadyUpdateTitle=Pronto para atualizar
+brazilianportuguese.UpdateButton=Atualizar
+brazilianportuguese.ReadyReplace=Clique em %1 para substituir a cópia instalada por esta versão. Gravações, saídas, configurações e predefinições são mantidas.
+brazilianportuguese.FinishedReinstalled=O %1 v%2 foi reinstalado.
+brazilianportuguese.FinishedUpdated=O %1 foi atualizado para a v%2.
+brazilianportuguese.MemoFolders=Pastas de gravações e de saída:
+brazilianportuguese.MemoKept=Mantido da instalação atual:
+brazilianportuguese.MemoStartMenu=Atalho no menu Iniciar
+brazilianportuguese.MemoDesktop=Atalho na área de trabalho
+brazilianportuguese.MemoPath=O comando screencap no PATH
+brazilianportuguese.MemoSettings=Configurações e predefinições salvas
+brazilianportuguese.MemoFfmpeg=FFmpeg (não encontrado neste PC)
+brazilianportuguese.MemoExtras=Tesseract OCR e Pandoc (os dois não foram encontrados neste PC)
+brazilianportuguese.MemoWinget=Também instalado com o winget:
 
 [Code]
 function FfmpegFound: Boolean;
@@ -214,8 +441,7 @@ begin
   if not Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE,
               ewWaitUntilTerminated, ResultCode) then
   begin
-    Result := 'Setup could not remove the copy installed earlier in ' + OldDir +
-              '. Uninstall it from Settings > Apps, then run this setup again.';
+    Result := FmtMessage(CustomMessage('RemoveOldFailed'), [OldDir]);
     Exit;
   end;
   { The uninstaller finishes from a copy of itself: wait for the files to go }
@@ -291,13 +517,10 @@ begin
     PrevStamp := '';
 
   FolderModePage := CreateInputOptionPage(wpSelectDir,
-    'Recordings and Output Folders',
-    'Where should your recordings and screenshots be kept?',
-    'The source folder holds the screen recordings to process. The output folder ' +
-    'receives the screenshots and documents made from them. You can change both ' +
-    'later in the app.', True, False);
-  FolderModePage.Add('Use the default folders (recommended)');
-  FolderModePage.Add('Choose my own folders');
+    CustomMessage('FoldersTitle'), CustomMessage('FoldersQuestion'),
+    CustomMessage('FoldersInfo'), True, False);
+  FolderModePage.Add(CustomMessage('FoldersDefault'));
+  FolderModePage.Add(CustomMessage('FoldersOwn'));
   { Two short choices, then the default paths on lines of their own, so long
     paths never wrap in the middle of a choice }
   FolderModePage.CheckListBox.Height := ScaleY(46);
@@ -315,11 +538,10 @@ begin
     FolderModePage.SelectedValueIndex := 0;
 
   FolderDirPage := CreateInputDirPage(FolderModePage.ID,
-    'Choose Folders', 'Where should the source and output folders be?',
-    'Setup creates any folder that does not exist yet. Files already in a folder are kept.',
-    False, '');
-  FolderDirPage.Add('Source folder (screen recordings):');
-  FolderDirPage.Add('Output folder (screenshots and documents):');
+    CustomMessage('ChooseTitle'), CustomMessage('ChooseQuestion'),
+    CustomMessage('ChooseInfo'), False, '');
+  FolderDirPage.Add(CustomMessage('SourcePrompt'));
+  FolderDirPage.Add(CustomMessage('OutputPrompt'));
   if HavePrevFolders then
   begin
     FolderDirPage.Values[0] := PrevSource;
@@ -459,7 +681,7 @@ begin
   if (CurPageID = FolderDirPage.ID) and
      ((Trim(FolderDirPage.Values[0]) = '') or (Trim(FolderDirPage.Values[1]) = '')) then
   begin
-    MsgBox('Choose both a source folder and an output folder.', mbError, MB_OK);
+    MsgBox(CustomMessage('BothFolders'), mbError, MB_OK);
     Result := False;
   end;
 end;
@@ -470,49 +692,52 @@ var
   Reinstall: Boolean;
 begin
   if CurPageID = FolderModePage.ID then
-    DefaultFoldersLabel.Caption := 'The default folders are:' + #13#10 +
-      'Source:  ' + DefaultFolder('source') + #13#10 +
-      'Output:  ' + DefaultFolder('output');
+    DefaultFoldersLabel.Caption := CustomMessage('DefaultFolders') + #13#10 +
+      CustomMessage('SourceLabel') + '  ' + DefaultFolder('source') + #13#10 +
+      CustomMessage('OutputLabel') + '  ' + DefaultFolder('output');
   { A first install: Inno Setup's own text is one line too long for the label }
   if (CurPageID = wpFinished) and not UpdateMode then
-    WizardForm.FinishedLabel.Caption := '{#AppName} v{#AppVersion} is installed. ' +
-      'Start it from the Start Menu.' + #13#10#13#10 + 'Click Finish to close Setup.';
+    WizardForm.FinishedLabel.Caption :=
+      FmtMessage(CustomMessage('FinishedInstalled'), ['{#AppName}', '{#AppVersion}']) +
+      Chr(13) + Chr(10) + Chr(13) + Chr(10) + CustomMessage('ClickFinish');
   if not UpdateMode then
     Exit;
   Reinstall := CompareText(OldVersion, '{#AppVersion}') = 0;
   if Reinstall then
-    Action := 'reinstall {#AppName} v{#AppVersion}'
+    Action := FmtMessage(CustomMessage('ReadyReinstallText'), ['{#AppName}', '{#AppVersion}'])
   else if OldVersion <> '' then
-    Action := 'update {#AppName} from v' + OldVersion + ' to v{#AppVersion}'
+    Action := FmtMessage(CustomMessage('ReadyUpdateFromText'), ['{#AppName}',
+                         OldVersion, '{#AppVersion}'])
   else
-    Action := 'update {#AppName} to v{#AppVersion}';
+    Action := FmtMessage(CustomMessage('ReadyUpdateText'), ['{#AppName}', '{#AppVersion}']);
   if CurPageID = wpReady then
   begin
     if Reinstall then
     begin
-      WizardForm.PageNameLabel.Caption := 'Ready to Reinstall';
-      WizardForm.NextButton.Caption := 'Reinstall';
+      WizardForm.PageNameLabel.Caption := CustomMessage('ReadyReinstallTitle');
+      WizardForm.NextButton.Caption := CustomMessage('ReinstallButton');
     end
     else
     begin
-      WizardForm.PageNameLabel.Caption := 'Ready to Update';
-      WizardForm.NextButton.Caption := 'Update';
+      WizardForm.PageNameLabel.Caption := CustomMessage('ReadyUpdateTitle');
+      WizardForm.NextButton.Caption := CustomMessage('UpdateButton');
     end;
-    WizardForm.PageDescriptionLabel.Caption := 'Setup is ready to ' + Action + '.';
+    WizardForm.PageDescriptionLabel.Caption := Action;
     { Two lines at most: the label has no room for a third (checked by the
       layout dump in build-windows.yml). The folder is in the memo below. }
-    WizardForm.ReadyLabel.Caption := 'Click ' + WizardForm.NextButton.Caption +
-      ' to replace the installed copy with this version. Your recordings, output, ' +
-      'settings, and presets are kept.';
+    WizardForm.ReadyLabel.Caption := FmtMessage(CustomMessage('ReadyReplace'), [
+                                                WizardForm.NextButton.Caption]);
   end
   else if CurPageID = wpFinished then
   begin
     if Reinstall then
-      WizardForm.FinishedLabel.Caption := '{#AppName} v{#AppVersion} has been reinstalled.'
+      WizardForm.FinishedLabel.Caption :=
+        FmtMessage(CustomMessage('FinishedReinstalled'), ['{#AppName}', '{#AppVersion}'])
     else
-      WizardForm.FinishedLabel.Caption := '{#AppName} has been updated to v{#AppVersion}.';
+      WizardForm.FinishedLabel.Caption :=
+        FmtMessage(CustomMessage('FinishedUpdated'), ['{#AppName}', '{#AppVersion}']);
     WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10#13#10 +
-      'Click Finish to close Setup.';
+      CustomMessage('ClickFinish');
   end;
 end;
 
@@ -528,9 +753,9 @@ begin
     back and picks other folders }
   FoldersDecided := False;
   Result := MemoDirInfo + NewLine + NewLine +
-    'Recordings and output folders:' + NewLine +
-    Space + 'Source: ' + GetSourceDir('') + NewLine +
-    Space + 'Output: ' + GetOutputDir('');
+    CustomMessage('MemoFolders') + NewLine +
+    Space + CustomMessage('SourceLabel') + ' ' + GetSourceDir('') + NewLine +
+    Space + CustomMessage('OutputLabel') + ' ' + GetOutputDir('');
   FoldersDecided := False;
   if not UpdateMode then
   begin
@@ -538,20 +763,20 @@ begin
       Result := Result + NewLine + NewLine + MemoTasksInfo;
     Exit;
   end;
-  Result := Result + NewLine + NewLine + 'Kept from the current installation:' + NewLine +
-    Space + 'Start Menu shortcut';
+  Result := Result + NewLine + NewLine + CustomMessage('MemoKept') + NewLine +
+    Space + CustomMessage('MemoStartMenu');
   if WizardIsTaskSelected('desktopicon') then
-    Result := Result + NewLine + Space + 'Desktop shortcut';
+    Result := Result + NewLine + Space + CustomMessage('MemoDesktop');
   if WizardIsTaskSelected('addtopath') then
-    Result := Result + NewLine + Space + 'The screencap command on the PATH';
-  Result := Result + NewLine + Space + 'Settings and saved presets';
+    Result := Result + NewLine + Space + CustomMessage('MemoPath');
+  Result := Result + NewLine + Space + CustomMessage('MemoSettings');
   Winget := '';
   if WizardIsTaskSelected('ffmpeg') then
-    Winget := Winget + NewLine + Space + 'FFmpeg (not found on this PC)';
+    Winget := Winget + NewLine + Space + CustomMessage('MemoFfmpeg');
   if WizardIsTaskSelected('extras') then
-    Winget := Winget + NewLine + Space + 'Tesseract OCR and Pandoc (not both found on this PC)';
+    Winget := Winget + NewLine + Space + CustomMessage('MemoExtras');
   if Winget <> '' then
-    Result := Result + NewLine + NewLine + 'Also installed with winget:' + Winget;
+    Result := Result + NewLine + NewLine + CustomMessage('MemoWinget') + Winget;
 end;
 
 { The screencap command on the PATH: the program folder is added to the

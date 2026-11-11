@@ -2,7 +2,7 @@
 #
 # screencap.py
 # 2026-11-11
-# Version: v1.16.0
+# Version: v1.17.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -38,6 +38,7 @@ import imaging  # noqa: E402
 import presets  # noqa: E402
 import recorder  # noqa: E402
 import redact  # noqa: E402
+import region  # noqa: E402
 import stepdoc  # noqa: E402
 import transcribe  # noqa: E402
 import version  # noqa: E402
@@ -45,7 +46,7 @@ import workers  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.16.0"
+VERSION = "1.17.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -620,6 +621,12 @@ def parse_args(argv):
     p.add_argument("--zoom", action="store_true",
                    help="Add a zoomed inset of what changed when it is small (it can also "
                         "be switched on later in the GUI's step editor)")
+    p.add_argument("--date-format", choices=list(region.DATE_FORMATS), default="system",
+                   help="How dates are written in steps.md and on exported documents: "
+                        "system (the default: the system's own setting), iso (2026-11-22), "
+                        "us (11/22/2026), dmy (22/11/2026), or dmy-dot (22.11.2026)")
+    p.add_argument("--clock", choices=list(region.CLOCKS), default="system",
+                   help="12 or 24 hour times (default: the system's own setting)")
     p.add_argument("--record", action="store_true",
                    help="Record the screen first (press Enter to stop), save the recording "
                         "in the source folder, and process it. Clicks and keys are noted "
@@ -789,6 +796,7 @@ def main(argv=None):
     source = args.source.expanduser().resolve()
     output = args.output.expanduser().resolve()
     setup_logging(output, args.verbose)
+    region.configure(args.date_format, args.clock)
     log.info("%s v%s (screencap.py v%s)", version.APP_NAME, version.RELEASE, VERSION)
 
     ffmpeg = find_tool("ffmpeg", args.ffmpeg)

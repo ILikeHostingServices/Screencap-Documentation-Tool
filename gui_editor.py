@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_editor.py
-# 2026-10-16
-# Version: v2.5.2
+# 2026-11-11
+# Version: v2.6.0
 #
 # PURPOSE:
 # The "Steps" tab of the GUI: review and edit the steps of one processed
@@ -33,6 +33,7 @@ import export
 import player
 import redact
 import stepdoc
+from i18n import _
 import transcribe
 
 
@@ -101,7 +102,7 @@ class StepEditor(ttk.Frame):
         self.preview_image = None
         self.preview_job = None
         self.render_thread = None
-        self.v_info = tk.StringVar(value="Select a processed video to edit its steps.")
+        self.v_info = tk.StringVar(value=_("Select a processed video to edit its steps."))
         self.v_info_shown = tk.StringVar(value=self.v_info.get())
         self.v_title = tk.StringVar(value="")
         self.v_view = tk.StringVar(value="final")
@@ -140,13 +141,13 @@ class StepEditor(ttk.Frame):
             # the text changes, so the row is laid out again when it does
             label.bind("<Configure>", lambda e: top.layout(), add="+")
         self.options_bar = top.add(ttk.Frame(top), gap=16, right=True)
-        ttk.Label(self.options_bar, text="Whole recording:", style="Muted.TLabel").pack(
+        ttk.Label(self.options_bar, text=_("Whole recording:"), style="Muted.TLabel").pack(
             side="left", padx=(0, 8))
-        ttk.Checkbutton(self.options_bar, text="Blur sensitive info", variable=self.v_redact_doc,
+        ttk.Checkbutton(self.options_bar, text=_("Blur sensitive info"), variable=self.v_redact_doc,
                         command=self.toggle_doc_redact).pack(side="left")
-        ttk.Checkbutton(self.options_bar, text="Highlight changes", variable=self.v_hl_doc,
+        ttk.Checkbutton(self.options_bar, text=_("Highlight changes"), variable=self.v_hl_doc,
                         command=self.toggle_doc_highlight).pack(side="left", padx=(12, 0))
-        ttk.Checkbutton(self.options_bar, text="Zoomed inset", variable=self.v_zoom_doc,
+        ttk.Checkbutton(self.options_bar, text=_("Zoomed inset"), variable=self.v_zoom_doc,
                         command=self.toggle_doc_zoom).pack(side="left", padx=(12, 0))
 
         # Left: the list of steps and reordering
@@ -154,7 +155,7 @@ class StepEditor(ttk.Frame):
         left.grid(row=1, column=0, sticky="ns")
         left.rowconfigure(1, weight=1)
         left.columnconfigure(0, weight=1)
-        ttk.Label(left, text="Steps", style="Heading.TLabel").grid(row=0, column=0, sticky="w",
+        ttk.Label(left, text=_("Steps"), style="Heading.TLabel").grid(row=0, column=0, sticky="w",
                                                                     pady=(0, 6))
         self.step_list = tk.Listbox(left, width=28, height=8, exportselection=False,
                                     activestyle="none",
@@ -177,10 +178,10 @@ class StepEditor(ttk.Frame):
         order.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         order.columnconfigure((0, 1), weight=1, uniform="order")
         self.step_buttons = []
-        for n, (text, cmd) in enumerate((("Move Up", lambda: self.move(-1)),
-                                         ("Move Down", lambda: self.move(1)),
-                                         ("Delete Step", self.delete_step),
-                                         ("Restore Deleted", self.restore_deleted))):
+        for n, (text, cmd) in enumerate(((_("Move Up"), lambda: self.move(-1)),
+                                         (_("Move Down"), lambda: self.move(1)),
+                                         (_("Delete Step"), self.delete_step),
+                                         (_("Restore Deleted"), self.restore_deleted))):
             b = ttk.Button(order, text=text, command=cmd)
             b.grid(row=n // 2, column=n % 2, sticky="ew", padx=(0 if n % 2 == 0 else 4, 0),
                    pady=(0 if n < 2 else 4, 0))
@@ -194,55 +195,55 @@ class StepEditor(ttk.Frame):
         viewbar = FlowBar(right)
         viewbar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         segment = viewbar.add(ttk.Frame(viewbar))
-        for value, text in (("final", "Screenshot"), ("original", "Original frame")):
+        for value, text in (("final", _("Screenshot")), ("original", _("Original frame"))):
             ttk.Radiobutton(segment, text=text, value=value, variable=self.v_view,
                             style="Segment.TRadiobutton",
                             command=self.schedule_preview).pack(side="left")
-        crop = ttk.Menubutton(viewbar, text="Crop", width=0)
+        crop = ttk.Menubutton(viewbar, text=_("Crop"), width=0)
         crop_menu = tk.Menu(crop, tearoff=False)
-        crop_menu.add_command(label="Crop All Steps (drag on the picture)",
+        crop_menu.add_command(label=_("Crop All Steps (drag on the picture)"),
                               command=lambda: self.begin_draw("crop", "all"))
-        crop_menu.add_command(label="Crop This Step Only (drag on the picture)",
+        crop_menu.add_command(label=_("Crop This Step Only (drag on the picture)"),
                               command=lambda: self.begin_draw("crop", "step"))
-        crop_menu.add_command(label="No Crop on This Step", command=self.no_crop_step)
+        crop_menu.add_command(label=_("No Crop on This Step"), command=self.no_crop_step)
         crop_menu.add_separator()
-        crop_menu.add_command(label="Clear All Crops", command=self.clear_crops)
+        crop_menu.add_command(label=_("Clear All Crops"), command=self.clear_crops)
         crop.configure(menu=crop_menu)
         viewbar.add(crop, gap=14)
-        blur = ttk.Menubutton(viewbar, text="Blur", width=0)
+        blur = ttk.Menubutton(viewbar, text=_("Blur"), width=0)
         blur_menu = tk.Menu(blur, tearoff=False)
-        blur_menu.add_command(label="Add Blur Box (drag on the picture)",
+        blur_menu.add_command(label=_("Add Blur Box (drag on the picture)"),
                               command=lambda: self.begin_draw("blur", "step"))
-        blur_menu.add_command(label="Un-blur / Re-blur (click a box)", command=self.begin_pick)
-        blur_menu.add_checkbutton(label="Blur This Step", variable=self.v_redact_step,
+        blur_menu.add_command(label=_("Un-blur / Re-blur (click a box)"), command=self.begin_pick)
+        blur_menu.add_checkbutton(label=_("Blur This Step"), variable=self.v_redact_step,
                                   command=self.toggle_step_redact)
         blur_menu.add_separator()
-        blur_menu.add_command(label="Re-scan All Steps for Sensitive Text", command=self.rescan)
+        blur_menu.add_command(label=_("Re-scan All Steps for Sensitive Text"), command=self.rescan)
         blur.configure(menu=blur_menu)
         viewbar.add(blur)
-        mark = ttk.Menubutton(viewbar, text="Annotate", width=0)
+        mark = ttk.Menubutton(viewbar, text=_("Annotate"), width=0)
         mark_menu = tk.Menu(mark, tearoff=False)
-        mark_menu.add_command(label="Add Arrow (drag from the start to the tip)",
+        mark_menu.add_command(label=_("Add Arrow (drag from the start to the tip)"),
                               command=lambda: self.begin_draw("arrow", "step"))
-        mark_menu.add_command(label="Add Number (click where it goes)",
+        mark_menu.add_command(label=_("Add Number (click where it goes)"),
                               command=lambda: self.begin_place("number"))
-        mark_menu.add_command(label="Add Text Label (click where it starts)",
+        mark_menu.add_command(label=_("Add Text Label (click where it starts)"),
                               command=lambda: self.begin_place("text"))
         mark_menu.add_separator()
-        mark_menu.add_command(label="Edit or Remove (click an annotation)",
+        mark_menu.add_command(label=_("Edit or Remove (click an annotation)"),
                               command=lambda: self.begin_place("edit"))
-        mark_menu.add_command(label="Clear Annotations on This Step",
+        mark_menu.add_command(label=_("Clear Annotations on This Step"),
                               command=self.clear_annotations)
         mark.configure(menu=mark_menu)
         viewbar.add(mark)
-        hl = ttk.Menubutton(viewbar, text="Highlight", width=0)
+        hl = ttk.Menubutton(viewbar, text=_("Highlight"), width=0)
         hl_menu = tk.Menu(hl, tearoff=False)
-        hl_menu.add_checkbutton(label="Red Box on This Step", variable=self.v_hl_step,
+        hl_menu.add_checkbutton(label=_("Red Box on This Step"), variable=self.v_hl_step,
                                 command=self.toggle_step_highlight)
-        hl_menu.add_checkbutton(label="Zoomed Inset on This Step", variable=self.v_zoom_step,
+        hl_menu.add_checkbutton(label=_("Zoomed Inset on This Step"), variable=self.v_zoom_step,
                                 command=self.toggle_step_zoom)
         hl_menu.add_separator()
-        hl_menu.add_checkbutton(label="Animated Clip of This Step (GIF)",
+        hl_menu.add_checkbutton(label=_("Animated Clip of This Step (GIF)"),
                                 variable=self.v_clip_step, command=self.toggle_step_clip)
         hl.configure(menu=hl_menu)
         viewbar.add(hl)
@@ -268,8 +269,8 @@ class StepEditor(ttk.Frame):
         self.v_info.trace_add("write", lambda *a: self.fit_info())
         heading = ttk.Frame(right)
         heading.grid(row=3, column=0, sticky="ew", pady=(6, 2))
-        ttk.Label(heading, text="Caption", style="Heading.TLabel").pack(side="left")
-        self.btn_narration = ttk.Button(heading, text="Captions From Narration",
+        ttk.Label(heading, text=_("Caption"), style="Heading.TLabel").pack(side="left")
+        self.btn_narration = ttk.Button(heading, text=_("Captions From Narration"),
                                         style="Link.TButton",
                                         command=self.captions_from_narration)
         self.btn_narration.pack(side="right")
@@ -287,17 +288,17 @@ class StepEditor(ttk.Frame):
         doc.columnconfigure(1, weight=1)
         doc.columnconfigure(3, weight=2)
         # The title on its own row, so it keeps its room when the window is small
-        ttk.Label(doc, text="Document title", style="Card.Muted.TLabel").grid(
+        ttk.Label(doc, text=_("Document title"), style="Card.Muted.TLabel").grid(
             row=0, column=0, columnspan=4, sticky="w")
         self.entry_title = ttk.Entry(doc, textvariable=self.v_doc_title, width=20,
                                      font=self.app.theme.fonts["heading"]
                                      if hasattr(self.app, "theme") else None)
         self.entry_title.grid(row=1, column=0, columnspan=4, sticky="ew", pady=(2, 6))
-        ttk.Label(doc, text="Version", style="Card.Muted.TLabel").grid(
+        ttk.Label(doc, text=_("Version"), style="Card.Muted.TLabel").grid(
             row=2, column=0, sticky="w", padx=(0, 6))
         ttk.Entry(doc, textvariable=self.v_doc_version, width=8).grid(
             row=2, column=1, sticky="ew")
-        ttk.Label(doc, text="Author", style="Card.Muted.TLabel").grid(
+        ttk.Label(doc, text=_("Author"), style="Card.Muted.TLabel").grid(
             row=2, column=2, sticky="w", padx=(12, 6))
         ttk.Entry(doc, textvariable=self.v_doc_author, width=12).grid(
             row=2, column=3, sticky="ew")
@@ -308,22 +309,22 @@ class StepEditor(ttk.Frame):
         exp.columnconfigure(0, weight=1)
         exp_head = ttk.Frame(exp, style="Card.TFrame")
         exp_head.grid(row=0, column=0, sticky="ew")
-        ttk.Label(exp_head, text="Export", style="Card.Muted.TLabel").pack(side="left")
-        ttk.Button(exp_head, text="Logo and Template...", style="Card.Link.TButton",
+        ttk.Label(exp_head, text=_("Export"), style="Card.Muted.TLabel").pack(side="left")
+        ttk.Button(exp_head, text=_("Logo and Template..."), style="Card.Link.TButton",
                    command=self.open_branding).pack(side="right")
         buttons = ttk.Frame(exp, style="Card.TFrame")
         buttons.grid(row=1, column=0, sticky="w", pady=(2, 6))
         self.export_buttons = []
-        for fmt, text in (("html", "HTML"), ("docx", "Word"), ("pdf", "PDF"),
+        for fmt, text in (("html", "HTML"), ("docx", _("Word")), ("pdf", "PDF"),
                           ("pptx", "PowerPoint")):
             b = ttk.Button(buttons, text=text, width=0, command=lambda f=fmt: self.export(f))
             b.pack(side="left", padx=(0, 4))
             self.export_buttons.append(b)
         options = ttk.Frame(exp, style="Card.TFrame")
         options.grid(row=2, column=0, sticky="ew")
-        ttk.Checkbutton(options, text="Unblurred copy", variable=self.v_export_unredacted,
+        ttk.Checkbutton(options, text=_("Unblurred copy"), variable=self.v_export_unredacted,
                         style="Card.TCheckbutton").pack(side="left")
-        ttk.Button(options, text="Open Exports", style="Card.Link.TButton",
+        ttk.Button(options, text=_("Open Exports"), style="Card.Link.TButton",
                    command=self.open_export_folder).pack(side="right")
 
         # Bottom bar: navigation and actions on the left, saving on the right
@@ -331,25 +332,25 @@ class StepEditor(ttk.Frame):
         bar.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         saving = ttk.Frame(bar)
         saving.pack(side="right", anchor="n")
-        self.btn_save = ttk.Button(saving, text="Save Changes", style="Accent.TButton",
+        self.btn_save = ttk.Button(saving, text=_("Save Changes"), style="Accent.TButton",
                                    command=self.save)
         self.btn_save.pack(side="right")
-        ttk.Button(saving, text="Discard", command=self.discard).pack(side="right", padx=6)
+        ttk.Button(saving, text=_("Discard"), command=self.discard).pack(side="right", padx=6)
         actions = FlowBar(bar, gap=4)
         actions.pack(side="left", fill="x", expand=True)
-        actions.add(ttk.Button(actions, text="< Prev", width=7, command=lambda: self.step_by(-1)))
-        actions.add(ttk.Button(actions, text="Next >", width=7, command=lambda: self.step_by(1)))
-        opener = ttk.Menubutton(actions, text="Open", width=6)
+        actions.add(ttk.Button(actions, text=_("< Prev"), width=-7, command=lambda: self.step_by(-1)))
+        actions.add(ttk.Button(actions, text=_("Next >"), width=-7, command=lambda: self.step_by(1)))
+        opener = ttk.Menubutton(actions, text=_("Open"), width=-6)
         open_menu = tk.Menu(opener, tearoff=False)
-        open_menu.add_command(label="Open Image", command=self.open_image)
-        open_menu.add_command(label="Open Animated Clip", command=self.open_clip)
-        open_menu.add_command(label="Open steps.md", command=self.open_index)
-        open_menu.add_command(label="Open Output Folder", command=self.open_folder)
-        open_menu.add_command(label="Open Exports Folder", command=self.open_export_folder)
+        open_menu.add_command(label=_("Open Image"), command=self.open_image)
+        open_menu.add_command(label=_("Open Animated Clip"), command=self.open_clip)
+        open_menu.add_command(label=_("Open steps.md"), command=self.open_index)
+        open_menu.add_command(label=_("Open Output Folder"), command=self.open_folder)
+        open_menu.add_command(label=_("Open Exports Folder"), command=self.open_export_folder)
         opener.configure(menu=open_menu)
         actions.add(opener, gap=16)
         self.tool_menus = self.tool_menus + (open_menu,)
-        actions.add(ttk.Button(actions, text="Play in VLC", command=self.play))
+        actions.add(ttk.Button(actions, text=_("Play in VLC"), command=self.play))
 
     def on_theme_changed(self):
         """Colors that are not styles: menus of the tool buttons and the
@@ -383,8 +384,8 @@ class StepEditor(ttk.Frame):
         self.set_dirty(False)
         if self.doc is None:
             name = self.video.name if self.video else ""
-            self.show_message(f"{name} has not been processed yet." if name else
-                              "Select a processed video to edit its steps.")
+            self.show_message(_("{name} has not been processed yet.").format(name=name) if name
+                              else _("Select a processed video to edit its steps."))
             return
         self.v_title.set(self.doc.get("document", {}).get("title", ""))
         self.v_hl_doc.set(self.doc.get("highlight", True))
@@ -425,10 +426,10 @@ class StepEditor(ttk.Frame):
         elif not self.doc["steps"]:
             self.canvas.delete("all")
             self._set_caption("")
-            self.v_info.set("No steps. Use Restore Deleted to bring steps back.")
+            self.v_info.set(_("No steps. Use Restore Deleted to bring steps back."))
         dups = sum(1 for d in self.doc["deleted_steps"] if d.get("deleted_reason") == "duplicate")
-        extra = f", {dups} duplicate(s)" if dups else ""
-        self.v_removed.set(f"{deleted} removed{extra}" if deleted else "")
+        extra = _(", {n} duplicate(s)").format(n=dups) if dups else ""
+        self.v_removed.set(_("{n} removed").format(n=deleted) + extra if deleted else "")
 
     # ------------------------------------------------------------ editing
 
@@ -444,7 +445,7 @@ class StepEditor(ttk.Frame):
         self.dirty = dirty
         if dirty:   # counts edits, so a save knows whether more came in meanwhile
             self.edits = getattr(self, "edits", 0) + 1
-        self.v_dirty.set("Unsaved changes" if dirty else "")
+        self.v_dirty.set(_("Unsaved changes") if dirty else "")
 
     def fit_info(self):
         """Show the step details on one line, cut short with ... when the
@@ -473,16 +474,18 @@ class StepEditor(ttk.Frame):
         # Keep the list's keyboard cursor on the selected step, so arrow keys
         # continue from here after a button or Prev/Next changed the step
         self.step_list.activate(i)
-        info = f"Step {i + 1} of {len(self.doc['steps'])} at {stepdoc.fmt_ts(step['time'])}"
+        info = _("Step {n} of {total} at {time}").format(
+            n=i + 1, total=len(self.doc["steps"]), time=stepdoc.fmt_ts(step["time"]))
         if step.get("still_from") is not None and step.get("still_to") is not None:
-            info += (f" | screen stable {stepdoc.fmt_ts(step['still_from'])} to "
-                     f"{stepdoc.fmt_ts(step['still_to'])}")
+            info += " | " + _("screen stable {start} to {end}").format(
+                start=stepdoc.fmt_ts(step["still_from"]), end=stepdoc.fmt_ts(step["still_to"]))
         if "change_box" in step and not step["change_box"]:
-            info += " | no highlight (first step, nothing changed, or whole screen changed)"
+            info += " | " + _("no highlight (first step, nothing changed, or whole screen "
+                              "changed)")
         crop = stepdoc.effective_crop(step, self.doc)
         if crop:
-            own = " (this step only)" if isinstance(step.get("crop"), list) else ""
-            info += f" | cropped to {crop[2]}x{crop[3]}{own}"
+            own = (" " + _("(this step only)")) if isinstance(step.get("crop"), list) else ""
+            info += " | " + _("cropped to {w}x{h}").format(w=crop[2], h=crop[3]) + own
         if stepdoc.effective(step, self.doc, "redact"):
             self.scan_if_needed(step)
             n = len(stepdoc.redaction_boxes(step, self.doc))
@@ -569,11 +572,12 @@ class StepEditor(ttk.Frame):
         if j != i:
             self.set_dirty()
             self.refresh_list(j)
-            self.app.set_status(f"Moved the step from position {i + 1} to {j + 1}. "
-                                "Use Up/Down (or < Prev / Next >) to look at other steps.")
+            self.app.set_status(_("Moved the step from position {old} to {new}. Use Up/Down "
+                                  "(or < Prev / Next >) to look at other steps.")
+                                .format(old=i + 1, new=j + 1))
         else:
-            self.app.set_status("That step is already at the "
-                                f"{'top' if delta < 0 else 'bottom'} of the list.")
+            self.app.set_status(_("That step is already at the top of the list.") if delta < 0
+                                else _("That step is already at the bottom of the list."))
 
     def delete_step(self):
         i = self.current_index()
@@ -585,13 +589,13 @@ class StepEditor(ttk.Frame):
 
     def restore_deleted(self):
         if not self.doc or not self.doc["deleted_steps"]:
-            messagebox.showinfo(self.app.name, "There are no deleted steps to restore.",
+            messagebox.showinfo(self.app.name, _("There are no deleted steps to restore."),
                                 parent=self.winfo_toplevel())
             return
         n = stepdoc.restore_deleted(self.doc)
         self.set_dirty()
         self.refresh_list(self.current_index() or 0)
-        self.app.set_status(f"Restored {n} step(s). Click Save Changes to keep them.")
+        self.app.set_status(_("Restored {n} step(s). Click Save Changes to keep them.").format(n=n))
 
     def ensure_boxes(self):
         try:
@@ -643,16 +647,16 @@ class StepEditor(ttk.Frame):
             return
         if self.v_clip_step.get() and self.source_video() is None:
             self.v_clip_step.set(False)
-            messagebox.showinfo(self.app.name, "The original recording was not found, so a clip "
+            messagebox.showinfo(self.app.name, _("The original recording was not found, so a clip "
                                 "cannot be made. It may have been moved or deleted from the "
-                                "source folder.", parent=self.winfo_toplevel())
+                                "source folder."), parent=self.winfo_toplevel())
             return
         step["clip"] = self.v_clip_step.get()
         if step["clip"] and not self.doc.get("source_path") and self.source_video():
             self.doc["source_path"] = str(self.source_video())
         self.set_dirty()
-        self.app.set_status("The animated clip is made when you click Save Changes."
-                            if step["clip"] else "Clip removed from this step.")
+        self.app.set_status(_("The animated clip is made when you click Save Changes.")
+                            if step["clip"] else _("Clip removed from this step."))
         self.on_select()
 
     # -------------------------------------------------------------- export
@@ -676,16 +680,16 @@ class StepEditor(ttk.Frame):
             return
         parent = self.winfo_toplevel()
         if self.dirty:
-            if not messagebox.askyesno(self.app.name, "Save your changes before exporting?",
+            if not messagebox.askyesno(self.app.name, _("Save your changes before exporting?"),
                                        parent=parent):
                 return
             if not self.save(wait=True):
                 return
         unredacted = self.v_export_unredacted.get()
         if unredacted and not messagebox.askyesno(
-                self.app.name, "The unblurred screenshots may show passwords, keys, or "
+                self.app.name, _("The unblurred screenshots may show passwords, keys, or "
                 "internal addresses. Export them anyway? The file name will include "
-                "UNREDACTED.", icon="warning", parent=parent):
+                "UNREDACTED."), icon="warning", parent=parent):
             return
         doc, out_dir = self.doc, self.out_dir
         branding = self.branding()
@@ -702,7 +706,7 @@ class StepEditor(ttk.Frame):
 
         for b in self.export_buttons:
             b.configure(state="disabled")
-        self.app.set_status(f"Exporting {fmt.upper()}...")
+        self.app.set_status(_("Exporting {format}...").format(format=fmt.upper()))
         thread = threading.Thread(target=work, daemon=True)
         thread.start()
 
@@ -714,10 +718,11 @@ class StepEditor(ttk.Frame):
                 b.configure(state="normal")
             if "error" in result:
                 self.app.log_error(f"Export failed: {result['error']}")
-                messagebox.showerror(self.app.name, f"Export failed:\n{result['error']}",
+                messagebox.showerror(self.app.name,
+                                     _("Export failed:\n{error}").format(error=result["error"]),
                                      parent=parent)
                 return
-            self.app.set_status(f"Exported {result['path'].name}")
+            self.app.set_status(_("Exported {name}").format(name=result["path"].name))
             self.app.open_path(result["path"])
 
         check()
@@ -747,27 +752,27 @@ class StepEditor(ttk.Frame):
             return win
         parent = self.winfo_toplevel()
         win = tk.Toplevel(parent)
-        win.title("Logo and Template")
+        win.title(_("Logo and Template"))
         win.resizable(False, False)
         win.transient(parent)
         self.branding_window = win
         body = ttk.Frame(win, padding=(20, 18))
         body.pack(fill="both", expand=True)
         body.columnconfigure(1, weight=1)
-        ttk.Label(body, text="Logo and Word Template", style="Heading.TLabel").grid(
+        ttk.Label(body, text=_("Logo and Word Template"), style="Heading.TLabel").grid(
             row=0, column=0, columnspan=4, sticky="w")
-        ttk.Label(body, text="Used for every export. The logo goes at the top of HTML, PDF, "
+        ttk.Label(body, text=_("Used for every export. The logo goes at the top of HTML, PDF, "
                              "and Word documents. A Word template sets the fonts, colors, "
-                             "margins, and page header and footer of Word exports.",
+                             "margins, and page header and footer of Word exports."),
                   style="Muted.TLabel", wraplength=760, justify="left").grid(
             row=1, column=0, columnspan=4, sticky="w", pady=(4, 14))
         current = self.branding()
         self.v_logo = tk.StringVar(value=current.get(LOGO_KEY, ""))
         self.v_template = tk.StringVar(value=current.get(TEMPLATE_KEY, ""))
-        rows = ((LOGO_KEY, "Logo", self.v_logo,
-                 [("Pictures", "*.png *.jpg *.jpeg *.gif *.svg"), ("All files", "*.*")]),
-                (TEMPLATE_KEY, "Word template", self.v_template,
-                 [("Word documents", "*.docx"), ("All files", "*.*")]))
+        rows = ((LOGO_KEY, _("Logo"), self.v_logo,
+                 [(_("Pictures"), "*.png *.jpg *.jpeg *.gif *.svg"), (_("All files"), "*.*")]),
+                (TEMPLATE_KEY, _("Word template"), self.v_template,
+                 [(_("Word documents"), "*.docx"), (_("All files"), "*.*")]))
         for row, (key, label, var, types) in enumerate(rows, start=2):
             ttk.Label(body, text=label).grid(row=row, column=0, sticky="w", padx=(0, 10),
                                              pady=3)
@@ -775,31 +780,32 @@ class StepEditor(ttk.Frame):
                 row=row, column=1, sticky="ew", pady=3)
 
             def browse(key=key, var=var, types=types, label=label):
-                path = filedialog.askopenfilename(parent=win, title=f"Choose the {label.lower()}",
+                path = filedialog.askopenfilename(parent=win,
+                                                  title=_("Choose a file: {item}").format(item=label),
                                                   filetypes=types)
                 if path:
                     var.set(path)
                     self.set_branding(key, path)
-                    self.app.set_status(f"{label} set for every export.")
+                    self.app.set_status(_("{item} set for every export.").format(item=label))
 
             def clear(key=key, var=var, label=label):
                 var.set("")
                 self.set_branding(key, None)
-                self.app.set_status(f"{label} cleared.")
+                self.app.set_status(_("{item} cleared.").format(item=label))
 
-            ttk.Button(body, text="Browse...", command=browse).grid(row=row, column=2,
+            ttk.Button(body, text=_("Browse..."), command=browse).grid(row=row, column=2,
                                                                     padx=(8, 0), pady=3)
-            ttk.Button(body, text="Clear", command=clear).grid(row=row, column=3,
+            ttk.Button(body, text=_("Clear"), command=clear).grid(row=row, column=3,
                                                                padx=(6, 0), pady=3)
         starter = ttk.Frame(body)
         starter.grid(row=4, column=0, columnspan=4, sticky="ew", pady=(14, 0))
-        ttk.Button(starter, text="Create Starter Template...",
+        ttk.Button(starter, text=_("Create Starter Template..."),
                    command=lambda: self.create_template(win)).pack(side="left")
-        ttk.Label(starter, text="Saves the standard template. Open it in Word, change its "
-                                "styles and page header, save it, and choose it above.",
+        ttk.Label(starter, text=_("Saves the standard template. Open it in Word, change its "
+                                "styles and page header, save it, and choose it above."),
                   style="Muted.TLabel", wraplength=520, justify="left").pack(
             side="left", padx=(10, 0))
-        ttk.Button(body, text="Close", command=win.destroy).grid(
+        ttk.Button(body, text=_("Close"), command=win.destroy).grid(
             row=5, column=3, columnspan=1, sticky="e", pady=(18, 0))
         theme = getattr(self.app, "theme", None)
         if theme is not None:
@@ -807,10 +813,10 @@ class StepEditor(ttk.Frame):
         return win
 
     def create_template(self, win):
-        path = filedialog.asksaveasfilename(parent=win, title="Save the starter Word template",
+        path = filedialog.asksaveasfilename(parent=win, title=_("Save the starter Word template"),
                                             defaultextension=".docx",
                                             initialfile="ScreenCap Docs template.docx",
-                                            filetypes=[("Word documents", "*.docx")])
+                                            filetypes=[(_("Word documents"), "*.docx")])
         if not path:
             return None
         try:
@@ -820,8 +826,8 @@ class StepEditor(ttk.Frame):
             return None
         self.v_template.set(str(dest))
         self.set_branding(TEMPLATE_KEY, dest)
-        self.app.set_status(f"Saved {dest.name} and chose it as the Word template. "
-                            "Open it in Word to change how exports look.")
+        self.app.set_status(_("Saved {name} and chose it as the Word template. Open it in "
+                              "Word to change how exports look.").format(name=dest.name))
         self.app.open_path(dest)
         return dest
 
@@ -830,7 +836,7 @@ class StepEditor(ttk.Frame):
         if folder and folder.is_dir():
             self.app.open_path(folder)
         elif self.out_dir:
-            self.app.set_status("Nothing has been exported yet.")
+            self.app.set_status(_("Nothing has been exported yet."))
 
     # ----------------------------------------------------------- redaction
 
@@ -887,7 +893,7 @@ class StepEditor(ttk.Frame):
         self.v_view.set("original")
         self.canvas.configure(cursor="hand2")
         self.render_preview()
-        self.app.set_status("Click a blur box to switch it off (or back on). Esc cancels.")
+        self.app.set_status(_("Click a blur box to switch it off (or back on). Esc cancels."))
 
     def pick_box(self, x, y):
         step = self.current_step()
@@ -901,16 +907,17 @@ class StepEditor(ttk.Frame):
             if bx <= x <= bx + bw and by <= y <= by + bh:
                 hits.append((bw * bh, "manual", b))
         if not hits:
-            self.app.set_status("No blur box there.")
+            self.app.set_status(_("No blur box there."))
             return
-        _, kind, item = min(hits, key=lambda h: h[0])
+        _dist, kind, item = min(hits, key=lambda h: h[0])
         if kind == "auto":
             item["ignored"] = not item.get("ignored")
-            self.app.set_status(f"{'Un-blurred' if item['ignored'] else 'Blurred again'}: "
-                                f"{item.get('reason', 'detected text')}.")
+            self.app.set_status((_("Un-blurred: {reason}.") if item["ignored"]
+                                 else _("Blurred again: {reason}.")).format(
+                reason=item.get("reason", _("detected text"))))
         else:
             step["manual_redactions"].remove(item)
-            self.app.set_status("Removed the hand-drawn blur box.")
+            self.app.set_status(_("Removed the hand-drawn blur box."))
         self.set_dirty()
 
     # -------------------------------------------------------- rectangles
@@ -925,17 +932,19 @@ class StepEditor(ttk.Frame):
         self.canvas.configure(cursor="crosshair")
         self.render_preview()
         if kind == "arrow":
-            self.app.set_status("Drag from where the arrow starts to what it points at. "
-                                "Press Esc to cancel.")
+            self.app.set_status(_("Drag from where the arrow starts to what it points at. "
+                                "Press Esc to cancel."))
             return
-        what = {"crop": "the area to keep", "blur": "the area to blur"}.get(kind, "the area")
-        self.app.set_status(f"Drag a rectangle around {what}. Press Esc to cancel.")
+        self.app.set_status({
+            "crop": _("Drag a rectangle around the area to keep. Press Esc to cancel."),
+            "blur": _("Drag a rectangle around the area to blur. Press Esc to cancel."),
+        }.get(kind, _("Drag a rectangle around the area. Press Esc to cancel.")))
 
     def cancel_draw(self):
         if self.draw:
             self.draw = None
             self.canvas.configure(cursor="")
-            self.app.set_status("Cancelled.")
+            self.app.set_status(_("Cancelled."))
             self.schedule_preview()
 
     def on_press(self, event):
@@ -980,7 +989,7 @@ class StepEditor(ttk.Frame):
         rect = [(min(x0, event.x) - ox) / scale, (min(y0, event.y) - oy) / scale,
                 abs(event.x - x0) / scale, abs(event.y - y0) / scale]
         if rect[2] < 8 or rect[3] < 8:
-            self.app.set_status("Rectangle too small; nothing changed.")
+            self.app.set_status(_("Rectangle too small; nothing changed."))
             self.schedule_preview()
             return
         rect = stepdoc.clamp_rect(rect, self.doc["width"], self.doc["height"])
@@ -993,13 +1002,14 @@ class StepEditor(ttk.Frame):
                 self.doc["crop"] = rect
             else:
                 step["crop"] = rect
-            self.app.set_status(f"Crop set to {rect[2]}x{rect[3]} at {rect[0]},{rect[1]}"
-                                f"{' for all steps' if scope == 'all' else ' for this step'}.")
+            self.app.set_status((_("Crop set to {w}x{h} at {x},{y} for all steps.") if scope == "all"
+                                 else _("Crop set to {w}x{h} at {x},{y} for this step."))
+                                .format(w=rect[2], h=rect[3], x=rect[0], y=rect[1]))
         elif kind == "blur":
             step.setdefault("manual_redactions", []).append(rect)
             if not stepdoc.effective(step, self.doc, "redact"):
                 step["redact"] = True
-            self.app.set_status("Blur box added.")
+            self.app.set_status(_("Blur box added."))
         self.set_dirty()
         self.v_view.set("final")
         self.on_select()
@@ -1013,16 +1023,16 @@ class StepEditor(ttk.Frame):
         if step is None or not self.doc.get("width"):
             return
         if kind == "edit" and not annotate.step_annotations(step):
-            self.app.set_status("This step has no annotations.")
+            self.app.set_status(_("This step has no annotations."))
             return
         self.draw = {"kind": kind, "scope": "step", "start": None, "item": None}
         self.v_view.set("original")
         self.canvas.configure(cursor="hand2" if kind == "edit" else "crosshair")
         self.render_preview()
         self.app.set_status({
-            "number": "Click where the number goes. Press Esc to cancel.",
-            "text": "Click where the label's top-left corner goes. Press Esc to cancel.",
-            "edit": "Click an annotation to edit or remove it. Press Esc to cancel.",
+            "number": _("Click where the number goes. Press Esc to cancel."),
+            "text": _("Click where the label's top-left corner goes. Press Esc to cancel."),
+            "edit": _("Click an annotation to edit or remove it. Press Esc to cancel."),
         }[kind])
 
     def _frame_point(self, x, y):
@@ -1032,13 +1042,13 @@ class StepEditor(ttk.Frame):
     def add_arrow(self, start, tip):
         start, tip = self._frame_point(*start), self._frame_point(*tip)
         if abs(tip[0] - start[0]) + abs(tip[1] - start[1]) < 12:
-            self.app.set_status("Arrow too short; drag from where it starts to its tip.")
+            self.app.set_status(_("Arrow too short; drag from where it starts to its tip."))
             self.schedule_preview()
             return
-        self.add_annotation({"kind": "arrow", "from": start, "to": tip}, "Arrow added.")
+        self.add_annotation({"kind": "arrow", "from": start, "to": tip}, _("Arrow added."))
 
     def ask_label(self, initial=""):
-        text = simpledialog.askstring(self.app.name, "Label text:", initialvalue=initial,
+        text = simpledialog.askstring(self.app.name, _("Label text:"), initialvalue=initial,
                                       parent=self.winfo_toplevel())
         return " ".join((text or "").split())
 
@@ -1047,14 +1057,14 @@ class StepEditor(ttk.Frame):
         point = self._frame_point(x, y)
         if kind == "number":
             n = annotate.next_number(step)
-            self.add_annotation({"kind": "number", "at": point, "n": n}, f"Number {n} added.")
+            self.add_annotation({"kind": "number", "at": point, "n": n}, _("Number {n} added.").format(n=n))
         elif kind == "text":
             text = self.ask_label()
             if not text:
-                self.app.set_status("No text; nothing added.")
+                self.app.set_status(_("No text; nothing added."))
                 self.schedule_preview()
                 return
-            self.add_annotation({"kind": "text", "at": point, "text": text}, "Label added.")
+            self.add_annotation({"kind": "text", "at": point, "text": text}, _("Label added."))
         elif kind == "edit":
             self.edit_annotation(step, x, y)
 
@@ -1063,21 +1073,21 @@ class StepEditor(ttk.Frame):
         step.setdefault("annotations", []).append(ann)
         self.set_dirty()
         self.v_view.set("final")
-        self.app.set_status(message + " Click Save Changes to keep it.")
+        self.app.set_status(message + " " + _("Click Save Changes to keep it."))
         self.on_select()
 
     def edit_annotation(self, step, x, y):
         hits = [(d, a) for a in annotate.step_annotations(step)
                 for d in [annotate.hit(a, x, y, self.doc["width"])] if d is not None]
         if not hits:
-            self.app.set_status("No annotation there.")
+            self.app.set_status(_("No annotation there."))
             self.schedule_preview()
             return
         ann = min(hits, key=lambda h: h[0])[1]
         parent = self.winfo_toplevel()
         if ann["kind"] == "text":
             text = simpledialog.askstring(
-                self.app.name, "Label text (clear it to remove the label):",
+                self.app.name, _("Label text (clear it to remove the label):"),
                 initialvalue=ann["text"], parent=parent)
             if text is None:
                 self.schedule_preview()
@@ -1085,43 +1095,44 @@ class StepEditor(ttk.Frame):
             text = " ".join(text.split())
             if text:
                 ann["text"] = text
-                message = "Label changed."
+                message = _("Label changed.")
             else:
                 step["annotations"].remove(ann)
-                message = "Label removed."
+                message = _("Label removed.")
         elif ann["kind"] == "number":
             n = simpledialog.askinteger(
-                self.app.name, "Number to show (0 removes the marker):",
+                self.app.name, _("Number to show (0 removes the marker):"),
                 initialvalue=ann.get("n", 1), minvalue=0, maxvalue=999, parent=parent)
             if n is None:
                 self.schedule_preview()
                 return
             if n:
                 ann["n"] = n
-                message = f"Marker changed to {n}."
+                message = _("Marker changed to {n}.").format(n=n)
             else:
                 step["annotations"].remove(ann)
-                message = "Marker removed."
+                message = _("Marker removed.")
         else:
-            what = "click ring" if ann["kind"] == "click" else "arrow"
-            if not messagebox.askyesno(self.app.name, f"Remove this {what}?", parent=parent):
+            click = ann["kind"] == "click"
+            if not messagebox.askyesno(self.app.name, _("Remove this click ring?") if click
+                                       else _("Remove this arrow?"), parent=parent):
                 self.schedule_preview()
                 return
             step["annotations"].remove(ann)
-            message = f"{what.capitalize()} removed."
+            message = _("Click ring removed.") if click else _("Arrow removed.")
         self.set_dirty()
         self.v_view.set("final")
-        self.app.set_status(message + " Click Save Changes to keep it.")
+        self.app.set_status(message + " " + _("Click Save Changes to keep it."))
         self.on_select()
 
     def clear_annotations(self):
         step = self.current_step()
         if step is None or not annotate.step_annotations(step):
-            self.app.set_status("This step has no annotations.")
+            self.app.set_status(_("This step has no annotations."))
             return
         step["annotations"] = []
         self.set_dirty()
-        self.app.set_status("Annotations cleared on this step. Click Save Changes to keep it.")
+        self.app.set_status(_("Annotations cleared on this step. Click Save Changes to keep it."))
         self.on_select()
 
     def no_crop_step(self):
@@ -1162,7 +1173,7 @@ class StepEditor(ttk.Frame):
         src = self.out_dir / step["original"]
         if not src.is_file():
             self.canvas.create_text(w // 2, h // 2, fill=self.canvas_text_color(),
-                                    text="Original image is missing (deleted or moved).")
+                                    text=_("Original image is missing (deleted or moved)."))
             return
         filters = None
         if self.v_view.get() == "final":
@@ -1172,7 +1183,7 @@ class StepEditor(ttk.Frame):
         thumb = self.app.temp_dir / "preview.png"
         try:
             if not self.app.ffmpeg:
-                raise RuntimeError("FFmpeg is required for previews")
+                raise RuntimeError(_("FFmpeg is required for previews"))
             res = self.app.run([self.app.ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
                                 "-i", str(src), "-vf", vf, "-frames:v", "1", str(thumb)])
             if res.returncode != 0:
@@ -1187,7 +1198,7 @@ class StepEditor(ttk.Frame):
                 self.draw_overlays(step)
         except Exception as exc:
             self.canvas.create_text(w // 2, h // 2, fill=self.canvas_text_color(), width=w - 20,
-                                    text=f"Preview unavailable: {exc}")
+                                    text=_("Preview unavailable: {error}").format(error=exc))
 
     def overlay(self, rect, color, label=None):
         scale, ox, oy = self.view_map
@@ -1261,7 +1272,7 @@ class StepEditor(ttk.Frame):
         if not self.dirty:
             return True
         answer = messagebox.askyesnocancel(
-            self.app.name, "Save your changes to this recording's steps first?",
+            self.app.name, _("Save your changes to this recording's steps first?"),
             parent=self.winfo_toplevel())
         if answer is None:
             return False
@@ -1270,7 +1281,7 @@ class StepEditor(ttk.Frame):
         return True
 
     def discard(self):
-        if self.dirty and messagebox.askyesno(self.app.name, "Discard all unsaved changes?",
+        if self.dirty and messagebox.askyesno(self.app.name, _("Discard all unsaved changes?"),
                                               parent=self.winfo_toplevel()):
             self.reload()
 
@@ -1292,7 +1303,7 @@ class StepEditor(ttk.Frame):
                 result["error"] = exc
 
         self.btn_save.configure(state="disabled")
-        self.app.set_status("Saving steps...")
+        self.app.set_status(_("Saving steps..."))
         self.render_thread = threading.Thread(target=work, daemon=True)
         self.render_thread.start()
         if wait:
@@ -1311,18 +1322,20 @@ class StepEditor(ttk.Frame):
         self.btn_save.configure(state="normal")
         if "error" in result:
             self.app.log_error(f"Saving steps failed: {result['error']}")
-            messagebox.showerror(self.app.name, f"Saving failed:\n{result['error']}",
+            messagebox.showerror(self.app.name,
+                                 _("Saving failed:\n{error}").format(error=result["error"]),
                                  parent=self.winfo_toplevel())
             return False
         if getattr(self, "edits", 0) != result["edits"]:
             # Edited while saving: those changes are not in the saved files yet
-            self.app.q.put(("status", "Saved. Newer changes are not saved yet: "
-                                      "click Save Changes again."))
+            self.app.q.put(("status", _("Saved. Newer changes are not saved yet: "
+                                        "click Save Changes again.")))
             self.app.on_steps_saved(self.out_dir)
             return True
         self.set_dirty(False)
         # Through the queue so it lands after any queued progress messages
-        self.app.q.put(("status", f"Saved {len(self.doc['steps'])} step(s) to {self.out_dir.name}"))
+        self.app.q.put(("status", _("Saved {n} step(s) to {folder}").format(
+            n=len(self.doc["steps"]), folder=self.out_dir.name)))
         self.app.on_steps_saved(self.out_dir)
         return True
 
@@ -1344,8 +1357,8 @@ class StepEditor(ttk.Frame):
         if path:
             self.app.open_path(path)
         else:
-            self.app.set_status("This step has no animated clip. Switch it on in the "
-                                "Highlight menu, then click Save Changes.")
+            self.app.set_status(_("This step has no animated clip. Switch it on in the "
+                                "Highlight menu, then click Save Changes."))
 
     def source_video(self):
         """The recording this output came from: the one selected in the
@@ -1367,14 +1380,15 @@ class StepEditor(ttk.Frame):
             return
         video = self.source_video()
         if video is None:
-            messagebox.showinfo(self.app.name, "The original recording was not found. It may "
-                                "have been moved or deleted from the source folder.",
+            messagebox.showinfo(self.app.name, _("The original recording was not found. It may "
+                                "have been moved or deleted from the source folder."),
                                 parent=self.winfo_toplevel())
             return
         start = player.start_time(step)
         try:
             player.open_at(self.app.vlc, video, start)
-            self.app.set_status(f"Opened {video.name} in VLC at {stepdoc.fmt_ts(start)}")
+            self.app.set_status(_("Opened {name} in VLC at {time}").format(
+                name=video.name, time=stepdoc.fmt_ts(start)))
         except OSError as exc:
             self.app.log_error(f"Could not start VLC: {exc}")
 
@@ -1391,8 +1405,8 @@ class StepEditor(ttk.Frame):
             return
         video = self.source_video()
         if video is None:
-            messagebox.showinfo(self.app.name, "The original recording was not found. It may "
-                                "have been moved or deleted from the source folder.",
+            messagebox.showinfo(self.app.name, _("The original recording was not found. It may "
+                                "have been moved or deleted from the source folder."),
                                 parent=parent)
             return
         model = self.app.whisper_model()
@@ -1407,8 +1421,9 @@ class StepEditor(ttk.Frame):
                 result["error"] = exc
 
         self.btn_narration.configure(state="disabled")
-        self.app.set_status(f"Transcribing narration with the {model} model. The first "
-                            "time, the model is downloaded, which can take a few minutes...")
+        self.app.set_status(_("Transcribing narration with the {model} model. The first time, "
+                              "the model is downloaded, which can take a few minutes...")
+                            .format(model=model))
         thread = threading.Thread(target=work, daemon=True)
         thread.start()
 
@@ -1427,13 +1442,14 @@ class StepEditor(ttk.Frame):
             filled = transcribe.apply(self.doc, summary["result"])
             self.doc["narration"] = work_doc.get("narration")
             if not summary["audio"]:
-                text = "This recording has no audio, so there is no narration to use."
+                text = _("This recording has no audio, so there is no narration to use.")
             elif not summary["segments"]:
-                text = "No speech was found in this recording."
+                text = _("No speech was found in this recording.")
             else:
-                text = (f"Filled {filled} empty caption(s) from {summary['segments']} spoken "
-                        f"passage(s). Captions you typed were kept. Review them, then "
-                        f"Save Changes. Full text: {transcribe.TRANSCRIPT_NAME}")
+                text = _("Filled {n} empty caption(s) from {passages} spoken passage(s). "
+                         "Captions you typed were kept. Review them, then Save Changes. "
+                         "Full text: {file}").format(n=filled, passages=summary["segments"],
+                                                    file=transcribe.TRANSCRIPT_NAME)
                 self.set_dirty()
                 self.refresh_list(self.current_index() or 0)
             self.app.set_status(text)

@@ -2,7 +2,7 @@
 #
 # gui_recorder.py
 # 2026-11-11
-# Version: v1.3.0
+# Version: v1.4.0
 #
 # PURPOSE:
 # The GUI side of the built-in recorder (recorder.py): the Record window
@@ -27,13 +27,14 @@ from tkinter import messagebox, ttk
 
 import recorder
 import version
+from i18n import N_, _
 
-NO_MIC = "No microphone"
+NO_MIC = N_("No microphone")   # saved as is; shown translated
 KEYS_KEY, PROCESS_KEY, MIC_KEY = "record_keys", "record_process", "record_microphone"
 MODE_KEY, SOUND_KEY = "record_mode", "record_system_sound"
 SETTINGS_KEYS = (KEYS_KEY, PROCESS_KEY, MIC_KEY, MODE_KEY, SOUND_KEY)
-MODES = [("screen", "Whole screen"), ("window", "One window (click it after Start)"),
-         ("area", "An area (draw it after Start)")]
+MODES = [("screen", N_("Whole screen")), ("window", N_("One window (click it after Start)")),
+         ("area", N_("An area (draw it after Start)"))]
 START_DELAY_MS = 600     # lets the main window finish minimizing first
 DOT_ON, DOT_OFF = "#E53935", "#F8A5A3"   # the blinking red dot
 
@@ -41,13 +42,13 @@ DOT_ON, DOT_OFF = "#E53935", "#F8A5A3"   # the blinking red dot
 def platform_note():
     plat = recorder.platform_name()
     if plat == "macos":
-        return ("macOS asks for permission the first time: allow this app (or Terminal) "
+        return _("macOS asks for permission the first time: allow this app (or Terminal) "
                 "under System Settings > Privacy & Security > Screen Recording, and "
                 "Input Monitoring for keys. Whole screen is the main display.")
     if plat == "windows":
-        return ("Whole screen is all monitors. The small Recording window is left out of "
+        return _("Whole screen is all monitors. The small Recording window is left out of "
                 "the recording.")
-    return ("Whole screen is the whole X11 screen. The small Recording window shows in "
+    return _("Whole screen is the whole X11 screen. The small Recording window shows in "
             "the recording when it is inside the recorded area; it sits in the "
             "bottom-right corner.")
 
@@ -55,22 +56,23 @@ def platform_note():
 def modes():
     """The choices of what to record on this system (macOS cannot pick a
     window, only draw an area)."""
+    shown = [(key, _(label)) for key, label in MODES]
     if recorder.platform_name() == "macos":
-        return [m for m in MODES if m[0] != "window"]
-    return list(MODES)
+        return [m for m in shown if m[0] != "window"]
+    return shown
 
 
 def system_sound_help():
     """What to set up when no source of the computer's sound is found."""
     plat = recorder.platform_name()
     if plat == "windows":
-        return ("To record the computer's sound, switch on \"Stereo Mix\" (Sound settings > "
+        return _("To record the computer's sound, switch on \"Stereo Mix\" (Sound settings > "
                 "More sound settings > Recording, right-click > Show Disabled Devices) "
                 "or install a virtual audio cable, then open this window again.")
     if plat == "macos":
-        return ("To record the computer's sound, install a loopback driver such as "
+        return _("To record the computer's sound, install a loopback driver such as "
                 "BlackHole and send the sound to it, then open this window again.")
-    return ("To record the computer's sound, FFmpeg needs PulseAudio or PipeWire "
+    return _("To record the computer's sound, FFmpeg needs PulseAudio or PipeWire "
             "(pulse) support.")
 
 
@@ -81,22 +83,22 @@ class RecordDialog(tk.Toplevel):
     def __init__(self, app, on_start):
         super().__init__(app.root)
         self.app, self.on_start = app, on_start
-        self.title("Record Screen")
+        self.title(_("Record Screen"))
         self.resizable(False, False)
         self.transient(app.root)
         extra = app.settings_extra
         body = ttk.Frame(self, padding=(22, 18))
         body.pack(fill="both", expand=True)
         body.columnconfigure(1, weight=1)
-        ttk.Label(body, text="Record Screen", style="Heading.TLabel").grid(
+        ttk.Label(body, text=_("Record Screen"), style="Heading.TLabel").grid(
             row=0, column=0, columnspan=2, sticky="w")
-        ttk.Label(body, text="Do the task as usual. Each click is noted, so the steps get a "
+        ttk.Label(body, text=_("Do the task as usual. Each click is noted, so the steps get a "
                              "red ring where you clicked and a first-draft caption such as "
-                             "Click \"Next\". Stop when you are done.",
+                             "Click \"Next\". Stop when you are done."),
                   style="Muted.TLabel", wraplength=460, justify="left").grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(2, 14))
 
-        ttk.Label(body, text="Record").grid(row=2, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(body, text=_("Record")).grid(row=2, column=0, sticky="w", padx=(0, 10))
         self.modes = modes()
         labels = dict(self.modes)
         self.v_mode = tk.StringVar(value=labels.get(extra.get(MODE_KEY), labels["screen"]))
@@ -110,15 +112,15 @@ class RecordDialog(tk.Toplevel):
 
         self.keys_policy = recorder.keys_disabled_by_policy()
         self.v_keys = tk.BooleanVar(value=False if self.keys_policy else extra.get(KEYS_KEY, True))
-        keys_text = ("Note keys pressed (Enter, Tab, shortcuts such as Ctrl+S). "
+        keys_text = _("Note keys pressed (Enter, Tab, shortcuts such as Ctrl+S). "
                      "Typed text is never saved.")
         if self.keys_policy:
-            keys_text = "Noting keys pressed is switched off by your administrator."
+            keys_text = _("Noting keys pressed is switched off by your administrator.")
         ttk.Checkbutton(body, text=keys_text, variable=self.v_keys,
                         state="disabled" if self.keys_policy else "normal").grid(
             row=5, column=0, columnspan=2, sticky="w", pady=(6, 0))
         self.v_process = tk.BooleanVar(value=extra.get(PROCESS_KEY, True))
-        ttk.Checkbutton(body, text="Make the screenshots when I stop",
+        ttk.Checkbutton(body, text=_("Make the screenshots when I stop"),
                         variable=self.v_process).grid(row=6, column=0, columnspan=2,
                                                       sticky="w", pady=(4, 0))
         ttk.Label(body, text=platform_note(), style="Muted.TLabel", wraplength=460,
@@ -126,8 +128,8 @@ class RecordDialog(tk.Toplevel):
 
         btns = ttk.Frame(body)
         btns.grid(row=8, column=0, columnspan=2, sticky="e", pady=(16, 0))
-        ttk.Button(btns, text="Cancel", command=self.destroy).pack(side="right")
-        start = ttk.Button(btns, text="Start Recording", style="Accent.TButton",
+        ttk.Button(btns, text=_("Cancel"), command=self.destroy).pack(side="right")
+        start = ttk.Button(btns, text=_("Start Recording"), style="Accent.TButton",
                            command=self.start)
         start.pack(side="right", padx=(0, 8))
         self.bind("<Return>", lambda e: self.start())
@@ -141,18 +143,18 @@ class RecordDialog(tk.Toplevel):
 
     def _fill_sound(self, frame, extra, app):
         """The Microphone and computer sound rows."""
-        ttk.Label(frame, text="Microphone").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        self.mics = [(NO_MIC, None)]
+        ttk.Label(frame, text=_("Microphone")).grid(row=0, column=0, sticky="w", padx=(0, 10))
+        self.mics = [(_(NO_MIC), None)]
         try:
             self.mics += recorder.list_microphones(app.ffmpeg)
         except OSError:
             pass
         self.v_mic = tk.StringVar(value=extra.get(MIC_KEY) if extra.get(MIC_KEY) in
-                                  [m[0] for m in self.mics] else NO_MIC)
+                                  [m[0] for m in self.mics] else _(NO_MIC))
         ttk.Combobox(frame, textvariable=self.v_mic, state="readonly", width=38,
                      values=[m[0] for m in self.mics]).grid(row=0, column=1, sticky="ew")
-        ttk.Label(frame, text="Talk through the steps to turn your words into captions later "
-                              "(Captions From Narration in the Steps tab).",
+        ttk.Label(frame, text=_("Talk through the steps to turn your words into captions later "
+                              "(Captions From Narration in the Steps tab)."),
                   style="Muted.TLabel", wraplength=460, justify="left").grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(2, 8))
         try:
@@ -160,7 +162,7 @@ class RecordDialog(tk.Toplevel):
         except OSError:
             self.system = []
         self.v_system = tk.BooleanVar(value=bool(self.system) and extra.get(SOUND_KEY, False))
-        ttk.Checkbutton(frame, text="Also record the computer's sound (videos, alerts)",
+        ttk.Checkbutton(frame, text=_("Also record the computer's sound (videos, alerts)"),
                         variable=self.v_system,
                         state="normal" if self.system else "disabled").grid(
             row=2, column=0, columnspan=2, sticky="w")
@@ -218,8 +220,8 @@ class AreaPicker(tk.Toplevel):
                 self.attributes("-alpha", 0.35)
             except tk.TclError:
                 pass
-        hint = ("Drag over the area to record. Esc cancels." if mode == "area" else
-                "Click the window to record. Esc cancels.")
+        hint = (_("Drag over the area to record. Esc cancels.") if mode == "area" else
+                _("Click the window to record. Esc cancels."))
         self.canvas.create_text(full[2] // 2, 60, text=hint, fill="white",
                                 font=("TkDefaultFont", 20, "bold"))
         self.canvas.bind("<ButtonPress-1>", self._press)
@@ -287,8 +289,8 @@ class AreaPicker(tk.Toplevel):
 
     def _finish(self, rect, window=False):
         if window and rect is None:
-            messagebox.showinfo(version.APP_NAME, "That window could not be found. Choose "
-                                "Whole screen or An area instead.", parent=self.master)
+            messagebox.showinfo(version.APP_NAME, _("That window could not be found. Choose "
+                                "Whole screen or An area instead."), parent=self.master)
         try:
             self.grab_release()
             self.destroy()
@@ -302,7 +304,7 @@ class RecordingBar(tk.Toplevel):
 
     def __init__(self, root, on_stop, on_discard):
         super().__init__(root)
-        self.title("Recording")
+        self.title(_("Recording"))
         self.resizable(False, False)
         self.attributes("-topmost", True)
         self.protocol("WM_DELETE_WINDOW", on_stop)
@@ -310,11 +312,11 @@ class RecordingBar(tk.Toplevel):
         frame.pack(fill="both", expand=True)
         self.dot = ttk.Label(frame, text="\u25cf", foreground=DOT_ON, font=("TkDefaultFont", 14))
         self.dot.pack(side="left")
-        self.v_text = tk.StringVar(value="Starting...")
+        self.v_text = tk.StringVar(value=_("Starting..."))
         ttk.Label(frame, textvariable=self.v_text, width=20).pack(side="left", padx=(6, 10))
-        self.btn_stop = ttk.Button(frame, text="Stop", style="Accent.TButton", command=on_stop)
+        self.btn_stop = ttk.Button(frame, text=_("Stop"), style="Accent.TButton", command=on_stop)
         self.btn_stop.pack(side="left")
-        self.btn_discard = ttk.Button(frame, text="Discard", command=on_discard)
+        self.btn_discard = ttk.Button(frame, text=_("Discard"), command=on_discard)
         self.btn_discard.pack(side="left", padx=(6, 0))
         self.update_idletasks()
         w, h = self.winfo_reqwidth(), self.winfo_reqheight()
@@ -329,13 +331,13 @@ class RecordingBar(tk.Toplevel):
 
     def set_time(self, seconds):
         m, s = divmod(int(seconds), 60)
-        self.v_text.set(f"Recording {m:02d}:{s:02d}")
+        self.v_text.set(_("Recording {time}").format(time=f"{m:02d}:{s:02d}"))
         self.dot.configure(foreground=DOT_ON if int(seconds * 2) % 2 == 0 else DOT_OFF)
 
     def set_paused(self):
         """Windows is showing an administrator prompt or the lock screen,
         which cannot be recorded; recording carries on when it closes."""
-        self.v_text.set("Paused (admin prompt)")
+        self.v_text.set(_("Paused (admin prompt)"))
         self.dot.configure(foreground=DOT_OFF)
 
     def busy(self, text):
@@ -372,8 +374,9 @@ class RecordingSession:
         try:
             source.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            messagebox.showerror(version.APP_NAME, f"The Recordings folder cannot be used: "
-                                 f"{exc}", parent=app.root)
+            messagebox.showerror(version.APP_NAME, _("The Recordings folder cannot be used: "
+                                                     "{error}").format(error=exc),
+                                 parent=app.root)
             return
         self.process = process
         options = dict(microphone=microphone, keys=keys, system_audio=system_audio, mode=mode)
@@ -422,7 +425,8 @@ class RecordingSession:
             self.bar.set_time(rec.elapsed())
         elif time.monotonic() - self.started > 20:
             rec.cancel()
-            self._fail("FFmpeg did not start recording. It said:\n" + rec.error_text())
+            self._fail(_("FFmpeg did not start recording. It said:") + "\n"
+                       + rec.error_text())
             return
         self.job = self.app.root.after(250, self._tick)
 
@@ -439,7 +443,7 @@ class RecordingSession:
             return
         self.done = True
         self._cancel_job()
-        self.bar.busy("Saving...")
+        self.bar.busy(_("Saving..."))
         result = {}
 
         def work():
@@ -458,7 +462,7 @@ class RecordingSession:
         self._close()
         if "error" in result:
             self.app.log.error("Recording failed: %s", result["error"])
-            messagebox.showerror(version.APP_NAME, "The recording could not be saved.\n\n" +
+            messagebox.showerror(version.APP_NAME, _("The recording could not be saved.") + "\n\n" +
                                  result["error"], parent=self.app.root)
             return
         self.app.on_recorded(result["path"], self.process)
@@ -473,11 +477,11 @@ class RecordingSession:
             return
         self.done = True
         self._cancel_job()
-        self.bar.busy("Discarding...")
+        self.bar.busy(_("Discarding..."))
         self.bar.update_idletasks()
         self.rec.cancel()
         self._close()
-        self.app.set_status("Recording discarded.")
+        self.app.set_status(_("Recording discarded."))
 
     def cancel_quietly(self):
         """The app is closing: stop and keep what was recorded so far."""
@@ -496,7 +500,7 @@ class RecordingSession:
             self.rec.cancel()
         self._close()
         self.app.log.error("Recording failed: %s", text)
-        messagebox.showerror(version.APP_NAME, "Recording did not work.\n\n" + text,
+        messagebox.showerror(version.APP_NAME, _("Recording did not work.") + "\n\n" + text,
                              parent=self.app.root)
 
     def _close(self):

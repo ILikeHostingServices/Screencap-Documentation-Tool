@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # export.py
-# 2026-10-16
-# Version: v1.5.0
+# 2026-11-11
+# Version: v1.6.0
 #
 # PURPOSE:
 # Turns a recording's saved steps into a finished document: a single
@@ -25,13 +25,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 import logging
 
 import clips
 import pptxwriter
+import region
 import stepdoc
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -108,7 +108,7 @@ def metadata(doc):
         "title": meta.get("title") or Path(doc.get("source_video", "Steps")).stem,
         "version": meta.get("version") or "v1.0.0",
         "author": meta.get("author") or "",
-        "date": time.strftime("%Y-%m-%d"),
+        "date": region.format_date(),
     }
 
 

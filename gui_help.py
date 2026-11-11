@@ -2,7 +2,7 @@
 #
 # gui_help.py
 # 2026-11-11
-# Version: v1.8.0
+# Version: v1.9.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -40,7 +40,9 @@ TOPICS = [
 
 The original screenshots are always kept, so every edit can be changed again later.
 
-More settings (timing, image format, extra blur patterns, dry run) are under View > Advanced Settings. View > Light Theme, Dark Theme, or System Theme changes the look."""),
+More settings (timing, image format, extra blur patterns, how dates and times are written, dry run) are under View > Advanced Settings. View > Light Theme, Dark Theme, or System Theme changes the look.
+
+View > Language shows the windows in English, Spanish, French, German, or Portuguese (Brazil). System Language (the default) follows the computer's language. A new choice applies the next time the app starts. This Help guide, the built-in presets, and the documents the app writes stay in English."""),
     ("Recording The Screen", """\
 Record (above the list of recordings, or File > Record Screen, Ctrl+R) records the screen like Windows Steps Recorder did, but as a video:
 
