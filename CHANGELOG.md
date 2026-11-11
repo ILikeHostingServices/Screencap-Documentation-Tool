@@ -19,6 +19,7 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 - The tagline is now "Record a task. Get the how-to guide." on the website and the Snap Store banner.
 - Draft captions name the label above a clicked box, as on most web forms ("Click next to "First name"" instead of "Click the marked spot").
 - New screenshots, showing tasks in three different programs (a web form, LibreOffice Calc, and KeePassXC) for two made-up organizations.
+- Each release now also lists the snaps' components (SBOM, CycloneDX) for amd64 and arm64, next to the Windows one, so the Linux downloads can be checked for known security problems too.
 - A Snap Store set in `docs/store/`: the five screenshots the store allows and a featured banner, made by `packaging/screenshots/make_store_images.sh`.
 
 **Fixed**
