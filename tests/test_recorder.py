@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 #
 # test_recorder.py
-# 2026-10-25
-# Version: v1.3.0
+# 2026-11-11
+# Version: v1.4.0
 #
 # PURPOSE:
 # Tests for the built-in recorder and the use of its clicks: turning mouse
 # and key samples into clicks, double-clicks, drags, keys, shortcuts, and
-# typing (never the text typed); the FFmpeg command on each system; giving
+# typing (never the text typed); the FFmpeg command on each system,
+# for one window or area and with the computer's sound; giving
 # each action to the right step; the words of a clicked button; captions
 # and click rings; a recording that Windows interrupts with an
 # administrator prompt (the secure desktop), which pauses and carries on;
@@ -140,6 +141,82 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(cmd[cmd.index(":5") - 1], "-i")
         self.assertIn("pulse", cmd)
         self.assertEqual(cmd[-1], "out.mkv")
+
+    def test_an_area_is_recorded_on_each_system(self):
+        enc = ["-c:v", "libx264"]
+        area = [100, 50, 640, 480]
+        with mock.patch.object(recorder, "platform_name", return_value="windows"):
+            cmd = recorder.command("ffmpeg", "out.mkv", enc, area=area)
+        self.assertEqual(cmd[cmd.index("-offset_x") + 1], "100")
+        self.assertEqual(cmd[cmd.index("-offset_y") + 1], "50")
+        self.assertEqual(cmd[cmd.index("-video_size") + 1], "640x480")
+        self.assertLess(cmd.index("-video_size"), cmd.index("desktop"))
+        with mock.patch.object(recorder, "platform_name", return_value="linux"):
+            cmd = recorder.command("ffmpeg", "out.mkv", enc, display=":5", area=area)
+        self.assertIn(":5+100,50", cmd)
+        self.assertEqual(cmd[cmd.index("-video_size") + 1], "640x480")
+        with mock.patch.object(recorder, "platform_name", return_value="macos"):
+            cmd = recorder.command("ffmpeg", "out.mkv", enc, screen_index=1, area=area,
+                                   screen=[0, 0, 1440, 900])
+        vf = cmd[cmd.index("-vf") + 1]
+        self.assertTrue(vf.startswith("crop=iw*640/1440:ih*480/900:iw*100/1440:ih*50/900,"), vf)
+
+    def test_computer_sound_is_mixed_with_the_microphone(self):
+        enc = ["-c:v", "libx264"]
+        with mock.patch.object(recorder, "platform_name", return_value="windows"):
+            cmd = recorder.command("ffmpeg", "out.mkv", enc, microphone="Mic",
+                                   system_audio="Stereo Mix (Realtek)")
+        self.assertIn("audio=Stereo Mix (Realtek)", cmd)
+        graph = cmd[cmd.index("-filter_complex") + 1]
+        self.assertIn("[1:a:0][2:a:0]amix=inputs=2", graph)
+        self.assertEqual(cmd[cmd.index("[sound]") - 1], "-map")
+        with mock.patch.object(recorder, "platform_name", return_value="linux"):
+            cmd = recorder.command("ffmpeg", "out.mkv", enc, system_audio="pulse:@DEFAULT_MONITOR@")
+        self.assertIn("@DEFAULT_MONITOR@", cmd)
+        self.assertNotIn("-filter_complex", cmd)
+        self.assertEqual(cmd[cmd.index("1:a:0") - 1], "-map")
+        with mock.patch.object(recorder, "platform_name", return_value="macos"):
+            cmd = recorder.command("ffmpeg", "out.mkv", enc, microphone="0", screen_index=2,
+                                   system_audio="3")
+        self.assertIn("none:3", cmd)
+        self.assertIn("[0:a:0][1:a:0]amix=inputs=2", cmd[cmd.index("-filter_complex") + 1])
+
+    def test_system_sound_sources_are_told_apart_from_microphones(self):
+        listing = ('[dshow] "Microphone (USB Audio)" (audio)\n'
+                   '[dshow] "Stereo Mix (Realtek(R) Audio)" (audio)\n')
+        done = mock.Mock(stderr=listing, stdout="")
+        with mock.patch.object(recorder, "platform_name", return_value="windows"), \
+                mock.patch.object(recorder, "_run", return_value=done):
+            self.assertEqual([m[0] for m in recorder.list_microphones("ffmpeg")],
+                             ["Microphone (USB Audio)"])
+            self.assertEqual([m[0] for m in recorder.list_system_audio("ffmpeg")],
+                             ["Stereo Mix (Realtek(R) Audio)"])
+        devices = mock.Mock(stdout=" D  pulse           Pulse audio input\n", stderr="")
+        with mock.patch.object(recorder, "platform_name", return_value="linux"), \
+                mock.patch.object(recorder, "_run", return_value=devices):
+            self.assertEqual(recorder.list_system_audio("ffmpeg"),
+                             [("System sound", "pulse:@DEFAULT_MONITOR@")])
+
+    def test_an_area_is_cut_to_the_screen_and_an_even_size(self):
+        self.assertEqual(recorder.fit_area([-10, 5, 301, 201], [0, 0, 1920, 1080]),
+                         [0, 5, 290, 200])
+        self.assertEqual(recorder.fit_area([1800, 1000, 400, 400], [0, 0, 1920, 1080]),
+                         [1800, 1000, 120, 80])
+        with self.assertRaises(recorder.RecorderError):
+            recorder.fit_area([5000, 0, 100, 100], [0, 0, 1920, 1080])
+
+    def test_clicks_outside_the_area_are_left_out(self):
+        tmp = Path(tempfile.mkdtemp(prefix="screencap_area_"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        rec = recorder.Recorder("ffmpeg", tmp / "a.mkv", area=[100, 100, 400, 300])
+        events = [{"t": 1.0, "type": "click", "x": 150, "y": 150},
+                  {"t": 2.0, "type": "click", "x": 50, "y": 150},
+                  {"t": 3.0, "type": "key", "key": "Enter"}]
+        rec._write_events(tmp / "a.mkv", events)
+        data = recorder.load_events(tmp / "a.mkv")
+        self.assertEqual(data["screen"], [100, 100, 400, 300])
+        self.assertEqual(data["mode"], "area")
+        self.assertEqual([e["t"] for e in data["events"]], [1.0, 3.0])
 
     def test_wayland_is_explained(self):
         with mock.patch.object(recorder, "platform_name", return_value="linux"), \
@@ -466,6 +543,42 @@ class LiveRecordingTests(unittest.TestCase):
         self.assertEqual(captions.count(expected), 2, captions)
         md = (out / video.stem / stepdoc.INDEX_NAME).read_text(encoding="utf-8")
         self.assertIn(expected, md)
+
+    def test_an_area_is_recorded_with_its_clicks(self):
+        source = self.tmp / "source"
+        bx = self.button.winfo_rootx() + self.button.winfo_width() // 2
+        by = self.button.winfo_rooty() + self.button.winfo_height() // 2
+        area = [bx - 200, by - 150, 400, 300]
+        rec = recorder.Recorder(FFMPEG, source / recorder.default_name(), area=area,
+                                keys=False)
+        rec.start()
+        deadline = time.monotonic() + 20
+        while not rec.recording():
+            self.assertTrue(rec.running(), rec.error_text())
+            self.assertLess(time.monotonic(), deadline, rec.error_text())
+            self.pump(0.1)
+        self.pump(2.0)
+        fake_click(bx, by)
+        self.pump(1.0)
+        fake_click(5, 5)            # outside the area: not part of the recording
+        self.pump(1.5)
+        video = rec.stop()
+        self.assertEqual(self.pages, 1)
+        events = recorder.load_events(video)
+        self.assertEqual(events["screen"], area)
+        clicks = [e for e in events["events"] if e["type"] == "click"]
+        self.assertEqual([(c["x"], c["y"]) for c in clicks], [(bx, by)])
+        size = sc.run([FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries",
+                       "stream=width,height", "-of", "csv=p=0", str(video)]).stdout.strip()
+        self.assertEqual(size, "400,300")
+        frame = actions.to_frame(events, 400, 300)
+        self.assertEqual([e["x"] for e in frame if e["type"] == "click"], [200])
+
+    def test_the_window_under_a_point_is_found(self):
+        rect = recorder.window_at(self.button.winfo_rootx() + 5, self.button.winfo_rooty() + 5)
+        self.assertIsNotNone(rect)
+        self.assertLessEqual(rect[0], self.button.winfo_rootx())
+        self.assertGreaterEqual(rect[2], self.button.winfo_width())
 
 
 if __name__ == "__main__":

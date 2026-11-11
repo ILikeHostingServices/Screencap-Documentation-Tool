@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap.py
-# 2026-11-04
-# Version: v1.15.2
+# 2026-11-11
+# Version: v1.16.0
 #
 # PURPOSE:
 # Scans a source folder for screen recordings (.mp4, .mov, .mkv), uses FFmpeg
@@ -45,7 +45,7 @@ import workers  # noqa: E402
 from stepdoc import (INDEX_NAME, MANIFEST_NAME, ORIGINALS_DIR, Cancelled,  # noqa: E402,F401
                      UNREDACTED_DIR, UNREDACTED_INDEX, fmt_ts)
 
-VERSION = "1.15.2"
+VERSION = "1.16.0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv"}
 
 FFMPEG_MISSING_HELP = (
@@ -630,7 +630,15 @@ def parse_args(argv):
                    help="With --record: also record this microphone, for captions from "
                         "narration (see --list-microphones)")
     p.add_argument("--list-microphones", action="store_true",
-                   help="List the microphones --microphone can use, then exit")
+                   help="List the microphones --microphone can use (and the sources of the "
+                        "computer's sound --system-sound would use), then exit")
+    p.add_argument("--system-sound", action="store_true",
+                   help="With --record: also record the computer's own sound (Windows: "
+                        "Stereo Mix or a virtual cable; macOS: a loopback driver such as "
+                        "BlackHole; Linux: PulseAudio or PipeWire), mixed with the microphone")
+    p.add_argument("--record-area", metavar="X,Y,W,H",
+                   help="With --record: record only this rectangle of the screen (in screen "
+                        "pixels; points on a Mac) instead of the whole screen")
     p.add_argument("--no-key-log", action="store_true",
                    help="With --record: do not note keys pressed (by default Enter, Tab, "
                         "shortcuts and the like are noted by name; typed text never is)")
@@ -680,6 +688,13 @@ def parse_args(argv):
             p.error(f"--redact-pattern {rx!r} is not a valid regular expression: {exc}")
     if args.record_seconds is not None and args.record_seconds <= 0:
         p.error("--record-seconds must be more than 0")
+    if args.record_area is not None:
+        try:
+            args.record_area = [int(v) for v in args.record_area.split(",")]
+        except ValueError:
+            args.record_area = []
+        if len(args.record_area) != 4 or min(args.record_area[2:]) <= 0:
+            p.error("--record-area must be X,Y,WIDTH,HEIGHT, such as 0,0,1280,720")
     for name in ("debounce", "settle", "lead", "max_wait", "min_gap",
                  "analyze_fps", "dedup_threshold"):
         if getattr(args, name) < 0:
@@ -727,8 +742,16 @@ def record_cli(ffmpeg, source, args):
     """Record the screen until Enter is pressed (or --record-seconds pass).
     Returns the recording's path."""
     dest = source / recorder.default_name()
+    system = None
+    if args.system_sound:
+        found = recorder.list_system_audio(ffmpeg)
+        if not found:
+            raise recorder.RecorderError("No source of the computer's sound was found "
+                                         "(see --list-microphones).")
+        system = found[0][1]
     rec = recorder.Recorder(ffmpeg, dest, microphone=args.microphone,
-                            keys=not args.no_key_log, log=log)
+                            keys=not args.no_key_log, log=log, area=args.record_area,
+                            system_audio=system)
     rec.start()
     deadline = time.monotonic() + 15
     while not rec.recording():
@@ -787,6 +810,9 @@ def main(argv=None):
             print(spec if spec == label else f"{spec}    ({label})")
         if not mics:
             print("No microphones found.")
+        for label, spec in recorder.list_system_audio(ffmpeg):
+            print(f"Computer sound (--system-sound): {spec}" +
+                  ("" if spec == label else f"    ({label})"))
         return EXIT_OK
 
     recorded = None

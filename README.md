@@ -1,4 +1,4 @@
-README.md v1.59.0 (Last Rev: 2026-11-04)
+README.md v1.60.0 (Last Rev: 2026-11-11)
 
 # ScreenCap Docs
 
@@ -45,8 +45,8 @@ You can run it from a desktop GUI or from the command line. Both use the same en
 
 | | |
 | --- | --- |
-| ![Recording the screen: an employee onboarding web form being recorded, with the small Recording window and its Stop and Discard buttons in the corner](docs/screenshots/05-recording.png) | ![The Record window: microphone, noting keys, and making the screenshots when the recording stops](docs/screenshots/03-record-window.png) |
-| **Record** the task: every click is noted. | Choose a microphone for narration, or none. |
+| ![Recording the screen: an employee onboarding web form being recorded, with the small Recording window and its Stop and Discard buttons in the corner](docs/screenshots/05-recording.png) | ![The Record window: what to record (whole screen, one window, or an area), microphone, the computer's sound, noting keys, and making the screenshots when the recording stops](docs/screenshots/03-record-window.png) |
+| **Record** the task: every click is noted. | Choose what to record, a microphone, and the computer's sound. |
 | ![The Annotate menu with a numbered marker, an arrow, and a text label drawn on a step](docs/screenshots/02-annotate-menu.png) | ![The dark theme](docs/screenshots/04-dark-theme.png) |
 | Add arrows, numbers, and labels. | Light, dark, or the system's theme. |
 | ![The exported HTML document: title, version, date, author, and each step with its screenshot and caption](docs/screenshots/06-export-html.png) | ![A PowerPoint presentation of the steps: one slide per step with its screenshot and caption](docs/screenshots/07-powerpoint.png) |
@@ -405,9 +405,15 @@ Your folders and settings are saved when you process or close the window and res
 
 **Record** (above the list of recordings, or **File > Record Screen...**, Ctrl+R) records the screen the way Windows Steps Recorder did, but as a video, while it notes where you click and which keys you press.
 
-1. Choose a **Microphone** if you want to talk through the steps (your words can become captions with [Captions From Narration](#captions-from-narration)), and whether keys are noted.
-2. Click **Start Recording**. The main window minimizes and a small **Recording** window with a timer, **Stop**, and **Discard** appears in the bottom-right corner.
-3. Do the task as usual, pausing a moment after each step. Click **Stop** when you are done.
+1. Choose what to **Record**:
+   - **Whole screen** (the default).
+   - **One window**: after **Start Recording**, click the window. Its rectangle at that moment is recorded, so keep the window where it is. Not on macOS.
+   - **An area**: after **Start Recording**, drag over the part of the screen to record. Esc or a right-click cancels.
+
+   Only clicks inside the recorded window or area are noted.
+2. Choose a **Microphone** if you want to talk through the steps (your words can become captions with [Captions From Narration](#captions-from-narration)), whether the **computer's sound** is recorded too (videos, alert sounds; mixed with the microphone into one track), and whether keys are noted.
+3. Click **Start Recording**. The main window minimizes and a small **Recording** window with a timer, **Stop**, and **Discard** appears in the bottom-right corner.
+4. Do the task as usual, pausing a moment after each step. Click **Stop** when you are done.
 
 The recording is saved in the Recordings folder as `Recording <date> <time>.mkv`, selected in the list, and processed straight away (untick **Make the screenshots when I stop** to do that later).
 
@@ -425,10 +431,10 @@ What it is used for:
 
 By system:
 
-- **Windows:** all monitors are recorded, at their full resolution. The small Recording window is left out of the video (Windows 10 version 2004 and later).
+- **Windows:** **Whole screen** is all monitors, at their full resolution. The small Recording window is left out of the video (Windows 10 version 2004 and later). To record the computer's sound, switch on **Stereo Mix** (Sound settings > More sound settings > Recording, right-click > Show Disabled Devices, then Enable) or install a virtual audio cable; the checkbox is greyed out until one is found.
   Administrator (UAC) prompts and the lock screen cannot be recorded by any program: while one is showing, the Recording window says **Paused (admin prompt)**, and the recording carries on by itself when it closes. The parts are saved as one video, without the prompt; the log says how many times it paused.
-- **macOS:** the main display is recorded. The first time, macOS asks to allow the app (or Terminal, for the Python install) under **System Settings > Privacy & Security > Screen Recording**, and **Input Monitoring** for keys. Restart the app after allowing it.
-- **Linux:** the whole screen of an X11 session is recorded. Wayland sessions do not let other programs record the screen or see clicks: choose an "on Xorg" or "X11" session at the login screen, or record with the desktop's own recorder (GNOME: Ctrl+Shift+Alt+R) and put the file in the Recordings folder. The Recording window shows in the video there, in the bottom-right corner. In the snap, connect the microphone once with `sudo snap connect screencap-documentation-tool:audio-record`.
+- **macOS:** **Whole screen** is the main display; **One window** is not offered (draw **An area** around it instead). The computer's sound needs a loopback driver such as BlackHole. The first time, macOS asks to allow the app (or Terminal, for the Python install) under **System Settings > Privacy & Security > Screen Recording**, and **Input Monitoring** for keys. Restart the app after allowing it.
+- **Linux:** **Whole screen** is the whole screen of an X11 session. The computer's sound is recorded from the PulseAudio or PipeWire monitor of the default output. Wayland sessions do not let other programs record the screen or see clicks: choose an "on Xorg" or "X11" session at the login screen, or record with the desktop's own recorder (GNOME: Ctrl+Shift+Alt+R) and put the file in the Recordings folder. The Recording window shows in the video there, in the bottom-right corner. In the snap, connect the microphone once with `sudo snap connect screencap-documentation-tool:audio-record`.
 
 On the command line, `screencap --record` records until you press Enter and then processes the recording (see the [Command Line Reference](#command-line-reference)).
 
@@ -684,7 +690,7 @@ Each release is an annotated git tag (`v1.12.1`, for example) with notes on the 
 
 Every release that adds a feature or changes how the app looks also updates the screenshots in `docs/screenshots/` (run `packaging/screenshots/make_screenshots.sh`, and add a picture of the new feature when it has none), so the README, the software center listings, and the store pages always show the current app. The tests must pass on every supported system first.
 
-To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them. For the newest release it then builds the packaged Windows app from that tag and attaches the installer, the zip, a list of the app's components (`*-windows-sbom.cdx.json`, CycloneDX), and `SHA256SUMS.txt`, unless they are attached already. Every release file also gets a build provenance record, so anyone can check where it was built with `gh attestation verify <file> --repo ILikeHostingServices/Screencap-Documentation-Tool`.
+To cut a new release: set `RELEASE` and `RELEASE_DATE` in `version.py`, add the notes in `.github/releases/vX.Y.Z.md` and at the top of `CHANGELOG.md`, and commit. Then add a `vX.Y.Z <commit SHA>` line for that commit to `.github/releases/manifest.txt`, push, and run **Actions > Publish releases > Run workflow** on GitHub. The workflow only creates tags and releases (anything that already exists is skipped) and never deletes or rewrites them. For the newest release it then builds the packaged Windows app from that tag and attaches the installer, the zip, a list of the app's components (`*-windows-sbom.cdx.json`, CycloneDX), and `SHA256SUMS.txt`, unless they are attached already. The Linux build attaches the packages, a list of each snap's components (`*-snap-amd64-sbom.cdx.json` and `*-snap-arm64-sbom.cdx.json`), and `SHA256SUMS-linux.txt`. Every release file also gets a build provenance record, so anyone can check where it was built with `gh attestation verify <file> --repo ILikeHostingServices/Screencap-Documentation-Tool`.
 
 To build the packaged Windows app yourself (on Windows, from the repository folder): `py -3 -m pip install pyinstaller`, then `py -3 packaging\make_version_info.py build\version_info.txt` and `py -3 -m PyInstaller packaging\screencap.spec --noconfirm --clean`. The app is in `dist\Screencap-Documentation-Tool\`. For the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and run `iscc /DAppVersion=X.Y.Z packaging\installer.iss`; it is written to `release\`.
 
@@ -740,7 +746,9 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--record` | off | Record the screen first (press Enter in the terminal to stop), save the recording in the source folder, and process it. Clicks and keys are noted for click rings and captions. |
 | `--record-seconds N` | none | With `--record`: stop by itself after `N` seconds. |
 | `--microphone NAME` | none | With `--record`: also record this microphone, for Captions From Narration. `--list-microphones` shows the names. |
-| `--list-microphones` | | List the microphones `--microphone` can use, then exit. |
+| `--list-microphones` | | List the microphones `--microphone` can use, and the source of the computer's sound `--system-sound` would use, then exit. |
+| `--system-sound` | off | With `--record`: also record the computer's own sound (Windows: Stereo Mix or a virtual cable; macOS: a loopback driver such as BlackHole; Linux: PulseAudio or PipeWire), mixed with the microphone. |
+| `--record-area X,Y,W,H` | whole screen | With `--record`: record only this rectangle of the screen, in screen pixels (points on a Mac). |
 | `--no-key-log` | off | With `--record`: do not note keys at all (by default Enter, Tab, shortcuts and the like are noted by name; typed text never is). |
 | `--ignore-clicks` | off | Process a recording without the clicks and keys noted by the built-in recorder. |
 | `--no-click-marks` | off | Use the noted clicks for captions only, without red rings on the screenshots. |
@@ -799,6 +807,7 @@ Start with the log. Every run appends to `output/screencap.log`, with timestamps
 | `Clicks and keys could not be read` in the log | The recording was kept, without click rings or click captions. On Linux, install `libxtst6` (Debian, Ubuntu) or `libXtst` (Fedora, openSUSE). |
 | Captions say "the marked spot" instead of the button's name | Tesseract OCR is not installed, or could not read the words there (very small text, an icon without text). Install Tesseract and process the recording again with **Reprocess recordings that are already done**. |
 | `Recording did not work` on Windows with `Failed to capture image` | Windows switched to a screen that cannot be recorded (an administrator prompt, the lock screen, or a remote desktop session that was minimized or disconnected), and the recording could not carry on. Keep the remote desktop window open while recording. |
+| **Also record the computer's sound** is greyed out | No source of the computer's sound was found. Windows: switch on **Stereo Mix** (see [Recording The Screen](#recording-the-screen)) or install a virtual audio cable. macOS: install a loopback driver such as BlackHole. Linux: FFmpeg needs PulseAudio or PipeWire support. |
 | No microphones in the list | FFmpeg found none. On Windows check **Settings > Privacy & security > Microphone > Let desktop apps access your microphone**. In the snap, run `sudo snap connect screencap-documentation-tool:audio-record`. |
 
 ### Processing Problems

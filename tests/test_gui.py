@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # test_gui.py
-# 2026-11-04
-# Version: v1.11.0
+# 2026-11-11
+# Version: v1.12.0
 #
 # PURPOSE:
 # Drives the real GUI window: processes a synthetic recording through the
@@ -427,6 +427,8 @@ class GuiTests(unittest.TestCase):
         dialog = next(w for w in self.root.winfo_children()
                       if isinstance(w, self.gui.gui_recorder.RecordDialog))
         dialog.v_mic.set(self.gui.gui_recorder.NO_MIC)
+        dialog.v_mode.set(dict(self.gui.gui_recorder.MODES)["screen"])
+        dialog.v_process.set(True)
         dialog.start()
         session = self.app.recording
         end = time.monotonic() + 20
@@ -459,6 +461,67 @@ class GuiTests(unittest.TestCase):
                  if a["kind"] == "click"]
         self.assertEqual(len(rings), 1)
         self.assertEqual(self.errors, [])
+
+    @unittest.skipUnless(os.name == "nt" or recorder_ready(), "this desktop cannot be recorded")
+    def test_record_an_area_drawn_with_the_mouse(self):
+        gr = self.gui.gui_recorder
+        source = self.tmp / "area-source"
+        self.app.v_source.set(str(source))
+        self.app.start_recording()
+        self.pump()
+        dialog = next(w for w in self.root.winfo_children() if isinstance(w, gr.RecordDialog))
+        dialog.v_mic.set(gr.NO_MIC)
+        dialog.v_mode.set(dict(gr.MODES)["area"])
+        dialog.v_process.set(False)
+        dialog.start()
+        self.assertEqual(self.app.settings_extra[gr.MODE_KEY], "area")
+        end = time.monotonic() + 10
+        picker = None
+        while picker is None:
+            self.assertLess(time.monotonic(), end, "the area picker did not open")
+            self.pump(0.1)
+            picker = next((w for w in self.root.winfo_children()
+                           if isinstance(w, gr.AreaPicker)), None)
+        self.pump(0.3)
+        c = picker.canvas
+        c.event_generate("<ButtonPress-1>", x=100, y=120)
+        c.event_generate("<B1-Motion>", x=300, y=260)
+        c.event_generate("<ButtonRelease-1>", x=501, y=421)
+        session = self.app.recording
+        end = time.monotonic() + 20
+        while session.rec is None or not session.rec.recording():
+            self.assertLess(time.monotonic(), end,
+                            session.rec.error_text() if session.rec else "not started")
+            self.pump(0.1)
+        self.assertEqual(session.rec.area, [100, 120, 400, 300])
+        self.pump(1.5)
+        session.stop()
+        end = time.monotonic() + 30
+        while self.app.recording is not None:
+            self.assertLess(time.monotonic(), end, "the recording did not stop")
+            self.pump(0.2)
+        video = next(source.glob("Recording *.mkv"))
+        events = gr.recorder.load_events(video)
+        self.assertEqual(events["screen"], [100, 120, 400, 300])
+        self.assertEqual(events["mode"], "area")
+        self.assertEqual(self.errors, [])
+
+    def test_cancelling_the_area_picker_brings_the_window_back(self):
+        gr = self.gui.gui_recorder
+        self.app.v_source.set(str(self.tmp / "cancel-source"))
+        session = gr.RecordingSession(self.app)
+        session.begin(None, False, False, mode="area")
+        end = time.monotonic() + 10
+        picker = None
+        while picker is None:
+            self.assertLess(time.monotonic(), end)
+            self.pump(0.1)
+            picker = next((w for w in self.root.winfo_children()
+                           if isinstance(w, gr.AreaPicker)), None)
+        picker.event_generate("<Escape>")
+        self.pump(0.3)
+        self.assertIsNone(self.app.recording)
+        self.assertIsNone(session.rec)
 
     def test_toolbars_wrap_instead_of_cutting_buttons_off(self):
         import gui_editor

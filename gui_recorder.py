@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_recorder.py
-# 2026-10-25
-# Version: v1.2.0
+# 2026-11-11
+# Version: v1.3.0
 #
 # PURPOSE:
 # The GUI side of the built-in recorder (recorder.py): the Record window
@@ -11,7 +11,14 @@
 # The main window is minimized during the recording. When the recording is
 # stopped it is saved in the Recordings folder, selected in the list, and
 # (if chosen) processed straight away.
+#
+# What to record: the whole screen, one window (picked by clicking it), or
+# an area drawn with the mouse (AreaPicker, a see-through layer over the
+# screen; on Linux a still picture of the screen, since a see-through window
+# needs a compositing desktop there).
 
+import os
+import tempfile
 import threading
 import time
 import tkinter as tk
@@ -23,6 +30,10 @@ import version
 
 NO_MIC = "No microphone"
 KEYS_KEY, PROCESS_KEY, MIC_KEY = "record_keys", "record_process", "record_microphone"
+MODE_KEY, SOUND_KEY = "record_mode", "record_system_sound"
+SETTINGS_KEYS = (KEYS_KEY, PROCESS_KEY, MIC_KEY, MODE_KEY, SOUND_KEY)
+MODES = [("screen", "Whole screen"), ("window", "One window (click it after Start)"),
+         ("area", "An area (draw it after Start)")]
 START_DELAY_MS = 600     # lets the main window finish minimizing first
 DOT_ON, DOT_OFF = "#E53935", "#F8A5A3"   # the blinking red dot
 
@@ -32,16 +43,40 @@ def platform_note():
     if plat == "macos":
         return ("macOS asks for permission the first time: allow this app (or Terminal) "
                 "under System Settings > Privacy & Security > Screen Recording, and "
-                "Input Monitoring for keys. The main display is recorded.")
+                "Input Monitoring for keys. Whole screen is the main display.")
     if plat == "windows":
-        return ("All monitors are recorded. The small Recording window is left out of "
+        return ("Whole screen is all monitors. The small Recording window is left out of "
                 "the recording.")
-    return ("The whole X11 screen is recorded. The small Recording window shows in "
-            "the recording; it sits in the bottom-right corner.")
+    return ("Whole screen is the whole X11 screen. The small Recording window shows in "
+            "the recording when it is inside the recorded area; it sits in the "
+            "bottom-right corner.")
+
+
+def modes():
+    """The choices of what to record on this system (macOS cannot pick a
+    window, only draw an area)."""
+    if recorder.platform_name() == "macos":
+        return [m for m in MODES if m[0] != "window"]
+    return list(MODES)
+
+
+def system_sound_help():
+    """What to set up when no source of the computer's sound is found."""
+    plat = recorder.platform_name()
+    if plat == "windows":
+        return ("To record the computer's sound, switch on \"Stereo Mix\" (Sound settings > "
+                "More sound settings > Recording, right-click > Show Disabled Devices) "
+                "or install a virtual audio cable, then open this window again.")
+    if plat == "macos":
+        return ("To record the computer's sound, install a loopback driver such as "
+                "BlackHole and send the sound to it, then open this window again.")
+    return ("To record the computer's sound, FFmpeg needs PulseAudio or PipeWire "
+            "(pulse) support.")
 
 
 class RecordDialog(tk.Toplevel):
-    """Recording options. Calls on_start(microphone, keys, process)."""
+    """Recording options. Calls on_start(microphone, keys, process, mode,
+    system_audio)."""
 
     def __init__(self, app, on_start):
         super().__init__(app.root)
@@ -61,20 +96,17 @@ class RecordDialog(tk.Toplevel):
                   style="Muted.TLabel", wraplength=460, justify="left").grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(2, 14))
 
-        ttk.Label(body, text="Microphone").grid(row=2, column=0, sticky="w", padx=(0, 10))
-        self.mics = [(NO_MIC, None)]
-        try:
-            self.mics += recorder.list_microphones(app.ffmpeg)
-        except OSError:
-            pass
-        self.v_mic = tk.StringVar(value=extra.get(MIC_KEY) if extra.get(MIC_KEY) in
-                                  [m[0] for m in self.mics] else NO_MIC)
-        ttk.Combobox(body, textvariable=self.v_mic, state="readonly", width=38,
-                     values=[m[0] for m in self.mics]).grid(row=2, column=1, sticky="ew")
-        ttk.Label(body, text="Talk through the steps to turn your words into captions later "
-                             "(Captions From Narration in the Steps tab).",
-                  style="Muted.TLabel", wraplength=460, justify="left").grid(
-            row=3, column=0, columnspan=2, sticky="w", pady=(2, 10))
+        ttk.Label(body, text="Record").grid(row=2, column=0, sticky="w", padx=(0, 10))
+        self.modes = modes()
+        labels = dict(self.modes)
+        self.v_mode = tk.StringVar(value=labels.get(extra.get(MODE_KEY), labels["screen"]))
+        ttk.Combobox(body, textvariable=self.v_mode, state="readonly", width=38,
+                     values=[m[1] for m in self.modes]).grid(row=2, column=1, sticky="ew",
+                                                             pady=(0, 10))
+        body_rows = ttk.Frame(body)
+        body_rows.grid(row=3, column=0, columnspan=2, sticky="ew")
+        body_rows.columnconfigure(1, weight=1)
+        self._fill_sound(body_rows, extra, app)
 
         self.keys_policy = recorder.keys_disabled_by_policy()
         self.v_keys = tk.BooleanVar(value=False if self.keys_policy else extra.get(KEYS_KEY, True))
@@ -84,16 +116,16 @@ class RecordDialog(tk.Toplevel):
             keys_text = "Noting keys pressed is switched off by your administrator."
         ttk.Checkbutton(body, text=keys_text, variable=self.v_keys,
                         state="disabled" if self.keys_policy else "normal").grid(
-            row=4, column=0, columnspan=2, sticky="w")
+            row=5, column=0, columnspan=2, sticky="w", pady=(6, 0))
         self.v_process = tk.BooleanVar(value=extra.get(PROCESS_KEY, True))
         ttk.Checkbutton(body, text="Make the screenshots when I stop",
-                        variable=self.v_process).grid(row=5, column=0, columnspan=2,
+                        variable=self.v_process).grid(row=6, column=0, columnspan=2,
                                                       sticky="w", pady=(4, 0))
         ttk.Label(body, text=platform_note(), style="Muted.TLabel", wraplength=460,
-                  justify="left").grid(row=6, column=0, columnspan=2, sticky="w", pady=(12, 0))
+                  justify="left").grid(row=7, column=0, columnspan=2, sticky="w", pady=(12, 0))
 
         btns = ttk.Frame(body)
-        btns.grid(row=7, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        btns.grid(row=8, column=0, columnspan=2, sticky="e", pady=(16, 0))
         ttk.Button(btns, text="Cancel", command=self.destroy).pack(side="right")
         start = ttk.Button(btns, text="Start Recording", style="Accent.TButton",
                            command=self.start)
@@ -107,17 +139,162 @@ class RecordDialog(tk.Toplevel):
         y = root.winfo_rooty() + (root.winfo_height() - self.winfo_reqheight()) // 3
         self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
 
+    def _fill_sound(self, frame, extra, app):
+        """The Microphone and computer sound rows."""
+        ttk.Label(frame, text="Microphone").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        self.mics = [(NO_MIC, None)]
+        try:
+            self.mics += recorder.list_microphones(app.ffmpeg)
+        except OSError:
+            pass
+        self.v_mic = tk.StringVar(value=extra.get(MIC_KEY) if extra.get(MIC_KEY) in
+                                  [m[0] for m in self.mics] else NO_MIC)
+        ttk.Combobox(frame, textvariable=self.v_mic, state="readonly", width=38,
+                     values=[m[0] for m in self.mics]).grid(row=0, column=1, sticky="ew")
+        ttk.Label(frame, text="Talk through the steps to turn your words into captions later "
+                              "(Captions From Narration in the Steps tab).",
+                  style="Muted.TLabel", wraplength=460, justify="left").grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(2, 8))
+        try:
+            self.system = recorder.list_system_audio(app.ffmpeg)
+        except OSError:
+            self.system = []
+        self.v_system = tk.BooleanVar(value=bool(self.system) and extra.get(SOUND_KEY, False))
+        ttk.Checkbutton(frame, text="Also record the computer's sound (videos, alerts)",
+                        variable=self.v_system,
+                        state="normal" if self.system else "disabled").grid(
+            row=2, column=0, columnspan=2, sticky="w")
+        if not self.system:
+            ttk.Label(frame, text=system_sound_help(), style="Muted.TLabel", wraplength=460,
+                      justify="left").grid(row=3, column=0, columnspan=2, sticky="w",
+                                           pady=(2, 0))
+
     def start(self):
         label = self.v_mic.get()
         mic = dict(self.mics).get(label)
+        mode = {v: k for k, v in self.modes}.get(self.v_mode.get(), "screen")
+        system = self.system[0][1] if self.system and self.v_system.get() else None
         extra = self.app.settings_extra
         extra[MIC_KEY] = label
+        extra[MODE_KEY] = mode
+        if self.system:
+            extra[SOUND_KEY] = bool(self.v_system.get())
         if not self.keys_policy:      # keep the user's own choice for later
             extra[KEYS_KEY] = bool(self.v_keys.get())
         extra[PROCESS_KEY] = bool(self.v_process.get())
         self.app.save_settings()
         self.destroy()
-        self.on_start(mic, bool(self.v_keys.get()), bool(self.v_process.get()))
+        self.on_start(mic, bool(self.v_keys.get()), bool(self.v_process.get()), mode, system)
+
+
+class AreaPicker(tk.Toplevel):
+    """A layer over the whole screen to pick what to record: drag a
+    rectangle (mode "area") or click a window (mode "window"). Calls
+    on_done(rect) with [x, y, width, height] in screen coordinates, or
+    on_done(None) when cancelled (Esc or right-click)."""
+
+    def __init__(self, root, mode, on_done, ffmpeg=None):
+        super().__init__(root)
+        self.mode, self.on_done = mode, on_done
+        self.start_pt = None
+        self.rect_id = None
+        self.shot = None
+        full = recorder.screen_rect() or [0, 0, root.winfo_screenwidth(),
+                                          root.winfo_screenheight()]
+        self.origin = full[:2]
+        self.overrideredirect(True)
+        self.geometry(f"{full[2]}x{full[3]}{full[0]:+d}{full[1]:+d}")
+        self.attributes("-topmost", True)
+        self.canvas = tk.Canvas(self, highlightthickness=0, cursor="crosshair", bg="#202020")
+        self.canvas.pack(fill="both", expand=True)
+        if recorder.platform_name() == "linux":
+            self.shot = self._screenshot(ffmpeg, full)
+        if self.shot is not None:
+            self.canvas.create_image(0, 0, image=self.shot, anchor="nw")
+            self.canvas.create_rectangle(0, 0, full[2], full[3], fill="#000000",
+                                         stipple="gray25", outline="")
+        else:
+            try:
+                self.attributes("-alpha", 0.35)
+            except tk.TclError:
+                pass
+        hint = ("Drag over the area to record. Esc cancels." if mode == "area" else
+                "Click the window to record. Esc cancels.")
+        self.canvas.create_text(full[2] // 2, 60, text=hint, fill="white",
+                                font=("TkDefaultFont", 20, "bold"))
+        self.canvas.bind("<ButtonPress-1>", self._press)
+        self.canvas.bind("<B1-Motion>", self._drag)
+        self.canvas.bind("<ButtonRelease-1>", self._release)
+        self.canvas.bind("<ButtonPress-3>", lambda e: self._finish(None))
+        self.bind("<Escape>", lambda e: self._finish(None))
+        self.lift()
+        self.focus_force()
+        self.after(100, self._grab)
+
+    def _grab(self):
+        try:
+            self.grab_set()
+            self.focus_force()
+        except tk.TclError:
+            pass
+
+    @staticmethod
+    def _screenshot(ffmpeg, full):
+        """A still picture of the X11 screen, or None."""
+        if not ffmpeg:
+            return None
+        path = Path(tempfile.gettempdir()) / f"screencap_pick_{os.getpid()}.png"
+        try:
+            recorder._run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "x11grab",
+                           "-video_size", f"{full[2]}x{full[3]}", "-i",
+                           os.environ.get("DISPLAY", ":0"), "-frames:v", "1", str(path)])
+            return tk.PhotoImage(file=str(path)) if path.is_file() else None
+        except (OSError, tk.TclError):
+            return None
+        finally:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+
+    def _press(self, event):
+        self.start_pt = (event.x, event.y)
+        if self.mode == "window":
+            x, y = event.x_root, event.y_root
+            self.withdraw()     # the window under the point, not this layer
+            self.after(200, lambda: self._finish(recorder.window_at(x, y), window=True))
+
+    def _drag(self, event):
+        if self.mode != "area" or self.start_pt is None:
+            return
+        if self.rect_id is not None:
+            self.canvas.delete(self.rect_id)
+        x0, y0 = self.start_pt
+        self.rect_id = self.canvas.create_rectangle(x0, y0, event.x, event.y,
+                                                    outline="#E53935", width=3)
+
+    def _release(self, event):
+        if self.mode != "area" or self.start_pt is None:
+            return
+        x0, y0 = self.start_pt
+        x1, y1 = event.x, event.y
+        w, h = abs(x1 - x0), abs(y1 - y0)
+        if w < recorder.MIN_AREA or h < recorder.MIN_AREA:     # a click: try again
+            self.start_pt = None
+            return
+        ox, oy = self.origin
+        self._finish([min(x0, x1) + ox, min(y0, y1) + oy, w, h])
+
+    def _finish(self, rect, window=False):
+        if window and rect is None:
+            messagebox.showinfo(version.APP_NAME, "That window could not be found. Choose "
+                                "Whole screen or An area instead.", parent=self.master)
+        try:
+            self.grab_release()
+            self.destroy()
+        except tk.TclError:
+            pass
+        self.on_done(rect)
 
 
 class RecordingBar(tk.Toplevel):
@@ -189,7 +366,7 @@ class RecordingSession:
         RecordDialog(self.app, self.begin)
         return True
 
-    def begin(self, microphone, keys, process):
+    def begin(self, microphone, keys, process, mode="screen", system_audio=None):
         app = self.app
         source = Path(app.v_source.get()).expanduser()
         try:
@@ -199,12 +376,27 @@ class RecordingSession:
                                  f"{exc}", parent=app.root)
             return
         self.process = process
-        self.rec = recorder.Recorder(app.ffmpeg, source / recorder.default_name(),
-                                     microphone=microphone, keys=keys, log=app.log)
-        self.bar = RecordingBar(app.root, self.stop, self.discard)
-        recorder.hide_from_capture(self.bar.winfo_id())
+        options = dict(microphone=microphone, keys=keys, system_audio=system_audio, mode=mode)
         app.recording = self
         app.root.iconify()
+        if mode == "screen":
+            self._create(source, options, None)
+            return
+
+        def picked(rect):
+            if rect is None:        # cancelled
+                app.recording = None
+                app.root.deiconify()
+                return
+            self._create(source, options, rect)
+        app.root.after(START_DELAY_MS, lambda: AreaPicker(app.root, mode, picked, app.ffmpeg))
+
+    def _create(self, source, options, area):
+        app = self.app
+        self.rec = recorder.Recorder(app.ffmpeg, source / recorder.default_name(),
+                                     log=app.log, area=area, **options)
+        self.bar = RecordingBar(app.root, self.stop, self.discard)
+        recorder.hide_from_capture(self.bar.winfo_id())
         self.job = app.root.after(START_DELAY_MS, self._start)
 
     def _start(self):

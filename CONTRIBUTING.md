@@ -1,4 +1,4 @@
-CONTRIBUTING.md v1.5.0 (Last Rev: 2026-11-04)
+CONTRIBUTING.md v1.5.1 (Last Rev: 2026-11-11)
 
 # Contributing
 
@@ -29,7 +29,7 @@ Every commit must carry a `Signed-off-by:` line with your name and email, which 
 - **Headers.** Each file starts with its name, date, and version. Bump the file's own version when you change it (patch for fixes, minor for features).
 - **Writing rules.** Follow [docs/BRANDING.md](docs/BRANDING.md): the name is "ScreenCap Docs", plain US English, sentence case, dates as YYYY-MM-DD, versions with three parts, and no em or en dashes.
 - **Coding standards.** Python follows [PEP 8](https://peps.python.org/pep-0008/) as checked by [Ruff](https://docs.astral.sh/ruff/) with the settings in `ruff.toml`; the one exception is that short guard clauses may stay on one line (`if not x: return`). Shell scripts must pass [ShellCheck](https://www.shellcheck.net/), and PowerShell scripts must parse without errors. CI enforces all three on every push and pull request.
-- **Dependencies.** The app uses only the Python standard library, so it installs on locked-down PCs without extra packages. A new dependency (a Python package, a helper program, or a GitHub Action) needs a reason in the pull request, must be free and open source, actively maintained, and installable from the standard source (PyPI, winget, the distribution's packages, or the GitHub Marketplace). Third-party GitHub Actions are pinned to a full commit SHA and kept up to date by Dependabot. Helper programs are installed by the installers and listed in the README; the Windows build's components are listed in the SBOM attached to each release.
+- **Dependencies.** The app uses only the Python standard library, so it installs on locked-down PCs without extra packages. A new dependency (a Python package, a helper program, or a GitHub Action) needs a reason in the pull request, must be free and open source, actively maintained, and installable from the standard source (PyPI, winget, the distribution's packages, or the GitHub Marketplace). Third-party GitHub Actions are pinned to a full commit SHA and kept up to date by Dependabot. Helper programs are installed by the installers and listed in the README; the components of the Windows build and of the snaps are listed in the SBOMs attached to each release.
 - **No secrets or personal data.** No keys, tokens, real email addresses, recordings, or screenshots of real systems in commits.
 
 Pull requests do not change the app's version. Add a short note for each change people will notice under `## Unreleased` at the top of `CHANGELOG.md`; the maintainer turns those notes into the release notes when the release is cut.

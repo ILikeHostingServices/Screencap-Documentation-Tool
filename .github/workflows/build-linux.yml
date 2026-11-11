@@ -1,6 +1,6 @@
 # build-linux.yml
-# 2026-10-16
-# Version: v1.2.0
+# 2026-11-11
+# Version: v1.3.0
 #
 # PURPOSE:
 # Builds the Linux packages and tests each one on the distributions it is
@@ -17,7 +17,8 @@
 #           Raspberry Pi OS 32-bit). Every test runs packaging/linux/test_package.sh
 # Pull requests, pushes to main, and manual runs: build and test only.
 # Called by the release workflow with a release tag (or run by hand with
-# one): also attaches the files and SHA256SUMS-linux.txt to that release,
+# one): also attaches the files, a list of each snap's components (SBOM,
+# CycloneDX), and SHA256SUMS-linux.txt to that release,
 # then publishes to the AUR and the Snap Store when their secrets are set
 # (AUR_SSH_PRIVATE_KEY, SNAPCRAFT_STORE_CREDENTIALS; see the maintainer notes).
 
@@ -280,14 +281,44 @@ jobs:
           pattern: linux-*
           path: release
           merge-multiple: true
+      - name: Unpack the snaps to list their components
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          command -v unsquashfs >/dev/null || sudo apt-get install -y squashfs-tools
+          for snap in release/*.snap; do
+            arch="$(basename "$snap" .snap)"
+            unsquashfs -q -d "sbom-snap-${arch##*_}" "$snap"
+          done
+      # Each snap's own packages (snap/manifest.yaml, from build-info) and the
+      # Python files and programs inside it. Never blocks attaching the packages
+      - name: List the snap's components (SBOM, amd64)
+        continue-on-error: true
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c  # v0.24.3
+        with:
+          path: sbom-snap-amd64
+          format: cyclonedx-json
+          output-file: release/Screencap-Documentation-Tool-v${{ needs.packages.outputs.version }}-snap-amd64-sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: List the snap's components (SBOM, arm64)
+        continue-on-error: true
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c  # v0.24.3
+        with:
+          path: sbom-snap-arm64
+          format: cyclonedx-json
+          output-file: release/Screencap-Documentation-Tool-v${{ needs.packages.outputs.version }}-snap-arm64-sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - name: Upload the files to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
           cd release
-          sha256sum -- *.deb *.rpm *.pkg.tar.zst *.snap | sort -k2 > SHA256SUMS-linux.txt
+          sha256sum -- *.deb *.rpm *.pkg.tar.zst *.snap *.cdx.json | sort -k2 > SHA256SUMS-linux.txt
           cat SHA256SUMS-linux.txt
           gh release upload "${{ inputs.release_tag }}" ./* --clobber
           gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[].name'
@@ -300,6 +331,7 @@ jobs:
             release/*.rpm
             release/*.pkg.tar.zst
             release/*.snap
+            release/*.cdx.json
 
   aur:
     name: Publish to the AUR
