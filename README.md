@@ -1,4 +1,4 @@
-README.md v1.60.0 (Last Rev: 2026-11-11)
+README.md v1.61.0 (Last Rev: 2026-11-11)
 
 # ScreenCap Docs
 
@@ -126,6 +126,7 @@ Think of it like monitoring that alerts on state changes instead of polling on a
 | `annotate.py` | Annotations (arrows, numbered markers, text labels, click rings): draws them and gives FFmpeg the filters that put them on the screenshot. |
 | `recorder.py` | The built-in screen recorder: records with FFmpeg and notes clicks and keys with the system's own functions. |
 | `gui_recorder.py` | The GUI's Record window and the small Recording window (timer, Stop, Discard). |
+| `region.py` | How dates and times are written (the system's own setting, or a chosen date format and 12- or 24-hour clock). |
 | `archive.py` | Archiving: packs a recording, its click log, and its output folder into one checked .zip, and restores it. |
 | `gui_archive.py` | The GUI's Archive Selected Recordings command and the Archived Recordings window. |
 | `actions.py` | Uses the noted clicks and keys: gives each to its step, adds click rings, and writes first-draft captions. |
@@ -390,7 +391,7 @@ The window is laid out in the order you use it:
 1. **Folders** (top bar). **Recordings** is where recordings come from and **Output** is where results go. **Browse...** changes a folder and **Open** shows it in Explorer. Tick **Include subfolders** to scan the recordings folder recursively.
 2. **Recordings** (left). **Record** (or Ctrl+R) records the screen with the built-in recorder (see [Recording The Screen](#recording-the-screen)). Right-click a recording to process it, open its output folder, or archive it (see [Archiving Recordings](#archiving-recordings)). The list shows every recording found, with its status (New, Queued, Processing, Done, Failed, Cancelled) and step count. Click **Process All**, or Ctrl+click / Shift+click to pick several and click **Process Selected**. **Cancel** stops the run, and double-clicking a row opens its output folder.
 3. **Settings** (left, below). Pick a **Preset** for the kind of recording (see [Presets](#presets)); a line under it says what it is for. **Sensitivity** (High, Normal, Low, or your own threshold) and **Screenshot taken** (the finished state of each step, or right after each change) are the settings you change most. The check boxes switch the red **highlight** box, automatic **blurring** of passwords, keys, IP and email addresses (see [Blurring Sensitive Information](#blurring-sensitive-information)), **duplicate removal**, and **Captions from narration**. **Save as Preset...** and **Delete Preset** manage your own presets.
-4. **Advanced Settings...** (also in the **View** menu) opens a separate window, grouped into **Timing**, **Detection** (frames checked per second, analysis width, duplicate tolerance), **Output** (image format and extra **Also blur** patterns), and **Run** (**Reprocess recordings that are already done**, and **Dry run** to count steps without saving anything). **Reset to Defaults** puts everything back.
+4. **Advanced Settings...** (also in the **View** menu) opens a separate window, grouped into **Timing**, **Detection** (frames checked per second, analysis width, duplicate tolerance), **Output** (image format and extra **Also blur** patterns), **Region** (how dates and times are written: the system's own setting, or 2026-11-22, 11/22/2026, 22/11/2026, or 22.11.2026, and 12- or 24-hour times; used for the date on exported documents, the "Generated" line of `steps.md`, and the Archived Recordings window), and **Run** (**Reprocess recordings that are already done**, and **Dry run** to count steps without saving anything). **Reset to Defaults** puts everything back.
 5. **Steps tab** (right). The step editor for the selected recording (see [Editing Steps](#editing-steps) below).
 6. **Log tab.** Shows the run as it happens, with errors in red. The same log is saved to `output\screencap.log`. Ctrl+1 and Ctrl+2 switch between the tabs.
 7. **Status bar** (bottom). On the left, what is happening; in the middle, the progress of a run; on the right, the version and whether it is the latest (**Up to date**, or **Update available** in orange). Click the update part to check again or to see the new version.
@@ -752,6 +753,8 @@ Everything in the GUI is also available as a switch. On Linux and macOS use the 
 | `--no-key-log` | off | With `--record`: do not note keys at all (by default Enter, Tab, shortcuts and the like are noted by name; typed text never is). |
 | `--ignore-clicks` | off | Process a recording without the clicks and keys noted by the built-in recorder. |
 | `--no-click-marks` | off | Use the noted clicks for captions only, without red rings on the screenshots. |
+| `--date-format FORMAT` | `system` | How dates are written in `steps.md` and on exported documents: `system` (the system's own setting), `iso` (2026-11-22), `us` (11/22/2026), `dmy` (22/11/2026), or `dmy-dot` (22.11.2026). |
+| `--clock HOURS` | `system` | `12` or `24` hour times, or `system`. |
 | `-f`, `--format` | `png` | `png` keeps text sharp, which is best for docs. `jpg` makes smaller files. |
 | `--force` | off | Reprocesses recordings that already have output. The previous results, including captions, are moved into a `previous-<date>-<time>` folder rather than deleted. Without it, finished recordings are skipped. |
 | `--dry-run` | off | Lists the steps that would be captured without saving anything. |

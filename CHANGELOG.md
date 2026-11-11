@@ -1,4 +1,4 @@
-CHANGELOG.md v1.53.0 (Last Rev: 2026-11-11)
+CHANGELOG.md v1.54.0 (Last Rev: 2026-11-11)
 
 # Changelog
 
@@ -14,6 +14,9 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 **Recording**
 - Record one window or an area instead of the whole screen: choose it under **Record** in the Record window, then click the window or drag over the area. Only clicks inside it are noted. (One window is not offered on macOS; draw an area around it.) Command line: `--record-area X,Y,W,H`.
 - Record the computer's own sound (videos, alert sounds) as well as, or instead of, the microphone; both are mixed into one track. Windows needs Stereo Mix or a virtual audio cable, macOS a loopback driver such as BlackHole; Linux uses the PulseAudio or PipeWire monitor. Command line: `--system-sound`.
+
+**Region**
+- Choose how dates and times are written: the system's own setting (the default), or 2026-11-22, 11/22/2026, 22/11/2026, or 22.11.2026, with 12- or 24-hour times. Used for the date on exported documents, the "Generated" line of `steps.md`, and the Archived Recordings window. **View > Advanced Settings > Region**; command line: `--date-format` and `--clock`. File names and stored times stay in year-month-day form so they sort the same everywhere.
 
 **Improved**
 - The tagline is now "Record a task. Get the how-to guide." on the website and the Snap Store banner.

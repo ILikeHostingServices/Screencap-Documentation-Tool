@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_archive.py
-# 2026-11-04
-# Version: v1.0.0
+# 2026-11-11
+# Version: v1.1.0
 #
 # PURPOSE:
 # The GUI side of archive.py: File > Archive Selected Recordings (also on
@@ -18,6 +18,7 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 
 import archive
+import region
 import screencap as sc
 import stepdoc
 import version
@@ -166,7 +167,7 @@ class ArchiveWindow(tk.Toplevel):
         found = archive.list_archives(self.folder()) if self.folder().is_dir() else []
         for path, manifest in found:
             iid = self.tree.insert("", "end", text=manifest.get("recording", path.stem),
-                                   values=(manifest.get("archived", ""),
+                                   values=(region.format_stored(manifest.get("archived", "")),
                                            manifest.get("steps", ""),
                                            size_text(path.stat().st_size)))
             self.archives[iid] = path

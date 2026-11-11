@@ -2,7 +2,7 @@
 #
 # screencap_gui.pyw
 # 2026-11-11
-# Version: v2.8.0
+# Version: v2.9.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -39,6 +39,7 @@ import player  # noqa: E402
 import presets  # noqa: E402
 import version  # noqa: E402
 import redact  # noqa: E402
+import region  # noqa: E402
 import screencap as sc  # noqa: E402
 import transcribe  # noqa: E402
 import gui_archive  # noqa: E402
@@ -185,6 +186,11 @@ class App:
         self.v_auto_update = tk.BooleanVar(value=False)
         self.v_preset_about = tk.StringVar(value=presets.describe(presets.DEFAULT))
         self.v_theme = tk.StringVar(value="system")
+        self.v_date_format = tk.StringVar(value="system")   # a key of region.DATE_FORMATS
+        self.v_clock = tk.StringVar(value="system")         # a key of region.CLOCKS
+        for var in (self.v_date_format, self.v_clock):
+            var.trace_add("write", lambda *_: region.configure(self.v_date_format.get(),
+                                                               self.v_clock.get()))
 
     def build_styles(self):
         saved = self.read_settings_file()
@@ -608,6 +614,26 @@ class App:
             row=3, column=1, columnspan=2, sticky="w")
         row += 1
 
+        card = self.advanced_card(adv, "Region", row)
+        cards.append(card)
+        for n, (text, var, choices) in enumerate(
+                (("Dates", self.v_date_format,
+                  {k: v[0] for k, v in region.DATE_FORMATS.items()}),
+                 ("Times", self.v_clock, dict(region.CLOCKS))), start=1):
+            labels.append(ttk.Label(card, text=text, style="Card.TLabel"))
+            labels[-1].grid(row=n, column=0, sticky="w", padx=(0, 16), pady=2)
+            shown = tk.StringVar(value=choices.get(var.get(), choices["system"]))
+            box = ttk.Combobox(card, textvariable=shown, state="readonly", width=30,
+                               values=list(choices.values()))
+            box.grid(row=n, column=1, columnspan=2, sticky="w", pady=2)
+            box.bind("<<ComboboxSelected>>", lambda e, v=var, c=choices, s=shown:
+                     v.set({lab: key for key, lab in c.items()}[s.get()]))
+        ttk.Label(card, text="For the date on exported documents and the times the app "
+                             "shows. System setting follows Windows, macOS, or Linux.",
+                  style="Card.Muted.TLabel", wraplength=300, justify="left").grid(
+            row=3, column=1, columnspan=2, sticky="w")
+        row += 1
+
         card = self.advanced_card(adv, "Run", row)
         ttk.Checkbutton(card, text="Reprocess recordings that are already done",
                         variable=self.v_force, style="Card.TCheckbutton").grid(
@@ -773,7 +799,8 @@ class App:
                 "highlight": self.v_highlight, "redact": self.v_redact,
                 "redact_patterns": self.v_patterns, "preset": self.v_profile,
                 "transcribe": self.v_transcribe, "whisper_model": self.v_whisper_model,
-                "theme": self.v_theme}
+                "theme": self.v_theme, "date_format": self.v_date_format,
+                "clock": self.v_clock}
 
     @staticmethod
     def read_settings_file():
