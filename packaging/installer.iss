@@ -706,8 +706,8 @@ begin
   if Reinstall then
     Action := FmtMessage(CustomMessage('ReadyReinstallText'), ['{#AppName}', '{#AppVersion}'])
   else if OldVersion <> '' then
-    Action := FmtMessage(CustomMessage('ReadyUpdateFromText'),
-                         ['{#AppName}', OldVersion, '{#AppVersion}'])
+    Action := FmtMessage(CustomMessage('ReadyUpdateFromText'), ['{#AppName}',
+                         OldVersion, '{#AppVersion}'])
   else
     Action := FmtMessage(CustomMessage('ReadyUpdateText'), ['{#AppName}', '{#AppVersion}']);
   if CurPageID = wpReady then
@@ -725,8 +725,8 @@ begin
     WizardForm.PageDescriptionLabel.Caption := Action;
     { Two lines at most: the label has no room for a third (checked by the
       layout dump in build-windows.yml). The folder is in the memo below. }
-    WizardForm.ReadyLabel.Caption := FmtMessage(CustomMessage('ReadyReplace'),
-                                                [WizardForm.NextButton.Caption]);
+    WizardForm.ReadyLabel.Caption := FmtMessage(CustomMessage('ReadyReplace'), [
+                                                WizardForm.NextButton.Caption]);
   end
   else if CurPageID = wpFinished then
   begin

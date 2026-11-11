@@ -130,8 +130,12 @@ class InstallerTests(unittest.TestCase):
                                                           "LaunchProgram"}
         self.assertEqual(sorted(used - set(english)), [])
         self.assertEqual(sorted(set(english) - used), [])
-        # Inno Setup's preprocessor reads a line starting with # as a
-        # directive, so a continued #13#10 must not begin a line
+        # Inno Setup reads a line starting with # as a preprocessor directive
+        # and one starting with [ as a section, even inside [Code]: a
+        # continued #13#10 or [list] must not begin a line
+        code_start = script.index("\n[Code]\n")
+        lines = script[code_start + len("\n[Code]\n"):].splitlines()
+        self.assertEqual([line for line in lines if re.match(r"\s*(#\d|\[)", line)], [])
         self.assertEqual([n for n, line in enumerate(script.splitlines(), 1)
                           if re.match(r"\s*#\d", line)], [])
         # The installer's own words are no longer written out in the code
