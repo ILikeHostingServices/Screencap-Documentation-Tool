@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # gui_help.py
-# 2026-11-04
-# Version: v1.7.0
+# 2026-11-11
+# Version: v1.8.0
 #
 # PURPOSE:
 # The GUI's Help menu: a built-in help window (short guides, keyboard
@@ -44,15 +44,16 @@ More settings (timing, image format, extra blur patterns, dry run) are under Vie
     ("Recording The Screen", """\
 Record (above the list of recordings, or File > Record Screen, Ctrl+R) records the screen like Windows Steps Recorder did, but as a video:
 
-1. Choose a microphone if you want to talk through the steps (your words can become captions with Captions From Narration), and whether keys are noted.
-2. Click Start Recording. The window minimizes and a small Recording window with Stop and Discard appears in the bottom-right corner.
-3. Do the task as usual, then click Stop. The recording is saved in the Recordings folder and the screenshots are made straight away (unless you unticked that).
+1. Choose what to record: Whole screen, One window (click it after Start Recording; not on macOS), or An area (drag over it after Start Recording; Esc cancels). Only clicks inside the window or area are noted.
+2. Choose a microphone if you want to talk through the steps (your words can become captions with Captions From Narration), whether the computer's sound is recorded too, and whether keys are noted.
+3. Click Start Recording. The window minimizes and a small Recording window with Stop and Discard appears in the bottom-right corner.
+4. Do the task as usual, then click Stop. The recording is saved in the Recordings folder and the screenshots are made straight away (unless you unticked that).
 
 What gets noted: where and when you click (double-clicks, right-clicks, and drags too), and keys such as Enter, Tab, Esc, arrows, function keys, and shortcuts like Ctrl+S. Typed text is never saved: letters and digits only count as "type the text".
 
 What it is used for: each click gets a red ring on its step (a drag gets an arrow), and empty captions get a first draft such as Click "Next", or Click next to "User name", type the text, then press Tab. The words of the clicked button are read with Tesseract OCR when it is installed; words that look sensitive are left out. Edit any caption as usual; Captions From Narration replaces drafts you have not edited.
 
-Notes: on Windows all monitors are recorded, and the Recording window is left out of the video. On macOS allow Screen Recording (and Input Monitoring for keys) in System Settings > Privacy & Security. On Linux an X11 session is needed; Wayland desktops do not let other programs record the screen, so use the desktop's own recorder and put the file in the Recordings folder."""),
+Notes: on Windows Whole screen is all monitors, and the Recording window is left out of the video. The computer's sound needs Stereo Mix (Sound settings > More sound settings > Recording) or a virtual audio cable on Windows, and a loopback driver such as BlackHole on macOS. On macOS allow Screen Recording (and Input Monitoring for keys) in System Settings > Privacy & Security. On Linux an X11 session is needed; Wayland desktops do not let other programs record the screen, so use the desktop's own recorder and put the file in the Recordings folder."""),
     ("Presets", """\
 A preset is a named set of detection settings for one kind of recording:
 

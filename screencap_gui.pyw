@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # screencap_gui.pyw
-# 2026-11-04
-# Version: v2.7.0
+# 2026-11-11
+# Version: v2.8.0
 #
 # PURPOSE:
 # Desktop GUI for screencap.py. Pick source/output folders, tune detection
@@ -819,9 +819,7 @@ class App:
         self.settings_extra = {k: data[k] for k in ("check_updates", "last_update_check",
                                                     "skip_version", "installer_folders",
                                                     "export_logo", "export_template",
-                                                    gui_recorder.MIC_KEY,
-                                                    gui_recorder.KEYS_KEY,
-                                                    gui_recorder.PROCESS_KEY,
+                                                    *gui_recorder.SETTINGS_KEYS,
                                                     gui_archive.SHRINK_KEY)
                                if k in data}
         self.v_auto_update.set(bool(self.settings_extra.get("check_updates")))

@@ -1,4 +1,4 @@
-CHANGELOG.md v1.52.0 (Last Rev: 2026-11-04)
+CHANGELOG.md v1.53.0 (Last Rev: 2026-11-11)
 
 # Changelog
 
@@ -10,6 +10,10 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 
 **Archive**
 - **File > Archive Selected Recordings** (also on the right-click menu of the recordings list) packs a recording, its screenshots, captions, and exports into one .zip, with the video re-encoded to take less space, and takes it off the list. **File > Archived Recordings** restores or deletes archives. Nothing is removed until the archive is checked, and restoring never overwrites.
+
+**Recording**
+- Record one window or an area instead of the whole screen: choose it under **Record** in the Record window, then click the window or drag over the area. Only clicks inside it are noted. (One window is not offered on macOS; draw an area around it.) Command line: `--record-area X,Y,W,H`.
+- Record the computer's own sound (videos, alert sounds) as well as, or instead of, the microphone; both are mixed into one track. Windows needs Stereo Mix or a virtual audio cable, macOS a loopback driver such as BlackHole; Linux uses the PulseAudio or PipeWire monitor. Command line: `--system-sound`.
 
 **Improved**
 - The tagline is now "Record a task. Get the how-to guide." on the website and the Snap Store banner.

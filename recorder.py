@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # recorder.py
-# 2026-10-25
-# Version: v1.2.0
+# 2026-11-11
+# Version: v1.3.0
 #
 # PURPOSE:
 # The built-in screen recorder. FFmpeg records the screen (and, if chosen,
@@ -34,6 +34,19 @@
 #
 # Next to each recording, <name>.events.json holds the clicks and keys with
 # their time in the recording and the screen area that was recorded.
+#
+# What is recorded (area=): the whole screen (all monitors on Windows, the
+# whole X11 screen, the main display on a Mac), or a rectangle of it: one
+# window (its rectangle when it was picked, see window_at) or an area drawn
+# by the user. Clicks outside the rectangle are left out.
+#
+# Sound (optional): a microphone for narration, the computer's own sound
+# (system_audio=, see list_system_audio), or both mixed into one track.
+#   Windows: a loopback recording device such as "Stereo Mix" (switch it on
+#            under Sound settings > More sound settings > Recording) or a
+#            virtual cable
+#   macOS:   a loopback driver such as BlackHole
+#   Linux:   the PulseAudio or PipeWire monitor of the default output
 #
 # Windows shows administrator (UAC) prompts and the lock screen on a secure
 # desktop that no program may capture, and FFmpeg stops when it appears. The
@@ -141,6 +154,13 @@ def default_name():
 # FFmpeg command
 # ---------------------------------------------------------------------------
 
+# Recording devices that capture what the computer plays, not a microphone
+SYSTEM_SOUND_RE = re.compile(r"stereo mix|what u hear|wave out|wave-out|loopback|"
+                             r"cable output|virtual-audio-capturer|blackhole|soundflower",
+                             re.I)
+MIN_AREA = 32                # pixels: a smaller rectangle is not worth recording
+
+
 def _run(cmd):
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                           errors="replace", stdin=subprocess.DEVNULL, creationflags=NO_WINDOW)
@@ -173,29 +193,66 @@ def list_avfoundation(ffmpeg):
     return video, audio
 
 
+def _dshow_audio(ffmpeg):
+    """Names of the DirectShow audio devices (Windows)."""
+    res = _run([ffmpeg, "-hide_banner", "-list_devices", "true", "-f", "dshow",
+                "-i", "dummy"])
+    names = re.findall(r'"([^"]+)"\s*\(audio\)', res.stderr)
+    if not names:   # older FFmpeg lists devices under a heading instead
+        section = False
+        for line in res.stderr.splitlines():
+            if "DirectShow audio devices" in line:
+                section = True
+            elif "DirectShow video devices" in line:
+                section = False
+            elif section:
+                m = re.search(r'\]\s+"([^"]+)"\s*$', line)
+                if m:
+                    names.append(m.group(1))
+    return list(dict.fromkeys(names))
+
+
+def list_system_audio(ffmpeg):
+    """Sources of the computer's own sound FFmpeg can record: list of
+    (label, spec), spec for command(system_audio=). Empty when there is
+    none (Windows without Stereo Mix or a virtual cable, a Mac without a
+    loopback driver)."""
+    plat = platform_name()
+    if plat == "windows":
+        return [(n, n) for n in _dshow_audio(ffmpeg) if SYSTEM_SOUND_RE.search(n)]
+    if plat == "macos":
+        _, audio = list_avfoundation(ffmpeg)
+        return [(name, str(i)) for i, name in sorted(audio.items())
+                if SYSTEM_SOUND_RE.search(name)]
+    devices = _run([ffmpeg, "-hide_banner", "-devices"]).stdout
+    if re.search(r"^\s*D\S*\s+pulse\s", devices, re.M):
+        return [("System sound", "pulse:@DEFAULT_MONITOR@")]
+    return []
+
+
+def fit_area(area, screen):
+    """area ([x, y, width, height]) cut to the screen and to an even size
+    (H.264 needs one). Raises RecorderError when too little is left."""
+    x, y, w, h = (int(round(v)) for v in area)
+    sx, sy, sw, sh = (int(round(v)) for v in screen) if screen else (x, y, w, h)
+    x0, y0 = max(x, sx), max(y, sy)
+    x1, y1 = min(x + w, sx + sw), min(y + h, sy + sh)
+    w, h = (x1 - x0) // 2 * 2, (y1 - y0) // 2 * 2
+    if w < MIN_AREA or h < MIN_AREA:
+        raise RecorderError("The area to record is too small or off the screen.")
+    return [x0, y0, w, h]
+
+
 def list_microphones(ffmpeg):
     """Microphones FFmpeg can record from: list of (label, spec). spec is
     passed back to command()."""
     plat = platform_name()
     if plat == "windows":
-        res = _run([ffmpeg, "-hide_banner", "-list_devices", "true", "-f", "dshow",
-                    "-i", "dummy"])
-        names = re.findall(r'"([^"]+)"\s*\(audio\)', res.stderr)
-        if not names:   # older FFmpeg lists devices under a heading instead
-            section = False
-            for line in res.stderr.splitlines():
-                if "DirectShow audio devices" in line:
-                    section = True
-                elif "DirectShow video devices" in line:
-                    section = False
-                elif section:
-                    m = re.search(r'\]\s+"([^"]+)"\s*$', line)
-                    if m:
-                        names.append(m.group(1))
-        return [(n, n) for n in dict.fromkeys(names)]
+        return [(n, n) for n in _dshow_audio(ffmpeg) if not SYSTEM_SOUND_RE.search(n)]
     if plat == "macos":
         _, audio = list_avfoundation(ffmpeg)
-        return [(name, str(i)) for i, name in sorted(audio.items())]
+        return [(name, str(i)) for i, name in sorted(audio.items())
+                if not SYSTEM_SOUND_RE.search(name)]
     devices = _run([ffmpeg, "-hide_banner", "-devices"]).stdout
     if re.search(r"^\s*D\S*\s+pulse\s", devices, re.M):
         return [("Default microphone", "pulse:default")]
@@ -204,20 +261,31 @@ def list_microphones(ffmpeg):
     return []
 
 
-def command(ffmpeg, dest, encoder, microphone=None, display=None, screen_index=None):
+def command(ffmpeg, dest, encoder, microphone=None, display=None, screen_index=None,
+            area=None, system_audio=None, screen=None):
     """The FFmpeg command that records the screen into dest (.mkv). Every
     input is timestamped with the wall clock, so FFmpeg reports when the
-    first frame was taken ("start:") and clicks can be placed in the video."""
+    first frame was taken ("start:") and clicks can be placed in the video.
+    area ([x, y, width, height], from fit_area) records only that part of
+    the screen; screen is the whole screen's rectangle in the same units
+    (needed on a Mac, where the display is recorded whole and cut down).
+    system_audio is a spec from list_system_audio; with a microphone too,
+    the two are mixed into one sound track."""
     plat = platform_name()
     cmd = [ffmpeg, "-hide_banner", "-loglevel", "info", "-y"]
     clock = ["-thread_queue_size", "1024", "-use_wallclock_as_timestamps", "1"]
-    audio = False
+    sounds = []        # FFmpeg stream names of the sound inputs
+    crop = ""
     if plat == "windows":
-        cmd += clock + ["-f", "gdigrab", "-framerate", str(FPS), "-draw_mouse", "1",
-                        "-i", "desktop"]
-        if microphone:
-            cmd += clock + ["-f", "dshow", "-i", f"audio={microphone}"]
-            audio = True
+        grab = ["-f", "gdigrab", "-framerate", str(FPS), "-draw_mouse", "1"]
+        if area:
+            x, y, w, h = area
+            grab += ["-offset_x", str(x), "-offset_y", str(y), "-video_size", f"{w}x{h}"]
+        cmd += clock + grab + ["-i", "desktop"]
+        for device in (microphone, system_audio):
+            if device:
+                cmd += clock + ["-f", "dshow", "-i", f"audio={device}"]
+                sounds.append(f"{len(sounds) + 1}:a:0")
     elif plat == "macos":
         if screen_index is None:
             raise RecorderError("No screen to record was found (FFmpeg lists no "
@@ -225,18 +293,40 @@ def command(ffmpeg, dest, encoder, microphone=None, display=None, screen_index=N
         source = f"{screen_index}:{microphone}" if microphone else f"{screen_index}:none"
         cmd += clock + ["-f", "avfoundation", "-framerate", "30", "-capture_cursor", "1",
                         "-i", source]
-        audio = bool(microphone)
-    else:
-        cmd += clock + ["-f", "x11grab", "-framerate", str(FPS), "-draw_mouse", "1",
-                        "-i", display or os.environ.get("DISPLAY", ":0")]
         if microphone:
-            kind, _, name = microphone.partition(":")
-            cmd += clock + ["-f", kind, "-i", name or "default"]
-            audio = True
+            sounds.append("0:a:0")
+        if system_audio:
+            cmd += clock + ["-f", "avfoundation", "-i", f"none:{system_audio}"]
+            sounds.append("1:a:0")
+        if area:
+            # the display is recorded in pixels, the area is in points (a
+            # Retina screen has two pixels per point), so cut it in proportion
+            x, y, w, h = area
+            sx, sy, sw, sh = screen or (0, 0, w, h)
+            crop = (f"crop=iw*{w}/{sw}:ih*{h}/{sh}:iw*{x - sx}/{sw}:ih*{y - sy}/{sh},")
+    else:
+        grab = ["-f", "x11grab", "-framerate", str(FPS), "-draw_mouse", "1"]
+        target = display or os.environ.get("DISPLAY", ":0")
+        if area:
+            x, y, w, h = area
+            grab += ["-video_size", f"{w}x{h}"]
+            target += f"+{x},{y}"
+        cmd += clock + grab + ["-i", target]
+        for device in (microphone, system_audio):
+            if device:
+                kind, _, name = device.partition(":")
+                cmd += clock + ["-f", kind, "-i", name or "default"]
+                sounds.append(f"{len(sounds) + 1}:a:0")
     cmd += ["-map", "0:v:0"]
-    if audio:
-        cmd += ["-map", "1:a:0" if plat != "macos" else "0:a:0", "-c:a", "aac", "-b:a", "128k"]
-    cmd += ["-vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p", "-r", str(FPS)]
+    if len(sounds) == 2:
+        cmd += ["-filter_complex",
+                f"[{sounds[0]}][{sounds[1]}]amix=inputs=2:duration=longest[sound]",
+                "-map", "[sound]"]
+    elif sounds:
+        cmd += ["-map", sounds[0]]
+    if sounds:
+        cmd += ["-c:a", "aac", "-b:a", "128k"]
+    cmd += ["-vf", crop + "crop=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p", "-r", str(FPS)]
     if Path(dest).suffix.lower() != ".mkv":    # a part being recorded (.tmp)
         encoder = encoder + ["-f", "matroska"]
     cmd += encoder + [str(dest)]
@@ -756,10 +846,13 @@ class Recorder:
     and an input-polling thread; safe to drive from a GUI thread."""
 
     def __init__(self, ffmpeg, dest, microphone=None, keys=True, display=None,
-                 log=None):
+                 log=None, area=None, system_audio=None, mode=None):
         self.ffmpeg = ffmpeg
         self.dest = Path(dest)
         self.microphone = microphone
+        self.system_audio = system_audio
+        self.area = list(area) if area else None    # [x, y, w, h], or the whole screen
+        self.mode = mode or ("area" if area else "screen")
         self.keys = keys and not keys_disabled_by_policy()
         self.display = display
         self.log = log
@@ -795,7 +888,11 @@ class Recorder:
             video, _ = list_avfoundation(self.ffmpeg)
             screen_index = next((i for i, n in sorted(video.items())
                                  if n.lower().startswith("capture screen")), None)
-        self._cmd = (pick_encoder(self.ffmpeg), screen_index)
+        full = None
+        if self.area:
+            full = self._full_screen()
+            self.area = fit_area(self.area, full)
+        self._cmd = (pick_encoder(self.ffmpeg), screen_index, full)
         poll = threading.Thread(target=self._poll, daemon=True)
         self._threads.append(poll)
         poll.start()
@@ -805,11 +902,25 @@ class Recorder:
             self._finish(2)   # stop reading clicks and keys again
             raise RecorderError(f"FFmpeg could not be started: {exc}") from exc
 
+    def _full_screen(self):
+        """The whole screen's rectangle, in the units of clicks."""
+        try:
+            source = open_input(False, self.display)
+        except Exception:
+            return None
+        try:
+            return list(source.screen())
+        finally:
+            close = getattr(source, "close", None)
+            if close:
+                close()
+
     def _launch(self):
         """Start FFmpeg recording into self.part_path."""
-        encoder, screen_index = self._cmd
+        encoder, screen_index, full = self._cmd
         cmd = command(self.ffmpeg, self.part_path, encoder, self.microphone,
-                      self.display, screen_index)
+                      self.display, screen_index, area=self.area,
+                      system_audio=self.system_audio, screen=full)
         self.started_wall = None
         self._capture_lost = None
         self._size = None
@@ -951,8 +1062,11 @@ class Recorder:
             _unlink(p["path"])
 
     def _write_events(self, video, events, pauses=0):
+        if self.area:   # a click outside the recorded area is not in the video
+            events = [e for e in events if "x" not in e or _inside(self.area, e["x"], e["y"])]
         data = {"format": EVENTS_FORMAT, "platform": platform_name(),
-                "screen": self.screen, "events": events,
+                "screen": self.area or self.screen, "events": events,
+                "mode": self.mode,
                 "keys": bool(self.keys), "recorded": time.strftime("%Y-%m-%d %H:%M:%S")}
         if pauses:
             data["paused"] = pauses
@@ -1035,7 +1149,7 @@ class Recorder:
                 self.log.warning(self._poll_error)
             return
         try:
-            self.screen = list(source.screen())
+            self.screen = list(self.area or source.screen())
             if hasattr(source, "run"):      # reports events as they happen
                 self._source = source
                 if self._stop.is_set():
@@ -1084,6 +1198,94 @@ def hide_from_capture(window_id):
         return bool(hwnd and user32.SetWindowDisplayAffinity(ctypes.c_void_p(hwnd), 0x11))
     except (AttributeError, OSError):
         return False
+
+
+def screen_rect():
+    """The whole screen's rectangle in the units of clicks, without the
+    per-monitor DPI change the polling thread makes (safe to call from the
+    GUI thread). None when it cannot be found."""
+    if platform_name() == "windows":
+        try:
+            m = ctypes.WinDLL("user32").GetSystemMetrics
+            return [m(76), m(77), m(78), m(79)]
+        except (AttributeError, OSError):
+            return None
+    return None     # macOS and X11: Tk's screen size matches
+
+
+def window_at(x, y, display=None):
+    """The rectangle [x, y, width, height] of the top-level window at a
+    screen point, in the units of clicks; None when unknown (and always on
+    macOS). Used to record one window."""
+    plat = platform_name()
+    if plat == "windows":
+        return _windows_window_at(x, y)
+    if plat == "linux":
+        return _x11_window_at(x, y, display)
+    return None
+
+
+def _windows_window_at(x, y):
+    try:
+        user32 = ctypes.WinDLL("user32")
+        user32.WindowFromPoint.restype = ctypes.c_void_p
+        user32.WindowFromPoint.argtypes = [_WinPoint]
+        user32.GetAncestor.restype = ctypes.c_void_p
+        hwnd = user32.WindowFromPoint(_WinPoint(int(x), int(y)))
+        hwnd = hwnd and user32.GetAncestor(ctypes.c_void_p(hwnd), 2)   # GA_ROOT
+        if not hwnd:
+            return None
+        r = _WinRect()
+        try:    # the visible frame, without the invisible resize borders
+            ok = ctypes.WinDLL("dwmapi").DwmGetWindowAttribute(
+                ctypes.c_void_p(hwnd), 9, ctypes.byref(r), ctypes.sizeof(r)) == 0
+        except (AttributeError, OSError):
+            ok = False
+        if not ok and not user32.GetWindowRect(ctypes.c_void_p(hwnd), ctypes.byref(r)):
+            return None
+        return [r.left, r.top, r.right - r.left, r.bottom - r.top]
+    except (AttributeError, OSError):
+        return None
+
+
+def _x11_window_at(x, y, display=None):
+    xl = load_library("X11", "libX11.so.6")
+    if xl is None:
+        return None
+    xl.XOpenDisplay.restype = ctypes.c_void_p
+    xl.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    xl.XDefaultRootWindow.restype = ctypes.c_ulong
+    xl.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+    xl.XTranslateCoordinates.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong,
+                                         ctypes.c_int, ctypes.c_int,
+                                         ctypes.POINTER(ctypes.c_int),
+                                         ctypes.POINTER(ctypes.c_int),
+                                         ctypes.POINTER(ctypes.c_ulong)]
+    xl.XGetGeometry.argtypes = [ctypes.c_void_p, ctypes.c_ulong,
+                                ctypes.POINTER(ctypes.c_ulong)] + \
+        [ctypes.POINTER(ctypes.c_int)] * 2 + [ctypes.POINTER(ctypes.c_uint)] * 4
+    xl.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    name = (display or os.environ.get("DISPLAY") or "").encode() or None
+    dpy = xl.XOpenDisplay(name)
+    if not dpy:
+        return None
+    try:
+        root = xl.XDefaultRootWindow(dpy)
+        dx, dy, child = ctypes.c_int(), ctypes.c_int(), ctypes.c_ulong()
+        xl.XTranslateCoordinates(dpy, root, root, int(x), int(y), ctypes.byref(dx),
+                                 ctypes.byref(dy), ctypes.byref(child))
+        if not child.value:
+            return None     # the desktop itself
+        groot = ctypes.c_ulong()
+        wx, wy = ctypes.c_int(), ctypes.c_int()
+        w, h, border, depth = (ctypes.c_uint() for _ in range(4))
+        if not xl.XGetGeometry(dpy, child, ctypes.byref(groot), ctypes.byref(wx),
+                               ctypes.byref(wy), ctypes.byref(w), ctypes.byref(h),
+                               ctypes.byref(border), ctypes.byref(depth)):
+            return None
+        return [wx.value, wy.value, w.value + 2 * border.value, h.value + 2 * border.value]
+    finally:
+        xl.XCloseDisplay(dpy)
 
 
 def load_events(video):
