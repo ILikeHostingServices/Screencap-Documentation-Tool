@@ -142,6 +142,25 @@ class CommandTests(unittest.TestCase):
         self.assertIn("pulse", cmd)
         self.assertEqual(cmd[-1], "out.mkv")
 
+    def test_thread_queue_size_only_when_ffmpeg_takes_it_for_an_input(self):
+        newer = mock.Mock(returncode=1, stdout="", stderr=(
+            "Option thread_queue_size (set the maximum number of queued packets per "
+            "stream on the muxer) cannot be applied to input url nullsrc"))
+        older = mock.Mock(returncode=0, stdout="", stderr="")
+        enc = ["-c:v", "libx264"]
+        for done, expected in ((newer, 0), (older, 2)):
+            recorder.input_queue_option.cache_clear()
+            with mock.patch.object(recorder, "_run", return_value=done), \
+                    mock.patch.object(recorder, "platform_name", return_value="windows"):
+                cmd = recorder.command("ffmpeg-x", "out.mkv", enc, microphone="Mic")
+            self.assertEqual(cmd.count("-thread_queue_size"), expected)
+            self.assertEqual(cmd.count("-use_wallclock_as_timestamps"), 2)
+        recorder.input_queue_option.cache_clear()
+        with mock.patch.object(recorder, "_run", side_effect=OSError("missing")):
+            self.assertEqual(recorder.input_queue_option("ffmpeg-y"),
+                             ["-thread_queue_size", "1024"])
+        recorder.input_queue_option.cache_clear()
+
     def test_an_area_is_recorded_on_each_system(self):
         enc = ["-c:v", "libx264"]
         area = [100, 50, 640, 480]

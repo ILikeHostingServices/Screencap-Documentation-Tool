@@ -294,11 +294,13 @@ class EngineTests(unittest.TestCase):
 
 
 # The dialog opens (3 s), closes (6 s), and opens again (9 s); a small
-# checkbox is ticked at 12 s and the mouse cursor moves the whole time.
+# checkbox is ticked at 12 s. (An earlier "moving cursor" drawbox at
+# x=100+t*40 was never on screen: in drawbox, t is the line thickness, not
+# the time. Newer FFmpeg refuses such a box, so it is gone; the tests behave as
+# they always did.)
 REVISIT_FILTER = ("drawbox=x=300:y=200:w=600:h=300:color=gray:t=fill:"
                   "enable='between(t,3,6)+gte(t,9)',"
-                  "drawbox=x=320:y=230:w=14:h=14:color=black:t=fill:enable='gte(t,12)',"
-                  "drawbox=x='100+t*40':y=600:w=12:h=18:color=black:t=fill")
+                  "drawbox=x=320:y=230:w=14:h=14:color=black:t=fill:enable='gte(t,12)'")
 
 
 @unittest.skipUnless(FFMPEG and FFPROBE, "FFmpeg is not installed")
@@ -362,7 +364,7 @@ class DuplicateTests(unittest.TestCase):
     def test_small_change_is_not_a_duplicate(self):
         a = imaging.thumbnail(FFMPEG, self.frame(10.5))
         b = imaging.thumbnail(FFMPEG, self.frame(13.5))   # only the checkbox differs
-        c = imaging.thumbnail(FFMPEG, self.frame(11.0))   # only the cursor moved
+        c = imaging.thumbnail(FFMPEG, self.frame(11.0))   # nothing changed
         self.assertIsNone(imaging.find_duplicate(b, [a], 0.01))
         self.assertEqual(imaging.find_duplicate(c, [a], 0.01), 0)
 

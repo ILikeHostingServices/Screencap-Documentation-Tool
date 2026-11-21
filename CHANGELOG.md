@@ -1,12 +1,12 @@
-CHANGELOG.md v1.55.0 (Last Rev: 2026-11-11)
+CHANGELOG.md v1.56.0 (Last Rev: 2026-11-22)
 
 # Changelog
 
 Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35.0), newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
-## Unreleased
+## v1.38.0 - Archives, recording one window or an area, and five languages (2026-11-22)
 
-Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2, and the fix for missed steps in v1.36.3.
+The first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2, and the fix for missed steps in v1.36.3.
 
 **Archive**
 - **File > Archive Selected Recordings** (also on the right-click menu of the recordings list) packs a recording, its screenshots, captions, and exports into one .zip, with the video re-encoded to take less space, and takes it off the list. **File > Archived Recordings** restores or deletes archives. Nothing is removed until the archive is checked, and restoring never overwrites.
@@ -31,6 +31,7 @@ Collected for v1.38.0, the first release on the 4-week release train (there is n
 - A Snap Store set in `docs/store/`: the five screenshots the store allows and a featured banner, made by `packaging/screenshots/make_store_images.sh`.
 
 **Fixed**
+- Recording did not start with the newest FFmpeg (it stopped at once with "Option thread_queue_size ... cannot be applied to input url desktop"): newer FFmpeg only accepts that option for output files. The recorder now checks which kind of FFmpeg it has and leaves the option out when it is not accepted.
 - An email address shown as an underlined link (in LibreOffice Calc, for example) was not always blurred: the underline makes Tesseract split the address into pieces, so only the part after the break was blurred, or nothing. The whole address is now blurred, while ordinary words in front of it, such as "Email:" or "to", stay readable.
 
 **Credits**
