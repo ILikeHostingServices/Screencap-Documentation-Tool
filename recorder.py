@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # recorder.py
-# 2026-11-11
-# Version: v1.3.0
+# 2026-11-22
+# Version: v1.3.1
 #
 # PURPOSE:
 # The built-in screen recorder. FFmpeg records the screen (and, if chosen,
@@ -59,6 +59,7 @@
 
 import ctypes
 import ctypes.util
+import functools
 import json
 import os
 import re
@@ -164,6 +165,24 @@ MIN_AREA = 32                # pixels: a smaller rectangle is not worth recordin
 def _run(cmd):
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                           errors="replace", stdin=subprocess.DEVNULL, creationflags=NO_WINDOW)
+
+
+@functools.lru_cache(maxsize=None)
+def input_queue_option(ffmpeg):
+    """["-thread_queue_size", "1024"] when this FFmpeg takes it as an input
+    option (a bigger queue keeps a slow encoder from dropping screen frames),
+    else []. Newer FFmpeg only has it as an output option and refuses to
+    start when it is given for an input."""
+    option = ["-thread_queue_size", "1024"]
+    try:
+        res = _run([ffmpeg, "-hide_banner", "-loglevel", "error",
+                    "-thread_queue_size", "8", "-f", "lavfi", "-i", "nullsrc=s=16x16:d=0.1",
+                    "-frames:v", "1", "-f", "null", "-"])
+    except OSError:
+        return option
+    if res.returncode != 0 and "thread_queue_size" in (res.stderr or ""):
+        return []
+    return option
 
 
 def pick_encoder(ffmpeg):
@@ -273,7 +292,7 @@ def command(ffmpeg, dest, encoder, microphone=None, display=None, screen_index=N
     the two are mixed into one sound track."""
     plat = platform_name()
     cmd = [ffmpeg, "-hide_banner", "-loglevel", "info", "-y"]
-    clock = ["-thread_queue_size", "1024", "-use_wallclock_as_timestamps", "1"]
+    clock = input_queue_option(ffmpeg) + ["-use_wallclock_as_timestamps", "1"]
     sounds = []        # FFmpeg stream names of the sound inputs
     crop = ""
     if plat == "windows":

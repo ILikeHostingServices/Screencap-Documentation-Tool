@@ -31,6 +31,7 @@ The first release on the 4-week release train (there is no v1.37.0). The bug fix
 - A Snap Store set in `docs/store/`: the five screenshots the store allows and a featured banner, made by `packaging/screenshots/make_store_images.sh`.
 
 **Fixed**
+- Recording did not start with the newest FFmpeg (it stopped at once with "Option thread_queue_size ... cannot be applied to input url desktop"): newer FFmpeg only accepts that option for output files. The recorder now checks which kind of FFmpeg it has and leaves the option out when it is not accepted.
 - An email address shown as an underlined link (in LibreOffice Calc, for example) was not always blurred: the underline makes Tesseract split the address into pieces, so only the part after the break was blurred, or nothing. The whole address is now blurred, while ordinary words in front of it, such as "Email:" or "to", stay readable.
 
 **Credits**
