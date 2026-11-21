@@ -1,12 +1,12 @@
-CHANGELOG.md v1.55.0 (Last Rev: 2026-11-11)
+CHANGELOG.md v1.56.0 (Last Rev: 2026-11-22)
 
 # Changelog
 
 Every release of ScreenCap Docs (called Screencap Documentation Tool until v1.35.0), newest first. Each version is a git tag (Major.Minor.Patch), and the same notes appear on the GitHub Releases page.
 
-## Unreleased
+## v1.38.0 - Archives, recording one window or an area, and five languages (2026-11-22)
 
-Collected for v1.38.0, the first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2, and the fix for missed steps in v1.36.3.
+The first release on the 4-week release train (there is no v1.37.0). The bug fixes from Windows 11 testing shipped early in v1.36.2, and the fix for missed steps in v1.36.3.
 
 **Archive**
 - **File > Archive Selected Recordings** (also on the right-click menu of the recordings list) packs a recording, its screenshots, captions, and exports into one .zip, with the video re-encoded to take less space, and takes it off the list. **File > Archived Recordings** restores or deletes archives. Nothing is removed until the archive is checked, and restoring never overwrites.
